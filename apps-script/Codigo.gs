@@ -293,9 +293,16 @@ function converterOrcamentoEmPedido_(idOrcamento) {
 
     itens.forEach(function(item) {
       const qtd = numero_(item.QTDE);
-      const preco = numero_(item.PRECO_APROVADO || item.PRECO_SUGERIDO || item.PRECO_OBJETIVO);
+      const valorTotal = numero_(
+        item.PRECO_APROVADO_TOTAL ||
+        item.PRECO_SUGERIDO_TOTAL ||
+        item.PRECO_OBJETIVO_TOTAL ||
+        item.PRECO_APROVADO ||
+        item.PRECO_SUGERIDO ||
+        item.PRECO_OBJETIVO
+      );
+      const preco = qtd ? valorTotal / qtd : valorTotal;
       const custoTotal = numero_(item.CUSTO_TOTAL);
-      const valorTotal = qtd * preco;
 
       appendObjeto_(ABAS.PEDIDO_ITENS, {
         ID_PEDIDO_ITEM: novoId_('PEDI'),
