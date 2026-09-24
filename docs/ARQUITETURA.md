@@ -67,3 +67,30 @@ Ao converter, o pedido recebe um snapshot dos dados comerciais aprovados, manten
 ## Histórico antigo
 
 O histórico recebido não é alterado. Ele permanece em RAW e será tratado por DE/PARA. Isso permite corrigir classificações no futuro sem perder a origem do dado.
+
+
+## Versionamento de parâmetros de custos
+
+A despesa fixa e o custo/hora não são lidos de forma dinâmica a cada visualização de orçamento. Eles são importados da planilha oficial de custos e transformados em uma versão de parâmetros com vigência.
+
+Tabelas:
+- `PARAMETRO_VERSOES`: cabeçalho da versão, vigência, despesa fixa e origem.
+- `CUSTO_HORA_VERSOES`: custo/hora por processo vinculado à versão.
+- `ORCAMENTOS.PARAMETRO_VERSAO_ID`: versão usada pelo orçamento.
+- `ORCAMENTO_COMPONENTES.CUSTO_HORA`: snapshot do custo/hora efetivamente usado.
+
+Regra:
+1. Uma alteração na planilha de custos não sobrescreve o histórico.
+2. A versão vigente é encerrada com data/hora final.
+3. Uma nova versão é criada com início naquele momento.
+4. Somente orçamentos criados a partir dali usam os novos valores.
+5. Orçamentos já existentes continuam presos à versão original.
+6. Um orçamento antigo só poderá adotar a versão atual mediante uma ação explícita de recálculo, nunca automaticamente.
+
+Fonte inicial:
+- Planilha: `LEVANTAMENTO DE CUSTOS NEOSONICS (SETEMBRO DE 2026)`
+- ID: `13dOBvngdDVoFxvvaH3rTurVTInsEXhPPk62WMxGeXGU`
+- Despesa fixa: `DADOS!X2`
+- Custos/hora: `CUSTO HORA!A:B`
+
+O backend possui a ação `sincronizar_parametros_custos`, que compara os valores atuais da fonte com a versão ativa e só cria uma nova versão quando detectar alteração.
