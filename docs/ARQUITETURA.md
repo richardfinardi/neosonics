@@ -94,3 +94,23 @@ Fonte inicial:
 - Custos/hora: `CUSTO HORA!A:B`
 
 O backend possui a ação `sincronizar_parametros_custos`, que compara os valores atuais da fonte com a versão ativa e só cria uma nova versão quando detectar alteração.
+
+
+## Regra do preço sugerido
+
+O preço sugerido **não é calculado automaticamente** pela regra legado.
+
+Na calculadora atual, o usuário informa o preço sugerido e o sistema calcula sobre esse valor os indicadores de margem de contribuição, lucro e percentual de lucro. Portanto:
+
+- preço objetivo: calculado;
+- preço mínimo: calculado;
+- preço sugerido: informado pelo usuário;
+- margens/lucros do preço sugerido: calculados a partir do valor informado.
+
+O backend deve validar que o preço sugerido de cada item seja maior que zero, mas nunca substituí-lo por uma fórmula automática.
+
+## Proposta e reenvio
+
+O banco é a fonte oficial do orçamento. Não é necessário persistir um PDF por orçamento.
+
+Ao pesquisar um orçamento, o sistema deve remontar a proposta a partir do cabeçalho, itens, componentes e snapshots gravados. A visualização/arquivo para envio é gerada sob demanda. Assim, o usuário pode reenviar a mesma proposta sem depender de um PDF previamente salvo no Drive.
