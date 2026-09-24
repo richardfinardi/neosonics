@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.2.1' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.3.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -65,6 +65,9 @@ function doPost(e) {
 
       case 'salvar_orcamento':
         return json_(salvarOrcamento_(body.orcamento || {}));
+
+      case 'enviar_orcamento':
+        return json_(alterarStatusOrcamento_(body.id_orcamento, 'ENVIADO'));
 
       case 'aprovar_orcamento':
         return json_(alterarStatusOrcamento_(body.id_orcamento, 'APROVADO'));
@@ -131,20 +134,18 @@ function salvarOrcamento_(orcamento) {
     if (!itens.length) throw new Error('O orçamento precisa ter pelo menos um item.');
     if (itens.length > 10) throw new Error('Limite máximo de 10 itens por proposta atingido.');
 
-    itens.forEach(function(item) {
-      const precoSugerido = numero_(
-        item.PRECO_SUGERIDO_TOTAL !== undefined
-          ? item.PRECO_SUGERIDO_TOTAL
-          : item.PRECO_SUGERIDO
-      );
-      if (!precoSugerido || precoSugerido <= 0) {
-        throw new Error('Preço sugerido deve ser informado para todos os itens.');
-      }
-    });
-
     const idOrcamento = orcamento.ID_ORCAMENTO || novoId_('ORC');
     const numero = orcamento.NUMERO_ORCAMENTO || proximoNumeroOrcamento_();
     const agora = isoAgora_();
+    const statusSolicitado = String(orcamento.STATUS || 'RASCUNHO').toUpperCase();
+
+    if (statusSolicitado !== 'RASCUNHO') {
+      validarPrecoFinalItensPayload_(itens);
+    }
+
+    const valorFinalOrcamento = itens.reduce(function(total, item) {
+      return total + numero_(item.PRECO_FINAL_TOTAL);
+    }, 0);
 
     // Regra de versionamento:
     // - orçamento novo fixa a versão vigente naquele momento;
@@ -163,7 +164,8 @@ function salvarOrcamento_(orcamento) {
       NUMERO_ORCAMENTO: numero,
       VERSAO: orcamento.VERSAO || 1,
       DATA_ORCAMENTO: orcamento.DATA_ORCAMENTO || agora.substring(0, 10),
-      STATUS: orcamento.STATUS || 'RASCUNHO',
+      STATUS: statusSolicitado,
+      VALOR_TOTAL: valorFinalOrcamento || numero_(orcamento.VALOR_TOTAL),
       PARAMETRO_VERSAO_ID: versaoParametros.ID_VERSAO,
       DESPESA_FIXA_PCT: orcamento.DESPESA_FIXA_PCT !== undefined && orcamento.DESPESA_FIXA_PCT !== ''
         ? orcamento.DESPESA_FIXA_PCT
@@ -179,10 +181,31 @@ function salvarOrcamento_(orcamento) {
 
     itens.forEach(function(item, idx) {
       const idItem = item.ID_ITEM || novoId_('ORI');
+      const precoFinalTotal = numero_(item.PRECO_FINAL_TOTAL);
+      const qtdeItem = numero_(item.QTDE);
+      const custoMP = numero_(item.CUSTO_MP);
+      const custoTerceiros = numero_(item.CUSTO_TERCEIROS);
+      const custoFerramental = numero_(item.CUSTO_FERRAMENTAL);
+      const custoHoras = numero_(item.CUSTO_HORAS);
+      const impostos = numero_(cab.IMPOSTOS_PCT);
+      const despesaFixa = numero_(cab.DESPESA_FIXA_PCT);
+
+      const mcFinal = precoFinalTotal
+        ? precoFinalTotal - custoMP - custoTerceiros - custoFerramental - (impostos * precoFinalTotal)
+        : 0;
+      const lucroFinal = precoFinalTotal
+        ? mcFinal - custoHoras - (precoFinalTotal * despesaFixa)
+        : 0;
+
       const linhaItem = Object.assign({}, item, {
         ID_ITEM: idItem,
         ORCAMENTO_ID: idOrcamento,
         SEQ: item.SEQ || (idx + 1),
+        PRECO_FINAL_TOTAL: precoFinalTotal,
+        PRECO_FINAL_UNIT: qtdeItem ? precoFinalTotal / qtdeItem : precoFinalTotal,
+        MC_FINAL: mcFinal,
+        LUCRO_FINAL: lucroFinal,
+        MARGEM_FINAL_PCT: precoFinalTotal ? lucroFinal / precoFinalTotal : 0,
         STATUS: item.STATUS || 'ATIVO'
       });
       delete linhaItem.componentes;
@@ -232,15 +255,20 @@ function salvarOrcamento_(orcamento) {
 function alterarStatusOrcamento_(idOrcamento, novoStatus) {
   if (!idOrcamento) throw new Error('ID do orçamento não informado.');
 
+  const status = String(novoStatus || '').toUpperCase();
+  if (status === 'ENVIADO' || status === 'APROVADO' || status === 'CONVERTIDO') {
+    validarPrecoFinalOrcamentoSalvo_(idOrcamento);
+  }
+
   const sh = aba_(ABAS.ORCAMENTOS);
   const headers = cabecalhos_(sh);
   const row = localizarLinha_(sh, headers.ID_ORCAMENTO, idOrcamento);
   if (!row) throw new Error('Orçamento não encontrado.');
 
-  setCelulaPorHeader_(sh, headers, row, 'STATUS', novoStatus);
+  setCelulaPorHeader_(sh, headers, row, 'STATUS', status);
   setCelulaPorHeader_(sh, headers, row, 'DT_ATUALIZACAO', isoAgora_());
 
-  return { ok: true, id_orcamento: idOrcamento, status: novoStatus };
+  return { ok: true, id_orcamento: idOrcamento, status: status };
 }
 
 function converterOrcamentoEmPedido_(idOrcamento) {
@@ -293,14 +321,10 @@ function converterOrcamentoEmPedido_(idOrcamento) {
 
     itens.forEach(function(item) {
       const qtd = numero_(item.QTDE);
-      const valorTotal = numero_(
-        item.PRECO_APROVADO_TOTAL ||
-        item.PRECO_SUGERIDO_TOTAL ||
-        item.PRECO_OBJETIVO_TOTAL ||
-        item.PRECO_APROVADO ||
-        item.PRECO_SUGERIDO ||
-        item.PRECO_OBJETIVO
-      );
+      const valorTotal = numero_(item.PRECO_FINAL_TOTAL);
+      if (!valorTotal || valorTotal <= 0) {
+        throw new Error('Item sem PRECO_FINAL_TOTAL. O pedido só pode usar o preço efetivamente enviado ao cliente.');
+      }
       const preco = qtd ? valorTotal / qtd : valorTotal;
       const custoTotal = numero_(item.CUSTO_TOTAL);
 
@@ -338,6 +362,30 @@ function converterOrcamentoEmPedido_(idOrcamento) {
   }
 }
 
+
+function validarPrecoFinalItensPayload_(itens) {
+  itens.forEach(function(item) {
+    const preco = numero_(item.PRECO_FINAL_TOTAL);
+    if (!preco || preco <= 0) {
+      throw new Error('Defina o preço final que será enviado ao cliente para todos os itens.');
+    }
+  });
+}
+
+function validarPrecoFinalOrcamentoSalvo_(idOrcamento) {
+  const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS).filter(function(item) {
+    return String(item.ORCAMENTO_ID) === String(idOrcamento);
+  });
+
+  if (!itens.length) throw new Error('O orçamento não possui itens.');
+
+  itens.forEach(function(item) {
+    const preco = numero_(item.PRECO_FINAL_TOTAL);
+    if (!preco || preco <= 0) {
+      throw new Error('Existe item sem preço final definido. Informe o preço que será enviado ao cliente.');
+    }
+  });
+}
 
 function getVersaoParametrosAtiva_() {
   const versoes = listarObjetos_(ABAS.PARAMETRO_VERSOES);
