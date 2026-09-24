@@ -223,6 +223,7 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
       <button class="active" data-page="overview"><span class="ico">⌂</span><span class="nav-text">Visão Executiva</span></button>
       <button data-page="clients"><span class="ico">◎</span><span class="nav-text">Clientes</span></button>
       <button data-page="quotes"><span class="ico">R$</span><span class="nav-text">Orçamentos</span></button>
+      <button data-page="orders"><span class="ico">▣</span><span class="nav-text">Pedidos</span></button>
     </div>
 
     <div class="group-title">Análises</div>
@@ -230,7 +231,6 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
       <button data-page="segments"><span class="ico">◫</span><span class="nav-text">Segmentos</span></button>
       <button data-page="products"><span class="ico">◇</span><span class="nav-text">Produtos</span></button>
       <button data-page="states"><span class="ico">⌖</span><span class="nav-text">Estados</span></button>
-      <button data-page="production"><span class="ico">⚙</span><span class="nav-text">Produção</span></button>
     </div>
 
     <div class="sidebar-foot"><b>Plataforma Comercial</b>Clientes, orçamentos, indicadores e análises gerenciais em uma única interface.</div>
@@ -391,8 +391,8 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
 
       <section id="quotes" class="page">
         <div class="hero">
-          <div><h2>Orçamentos e formação de preço</h2><p>Centralize simulações, formação de preço, emissão e histórico de propostas comerciais em um único módulo.</p></div>
-          <div class="badge">Formação de preço</div>
+          <div><h2>Orçamentos e formação de preço</h2><p>Monte o preço pela calculadora, salve versões, acompanhe o histórico da proposta e converta o orçamento aprovado diretamente em pedido.</p></div>
+          <div class="badge">Calculadora + orçamento</div>
         </div>
 
         <div class="grid2">
@@ -421,7 +421,7 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
                 <div class="summary"><span>Margem estimada</span><strong>35,0%</strong><small>Simulação</small></div>
                 <div class="summary"><span>Markup</span><strong>1,63x</strong><small>Simulação</small></div>
               </div>
-              <div class="cta"><b>Observação:</b> a integração com a calculadora atualmente utilizada pela empresa é apresentada no mockup como possibilidade adicional e não está incluída automaticamente no escopo inicial.</div>
+              <div class="cta"><b>Fluxo:</b> calcular preço → salvar orçamento → enviar proposta → aprovar → converter em pedido. Todos os valores e componentes de custo ficam gravados como histórico do orçamento.</div>
             </div>
           </div>
         </div>
@@ -430,11 +430,43 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
           <div class="panel-head"><div><div class="panel-title">Histórico de orçamentos</div><div class="panel-sub">Consulta de propostas comerciais</div></div><button class="secondary">+ Novo orçamento</button></div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nº</th><th>Cliente</th><th>Item</th><th>Data</th><th>Valor</th><th>Margem</th><th>Status</th></tr></thead>
+              <thead><tr><th>Nº</th><th>Cliente</th><th>Item</th><th>Data</th><th>Valor</th><th>Margem</th><th>Status</th><th>Ações</th></tr></thead>
               <tbody>
-                <tr><td>1002</td><td>Cliente A</td><td>Sonotrodo 35kHz</td><td>22/09/2026</td><td>R$ 10.480</td><td>35,0%</td><td><span class="status mid">Em análise</span></td></tr>
-                <tr><td>1001</td><td>Cliente B</td><td>Conjunto especial</td><td>18/09/2026</td><td>R$ 18.900</td><td>38,2%</td><td><span class="status good">Aprovado</span></td></tr>
-                <tr><td>0998</td><td>Cliente C</td><td>Ferramenta especial</td><td>10/09/2026</td><td>R$ 7.850</td><td>29,1%</td><td><span class="status low">Perdido</span></td></tr>
+                <tr><td>1002</td><td>Cliente A</td><td>Sonotrodo 35kHz</td><td>22/09/2026</td><td>R$ 10.480</td><td>35,0%</td><td><span class="status mid">Em análise</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
+                <tr><td>1001</td><td>Cliente B</td><td>Conjunto especial</td><td>18/09/2026</td><td>R$ 18.900</td><td>38,2%</td><td><span class="status good">Aprovado</span></td><td><button class="primary" style="height:30px" onclick="convertQuoteDemo()">Converter em pedido</button></td></tr>
+                <tr><td>0998</td><td>Cliente C</td><td>Ferramenta especial</td><td>10/09/2026</td><td>R$ 7.850</td><td>29,1%</td><td><span class="status low">Perdido</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <section id="orders" class="page">
+        <div class="hero">
+          <div><h2>Pedidos</h2><p>Pedidos gerados a partir de orçamentos aprovados, mantendo rastreabilidade entre a proposta comercial, os preços aprovados e a venda realizada.</p></div>
+          <div class="badge">Orçamento → Pedido</div>
+        </div>
+
+        <div class="grid4">
+          <div class="summary"><span>Pedidos abertos</span><strong>12</strong><small>Aguardando andamento</small></div>
+          <div class="summary"><span>Confirmados</span><strong>8</strong><small>Pedidos ativos</small></div>
+          <div class="summary"><span>Faturados</span><strong>31</strong><small>Período atual</small></div>
+          <div class="summary"><span>Valor em carteira</span><strong>R$ 386 mil</strong><small>Exemplo visual</small></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Carteira de pedidos</div><div class="panel-sub">Rastreabilidade desde o orçamento de origem</div></div>
+            <button class="secondary">Exportar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Orçamento origem</th><th>Vendedor</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody>
+                <tr><td>PED-0001</td><td>24/09/2026</td><td>Cliente B</td><td>1001</td><td>Alexandro</td><td>R$ 18.900</td><td><span class="status good">Confirmado</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
+                <tr><td>PED-0002</td><td>23/09/2026</td><td>Cliente A</td><td>0997</td><td>Alexandro</td><td>R$ 27.400</td><td><span class="status mid">Aberto</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
+                <tr><td>PED-0003</td><td>21/09/2026</td><td>Cliente D</td><td>0992</td><td>Comercial 02</td><td>R$ 14.250</td><td><span class="status good">Faturado</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
               </tbody>
             </table>
           </div>
@@ -485,16 +517,6 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
         </div>
       </section>
 
-      <section id="production" class="page">
-        <div class="hero"><div><h2>Produção</h2><p>Cruzamento entre dados comerciais e informações produtivas conforme as regras definidas para o negócio.</p></div><div class="badge">Indicadores produtivos</div></div>
-        <div class="grid3">
-          <div class="panel module-card"><div class="module-icon">%</div><h3>Participação produtiva</h3><p>Percentual de volume por cliente, produto ou segmento.</p></div>
-          <div class="panel module-card"><div class="module-icon">⌁</div><h3>Vendas x produção</h3><p>Comparação entre demanda comercial e volume produzido.</p></div>
-          <div class="panel module-card"><div class="module-icon">◷</div><h3>Horas produtivas</h3><p>Indicadores de capacidade e consumo de recursos.</p></div>
-        </div>
-        <div class="cta">Os indicadores de produção serão configurados de acordo com a origem dos dados e os critérios de cálculo definidos para a operação.</div>
-      </section>
-
     </div>
   </main>
 </div>
@@ -520,7 +542,7 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
 </div>
 
 <script>
-const names={overview:"Visão Executiva",clients:"Clientes",quotes:"Orçamentos",segments:"Segmentos",products:"Produtos",states:"Estados",production:"Produção"};
+const names={overview:"Visão Executiva",clients:"Clientes",quotes:"Orçamentos",orders:"Pedidos",segments:"Segmentos",products:"Produtos",states:"Estados"};
 document.querySelectorAll(".nav button").forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
@@ -541,6 +563,9 @@ function toggleMobileMenu(){
 function closeMobileMenu(){
   document.querySelector(".sidebar").classList.remove("open");
   document.getElementById("menuOverlay").classList.remove("open");
+}
+function convertQuoteDemo(){
+  alert("Orçamento aprovado convertido em pedido. No sistema real, o pedido herdará cliente, itens, preços e vínculo com o orçamento de origem.");
 }
 function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transition=".6s";setTimeout(()=>btn.style.transform="",650)}
 function openDrawer(c,s,r,m,sh){
