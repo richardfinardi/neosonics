@@ -114,3 +114,21 @@ O backend deve validar que o preço sugerido de cada item seja maior que zero, m
 O banco é a fonte oficial do orçamento. Não é necessário persistir um PDF por orçamento.
 
 Ao pesquisar um orçamento, o sistema deve remontar a proposta a partir do cabeçalho, itens, componentes e snapshots gravados. A visualização/arquivo para envio é gerada sob demanda. Assim, o usuário pode reenviar a mesma proposta sem depender de um PDF previamente salvo no Drive.
+
+
+## Preço final do orçamento
+
+As sugestões de preço são apenas apoio para decisão do usuário. O sistema pode exibir preço objetivo, preço mínimo e cenários de margem, mas nenhum deles é automaticamente o preço comercial da proposta.
+
+Cada item possui um único valor oficial:
+
+- `PRECO_FINAL_TOTAL`: valor total que efetivamente será enviado ao cliente.
+- `PRECO_FINAL_UNIT`: derivado do preço final total dividido pela quantidade.
+- `MC_FINAL`, `LUCRO_FINAL` e `MARGEM_FINAL_PCT`: calculados sobre o preço final escolhido.
+
+Regras:
+1. Em rascunho, o preço final pode ficar em branco enquanto o usuário simula.
+2. Para marcar como ENVIADO ou APROVADO, todos os itens precisam ter preço final definido.
+3. A conversão para pedido usa exclusivamente o `PRECO_FINAL_TOTAL`.
+4. Preço objetivo, mínimo ou qualquer sugestão nunca substituem automaticamente o preço final.
+5. O histórico guarda o preço efetivamente enviado ao cliente e os indicadores calculados sobre ele.
