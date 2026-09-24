@@ -1,4 +1,6 @@
 const DB_SPREADSHEET_ID = '1muCnR88feYxBnzTdtLKuPFgu_d0nq9HB5vsY3js6Gfs';
+const CUSTOS_ORIGEM_SPREADSHEET_ID = '13dOBvngdDVoFxvvaH3rTurVTInsEXhPPk62WMxGeXGU';
+const CUSTOS_ORIGEM_TITULO = 'LEVANTAMENTO DE CUSTOS NEOSONICS';
 
 const ABAS = Object.freeze({
   CLIENTES: 'CLIENTES',
@@ -15,6 +17,8 @@ const ABAS = Object.freeze({
   PEDIDO_ITENS: 'PEDIDO_ITENS',
   PROCESSOS_CUSTO: 'PROCESSOS_CUSTO',
   TABELA_IMPOSTOS: 'TABELA_IMPOSTOS',
+  PARAMETRO_VERSOES: 'PARAMETRO_VERSOES',
+  CUSTO_HORA_VERSOES: 'CUSTO_HORA_VERSOES',
   CONFIG: 'CONFIG',
   IMPORT_LOG: 'IMPORT_LOG'
 });
@@ -25,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.1.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.2.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -71,6 +75,9 @@ function doPost(e) {
       case 'converter_orcamento_pedido':
         return json_(converterOrcamentoEmPedido_(body.id_orcamento));
 
+      case 'sincronizar_parametros_custos':
+        return json_(sincronizarParametrosCustos_());
+
       default:
         return json_({ ok: false, erro: 'Ação POST inválida: ' + acao });
     }
@@ -87,6 +94,8 @@ function getBootstrap_() {
     produtos: listarObjetos_(ABAS.PRODUTOS),
     processos: listarObjetos_(ABAS.PROCESSOS_CUSTO),
     impostos: listarObjetos_(ABAS.TABELA_IMPOSTOS),
+    parametro_versao_ativa: getVersaoParametrosAtiva_(),
+    custos_hora_ativos: getCustosHoraVersaoAtiva_(),
     config: listarObjetos_(ABAS.CONFIG)
   };
 }
@@ -125,12 +134,29 @@ function salvarOrcamento_(orcamento) {
     const numero = orcamento.NUMERO_ORCAMENTO || proximoNumeroOrcamento_();
     const agora = isoAgora_();
 
+    // Regra de versionamento:
+    // - orçamento novo fixa a versão vigente naquele momento;
+    // - orçamento já criado continua usando sua versão original;
+    // - atualização global de custos nunca recalcula orçamento antigo automaticamente.
+    const versaoParametros = orcamento.PARAMETRO_VERSAO_ID
+      ? getVersaoParametrosPorId_(orcamento.PARAMETRO_VERSAO_ID)
+      : getVersaoParametrosAtiva_();
+
+    if (!versaoParametros) {
+      throw new Error('Nenhuma versão de parâmetros de custo está ativa.');
+    }
+
     const cab = Object.assign({}, orcamento, {
       ID_ORCAMENTO: idOrcamento,
       NUMERO_ORCAMENTO: numero,
       VERSAO: orcamento.VERSAO || 1,
       DATA_ORCAMENTO: orcamento.DATA_ORCAMENTO || agora.substring(0, 10),
       STATUS: orcamento.STATUS || 'RASCUNHO',
+      PARAMETRO_VERSAO_ID: versaoParametros.ID_VERSAO,
+      DESPESA_FIXA_PCT: orcamento.DESPESA_FIXA_PCT !== undefined && orcamento.DESPESA_FIXA_PCT !== ''
+        ? orcamento.DESPESA_FIXA_PCT
+        : versaoParametros.DESPESA_FIXA_PCT,
+      FONTE_PARAMETROS: orcamento.FONTE_PARAMETROS || versaoParametros.ORIGEM_TITULO || CUSTOS_ORIGEM_TITULO,
       DT_CRIACAO: orcamento.DT_CRIACAO || agora,
       DT_ATUALIZACAO: agora,
       CONVERTIDO_PEDIDO_ID: orcamento.CONVERTIDO_PEDIDO_ID || ''
@@ -152,13 +178,31 @@ function salvarOrcamento_(orcamento) {
 
       const componentes = Array.isArray(item.componentes) ? item.componentes : [];
       componentes.forEach(function(comp, compIdx) {
-        appendObjeto_(ABAS.ORCAMENTO_COMPONENTES, Object.assign({}, comp, {
+        const linhaComp = Object.assign({}, comp, {
           ID_COMPONENTE: comp.ID_COMPONENTE || novoId_('ORC-CMP'),
           ORCAMENTO_ID: idOrcamento,
           ITEM_ID: idItem,
           ORDEM: comp.ORDEM || (compIdx + 1),
           ATIVO: comp.ATIVO !== false
-        }));
+        });
+
+        // Para mão de obra/processo produtivo, congela o custo/hora da versão do orçamento.
+        const tipo = String(linhaComp.TIPO_COMPONENTE || '').toUpperCase();
+        if ((tipo === 'MO' || tipo === 'PROCESSO' || tipo === 'PROCESSO_PRODUTIVO') &&
+            (!linhaComp.CUSTO_HORA && linhaComp.CUSTO_HORA !== 0)) {
+          linhaComp.CUSTO_HORA = getCustoHoraNaVersao_(versaoParametros.ID_VERSAO, linhaComp.DESCRICAO);
+        }
+
+        // Replica a regra atual da calculadora:
+        // custo processo = (horas setup * custo/hora) + (horas/peça * custo/hora * quantidade do item)
+        if ((tipo === 'MO' || tipo === 'PROCESSO' || tipo === 'PROCESSO_PRODUTIVO') &&
+            (linhaComp.CUSTO_TOTAL === undefined || linhaComp.CUSTO_TOTAL === '')) {
+          linhaComp.CUSTO_TOTAL =
+            numero_(linhaComp.HORAS_SETUP) * numero_(linhaComp.CUSTO_HORA) +
+            numero_(linhaComp.HORAS_PECA) * numero_(linhaComp.CUSTO_HORA) * numero_(item.QTDE);
+        }
+
+        appendObjeto_(ABAS.ORCAMENTO_COMPONENTES, linhaComp);
       });
     });
 
@@ -273,6 +317,208 @@ function converterOrcamentoEmPedido_(idOrcamento) {
   } finally {
     lock.releaseLock();
   }
+}
+
+
+function getVersaoParametrosAtiva_() {
+  const versoes = listarObjetos_(ABAS.PARAMETRO_VERSOES);
+  const ativas = versoes
+    .filter(function(v) { return String(v.STATUS || '').toUpperCase() === 'ATIVO'; })
+    .sort(function(a, b) {
+      return String(b.DATA_INICIO || '').localeCompare(String(a.DATA_INICIO || ''));
+    });
+  return ativas.length ? ativas[0] : null;
+}
+
+function getVersaoParametrosPorId_(idVersao) {
+  if (!idVersao) return null;
+  const versoes = listarObjetos_(ABAS.PARAMETRO_VERSOES);
+  for (let i = 0; i < versoes.length; i++) {
+    if (String(versoes[i].ID_VERSAO) === String(idVersao)) return versoes[i];
+  }
+  return null;
+}
+
+function getCustosHoraVersaoAtiva_() {
+  const versao = getVersaoParametrosAtiva_();
+  if (!versao) return [];
+  return listarObjetos_(ABAS.CUSTO_HORA_VERSOES).filter(function(x) {
+    return String(x.VERSAO_ID) === String(versao.ID_VERSAO) && x.ATIVO !== false;
+  });
+}
+
+function getCustoHoraNaVersao_(idVersao, processo) {
+  if (!processo) return 0;
+  const alvo = normalizarTexto_(processo);
+  const custos = listarObjetos_(ABAS.CUSTO_HORA_VERSOES);
+
+  for (let i = 0; i < custos.length; i++) {
+    if (String(custos[i].VERSAO_ID) !== String(idVersao)) continue;
+    if (normalizarTexto_(custos[i].PROCESSO) === alvo) return numero_(custos[i].CUSTO_HORA);
+  }
+
+  throw new Error('Custo/hora não encontrado para "' + processo + '" na versão ' + idVersao);
+}
+
+function sincronizarParametrosCustos_() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const origem = SpreadsheetApp.openById(CUSTOS_ORIGEM_SPREADSHEET_ID);
+    const shDados = origem.getSheetByName('DADOS');
+    const shCustoHora = origem.getSheetByName('CUSTO HORA');
+
+    if (!shDados || !shCustoHora) {
+      throw new Error('A planilha de custos precisa possuir as abas DADOS e CUSTO HORA.');
+    }
+
+    const despesaFixa = numero_(shDados.getRange('X2').getValue());
+    const lastRow = Math.max(shCustoHora.getLastRow(), 1);
+    const custoHoraRaw = shCustoHora.getRange(1, 1, lastRow, 2).getValues()
+      .filter(function(r) { return String(r[0] || '').trim() !== ''; })
+      .map(function(r) {
+        return { PROCESSO: String(r[0]).trim(), CUSTO_HORA: numero_(r[1]) };
+      });
+
+    const ativa = getVersaoParametrosAtiva_();
+    const atualCustos = ativa
+      ? listarObjetos_(ABAS.CUSTO_HORA_VERSOES).filter(function(x) {
+          return String(x.VERSAO_ID) === String(ativa.ID_VERSAO) && x.ATIVO !== false;
+        })
+      : [];
+
+    if (ativa && parametrosIguais_(ativa, atualCustos, despesaFixa, custoHoraRaw)) {
+      return {
+        ok: true,
+        alterado: false,
+        versao_atual: ativa.ID_VERSAO,
+        mensagem: 'Nenhuma alteração encontrada na planilha de custos.'
+      };
+    }
+
+    const agora = isoAgora_();
+    const novaVersao = 'PV-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+
+    // Encerra a versão anterior, sem apagar nem alterar os valores que já foram usados.
+    if (ativa) {
+      const shVersoes = aba_(ABAS.PARAMETRO_VERSOES);
+      const hVersoes = cabecalhos_(shVersoes);
+      const rowVersao = localizarLinha_(shVersoes, hVersoes.ID_VERSAO, ativa.ID_VERSAO);
+      if (rowVersao) {
+        setCelulaPorHeader_(shVersoes, hVersoes, rowVersao, 'DATA_FIM', agora);
+        setCelulaPorHeader_(shVersoes, hVersoes, rowVersao, 'STATUS', 'ENCERRADA');
+      }
+
+      const shCH = aba_(ABAS.CUSTO_HORA_VERSOES);
+      const hCH = cabecalhos_(shCH);
+      const dadosCH = shCH.getDataRange().getValues();
+      for (let r = 1; r < dadosCH.length; r++) {
+        if (String(dadosCH[r][hCH.VERSAO_ID - 1]) === String(ativa.ID_VERSAO)) {
+          shCH.getRange(r + 1, hCH.DATA_FIM).setValue(agora);
+          shCH.getRange(r + 1, hCH.ATIVO).setValue(false);
+        }
+      }
+    }
+
+    appendObjeto_(ABAS.PARAMETRO_VERSOES, {
+      ID_VERSAO: novaVersao,
+      DATA_INICIO: agora,
+      DATA_FIM: '',
+      STATUS: 'ATIVO',
+      DESPESA_FIXA_PCT: despesaFixa,
+      ORIGEM_SPREADSHEET_ID: CUSTOS_ORIGEM_SPREADSHEET_ID,
+      ORIGEM_TITULO: CUSTOS_ORIGEM_TITULO,
+      DT_IMPORTACAO: agora,
+      HASH_REFERENCIA: hashParametros_(despesaFixa, custoHoraRaw),
+      OBS: 'Criada automaticamente após detectar mudança na planilha de custos.'
+    });
+
+    custoHoraRaw.forEach(function(x) {
+      appendObjeto_(ABAS.CUSTO_HORA_VERSOES, {
+        ID_REGISTRO: novoId_('CHV'),
+        VERSAO_ID: novaVersao,
+        DATA_INICIO: agora,
+        DATA_FIM: '',
+        PROCESSO: x.PROCESSO,
+        CUSTO_HORA: x.CUSTO_HORA,
+        ATIVO: true,
+        ORIGEM_SPREADSHEET_ID: CUSTOS_ORIGEM_SPREADSHEET_ID,
+        DT_IMPORTACAO: agora,
+        OBS: ''
+      });
+    });
+
+    atualizarConfig_('PARAMETRO_VERSAO_ATIVA', novaVersao);
+
+    return {
+      ok: true,
+      alterado: true,
+      versao_anterior: ativa ? ativa.ID_VERSAO : null,
+      versao_nova: novaVersao,
+      despesa_fixa_pct: despesaFixa,
+      processos: custoHoraRaw.length
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function parametrosIguais_(ativa, custosAtuais, despesaNova, custosNovos) {
+  if (Math.abs(numero_(ativa.DESPESA_FIXA_PCT) - numero_(despesaNova)) > 0.000000001) return false;
+
+  const mapaAtual = {};
+  custosAtuais.forEach(function(x) {
+    mapaAtual[normalizarTexto_(x.PROCESSO)] = numero_(x.CUSTO_HORA);
+  });
+
+  if (Object.keys(mapaAtual).length !== custosNovos.length) return false;
+
+  for (let i = 0; i < custosNovos.length; i++) {
+    const chave = normalizarTexto_(custosNovos[i].PROCESSO);
+    if (!Object.prototype.hasOwnProperty.call(mapaAtual, chave)) return false;
+    if (Math.abs(mapaAtual[chave] - numero_(custosNovos[i].CUSTO_HORA)) > 0.000001) return false;
+  }
+
+  return true;
+}
+
+function hashParametros_(despesaFixa, custos) {
+  const payload = JSON.stringify({
+    despesa_fixa: numero_(despesaFixa),
+    custos: custos.map(function(x) {
+      return [normalizarTexto_(x.PROCESSO), numero_(x.CUSTO_HORA)];
+    })
+  });
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, payload, Utilities.Charset.UTF_8);
+  return digest.map(function(b) {
+    const v = b < 0 ? b + 256 : b;
+    return ('0' + v.toString(16)).slice(-2);
+  }).join('');
+}
+
+function atualizarConfig_(chave, valor) {
+  const sh = aba_(ABAS.CONFIG);
+  const headers = cabecalhos_(sh);
+  const row = localizarLinha_(sh, headers.CHAVE, chave);
+  if (row) {
+    setCelulaPorHeader_(sh, headers, row, 'VALOR', valor);
+  } else {
+    appendObjeto_(ABAS.CONFIG, {
+      CHAVE: chave,
+      VALOR: valor,
+      DESCRICAO: '',
+      ATIVO: true
+    });
+  }
+}
+
+function normalizarTexto_(v) {
+  return String(v || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
 }
 
 function getDashboardHistorico_() {
