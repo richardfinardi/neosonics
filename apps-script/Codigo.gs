@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.2.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.2.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -129,6 +129,18 @@ function salvarOrcamento_(orcamento) {
     const itens = Array.isArray(orcamento.itens) ? orcamento.itens : [];
     if (!orcamento.CLIENTE_ID) throw new Error('CLIENTE_ID é obrigatório.');
     if (!itens.length) throw new Error('O orçamento precisa ter pelo menos um item.');
+    if (itens.length > 10) throw new Error('Limite máximo de 10 itens por proposta atingido.');
+
+    itens.forEach(function(item) {
+      const precoSugerido = numero_(
+        item.PRECO_SUGERIDO_TOTAL !== undefined
+          ? item.PRECO_SUGERIDO_TOTAL
+          : item.PRECO_SUGERIDO
+      );
+      if (!precoSugerido || precoSugerido <= 0) {
+        throw new Error('Preço sugerido deve ser informado para todos os itens.');
+      }
+    });
 
     const idOrcamento = orcamento.ID_ORCAMENTO || novoId_('ORC');
     const numero = orcamento.NUMERO_ORCAMENTO || proximoNumeroOrcamento_();
