@@ -1,24 +1,36 @@
 # Neosonics
 
-Plataforma comercial e gerencial da Neosonics.
+Sistema web comercial da Neosonics.
 
-## Estrutura inicial
+## Fase atual
 
-- Interface web responsiva
-- Cadastro e análise de clientes
-- Segmentos
-- Produtos
-- Vendas
+- Cadastro de clientes
+- Análise do histórico 2025/2026
+- Segmentos, clientes, produtos e estados
+- Formação de preço
 - Orçamentos
-- Produção
-- Indicadores executivos
+- Conversão de orçamento aprovado em pedido
+- Carteira de pedidos
 
-## Banco de dados
+Produção não faz parte da fase atual.
 
-O banco operacional foi criado no Google Sheets como **NEOSONICS_DB** e está centralizado na pasta **BANCO_DADOS** do Google Drive.
+## Dados
 
-A aplicação web não acessará a planilha diretamente pelo navegador. A integração será feita por uma camada de backend/API para manter regras, validações e segurança fora do frontend.
+O banco principal é o Google Sheets **NEOSONICS_DB**. O histórico original é preservado sem tratamento e uma camada de mapeamento permite transformar os dados antigos para o padrão do novo sistema.
 
-## Status
+## Backend
 
-Projeto iniciado em setembro de 2026.
+A pasta `apps-script/` contém a base do backend em Google Apps Script. Ela já contempla:
+
+- bootstrap de cadastros
+- clientes
+- salvar orçamento com itens/componentes
+- aprovação/recusa
+- conversão de orçamento em pedido
+- leitura inicial do histórico para dashboard
+
+O Web App do Apps Script ainda precisa ser criado/deployado para gerar a URL da API.
+
+## Frontend
+
+`index.html` contém a interface inicial responsiva do sistema.
