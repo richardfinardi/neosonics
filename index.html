@@ -406,50 +406,79 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
 
       <section id="clients" class="page">
         <div class="hero">
-          <div><h2>Cadastro e gestão de clientes</h2><p>Centralize informações comerciais, classificação por segmento e histórico de relacionamento para alimentar as análises e os próximos módulos.</p></div>
-          <div class="badge">Cadastro integrado ao sistema</div>
+          <div>
+            <h2>Cadastro e gestão de clientes</h2>
+            <p>Cadastre o cliente uma vez e reutilize os dados nos orçamentos, pedidos e análises.</p>
+          </div>
+          <div class="badge" id="clientApiBadge">Banco online</div>
+        </div>
+
+        <div class="guide-strip">
+          <b>Como funciona:</b>
+          <span>1. Cadastre o cliente</span>
+          <span>2. Salve</span>
+          <span>3. Depois selecione esse cliente no orçamento</span>
+          <button type="button" onclick="openGuide('clients')">Ver guia</button>
         </div>
 
         <div class="grid2eq">
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Novo cliente</div><div class="panel-sub">Exemplo de tela cadastral</div></div><span class="chip">Cadastro</span></div>
+            <div class="panel-head">
+              <div><div class="panel-title" id="clientFormTitle">Novo cliente</div><div class="panel-sub">Dados comerciais e de contato</div></div>
+              <span class="chip" id="clientFormChip">Cadastro</span>
+            </div>
             <div class="panel-body">
+              <input type="hidden" id="cId">
               <div class="form-grid">
-                <div class="field"><label>Razão social</label><input value="Cliente Exemplo Ltda."></div>
-                <div class="field"><label>CNPJ</label><input value="00.000.000/0001-00"></div>
-                <div class="field"><label>Nome fantasia</label><input value="Cliente Exemplo"></div>
-                <div class="field"><label>Segmento</label><select><option>Automotivo</option><option>Industrial</option><option>Plásticos</option></select></div>
-                <div class="field"><label>Estado</label><select><option>SP</option><option>MG</option><option>PR</option></select></div>
-                <div class="field"><label>Vendedor</label><select><option>Alexandro</option><option>Comercial 02</option></select></div>
-                <div class="field full"><label>Contato principal</label><input value="Compras / Engenharia"></div>
+                <div class="field"><label>Razão social *</label><input id="cRazao" placeholder="Razão social"></div>
+                <div class="field"><label>Nome fantasia</label><input id="cFantasia" placeholder="Nome fantasia"></div>
+                <div class="field"><label>CNPJ / CPF</label><input id="cDocumento" placeholder="00.000.000/0000-00"></div>
+                <div class="field"><label>Segmento</label><input id="cSegment" list="clientSegmentOptions" placeholder="Ex.: Automotivo"><datalist id="clientSegmentOptions"></datalist></div>
+                <div class="field"><label>UF</label><select id="cUf"><option value="">Selecione</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
+                <div class="field"><label>Cidade</label><input id="cCidade" placeholder="Cidade"></div>
+                <div class="field"><label>Contato principal</label><input id="cContato" placeholder="Nome / área"></div>
+                <div class="field"><label>Vendedor</label><input id="cVendedor" placeholder="Responsável comercial"></div>
+                <div class="field"><label>E-mail</label><input id="cEmail" type="email" placeholder="email@empresa.com"></div>
+                <div class="field"><label>Telefone</label><input id="cTelefone" placeholder="(00) 00000-0000"></div>
+                <div class="field"><label>Status</label><select id="cAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+                <div class="field full"><label>Observações</label><input id="cObs" placeholder="Informações úteis para o comercial"></div>
               </div>
-              <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="primary" onclick="alert('Cadastro demonstrativo')">Salvar cliente</button></div>
+              <div class="form-actions">
+                <button class="secondary" onclick="clearClientForm()">Limpar</button>
+                <button class="primary" id="clientSaveBtn" onclick="saveClient()">Salvar cliente</button>
+              </div>
             </div>
           </div>
 
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Resumo da carteira</div><div class="panel-sub">Indicadores cadastrais</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Resumo da carteira</div><div class="panel-sub">Cadastro atual do banco</div></div></div>
             <div class="panel-body">
-              <div class="grid4" style="margin-bottom:0">
-                <div class="summary"><span>Clientes ativos</span><strong>45</strong><small>Base atual</small></div>
-                <div class="summary"><span>Segmentados</span><strong>100%</strong><small>Cadastro</small></div>
-                <div class="summary"><span>Estados atendidos</span><strong>11</strong><small>Brasil</small></div>
-                <div class="summary"><span>Clientes com vendas</span><strong>38</strong><small>2026</small></div>
+              <div class="grid4 client-summary-grid" style="margin-bottom:0">
+                <div class="summary"><span>Clientes</span><strong id="clientKpiTotal">0</strong><small>cadastrados</small></div>
+                <div class="summary"><span>Ativos</span><strong id="clientKpiActive">0</strong><small>disponíveis</small></div>
+                <div class="summary"><span>Segmentados</span><strong id="clientKpiSegmented">0%</strong><small>com segmento</small></div>
+                <div class="summary"><span>Estados</span><strong id="clientKpiStates">0</strong><small>UFs diferentes</small></div>
+              </div>
+              <div class="simple-help">
+                <b>Dica</b>
+                <span>Para usar um cliente em um orçamento, primeiro ele precisa estar salvo aqui. Ao editar, os orçamentos antigos continuam com o nome gravado na época.</span>
               </div>
             </div>
           </div>
         </div>
 
         <div class="panel">
-          <div class="panel-head"><div><div class="panel-title">Clientes cadastrados</div><div class="panel-sub">Consulta e manutenção</div></div><button class="secondary">+ Novo cliente</button></div>
+          <div class="panel-head">
+            <div><div class="panel-title">Clientes cadastrados</div><div class="panel-sub">Clique em editar para atualizar o cadastro</div></div>
+            <div class="panel-head-actions">
+              <input id="clientSearch" class="compact-search" placeholder="Pesquisar cliente..." oninput="renderClientsTable()">
+              <button class="secondary" onclick="clearClientForm()">+ Novo cliente</button>
+            </div>
+          </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Código</th><th>Cliente</th><th>Segmento</th><th>UF</th><th>Vendedor</th><th>Faturamento</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr><td>3444</td><td>Cliente A</td><td>Automotivo</td><td>SP</td><td>Alexandro</td><td>R$ 1,48 mi</td><td><span class="status good">Ativo</span></td></tr>
-                <tr><td>7664</td><td>Cliente B</td><td>Plásticos</td><td>MG</td><td>Alexandro</td><td>R$ 1,11 mi</td><td><span class="status good">Ativo</span></td></tr>
-                <tr><td>8120</td><td>Cliente C</td><td>Industrial</td><td>PR</td><td>Comercial 02</td><td>R$ 890 mil</td><td><span class="status good">Ativo</span></td></tr>
-              </tbody>
+              <thead><tr><th>Cliente</th><th>Razão social</th><th>Segmento</th><th>UF</th><th>Contato</th><th>Vendedor</th><th>Status</th><th></th></tr></thead>
+              <tbody id="clientsTableBody"><tr class="empty-row"><td colspan="8">Carregando clientes...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -462,6 +491,15 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
             <p>Simule os custos, compare cenários e defina o único preço comercial que será efetivamente enviado ao cliente.</p>
           </div>
           <div class="badge" id="quoteParamBadge">Custos vigentes • PV-20260924-001</div>
+        </div>
+
+        <div class="guide-strip">
+          <b>Como funciona:</b>
+          <span>1. Selecione o cliente</span>
+          <span>2. Monte os custos</span>
+          <span>3. Defina o preço final</span>
+          <span>4. Salve ou envie</span>
+          <button type="button" onclick="openGuide('quotes')">Ver guia</button>
         </div>
 
         <div class="quote-toolbar">
@@ -485,7 +523,7 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
           </div>
           <div class="panel-body">
             <div class="form-grid quote-head-grid">
-              <div class="field"><label>Cliente</label><input id="qClient" placeholder="Cliente"></div>
+              <div class="field"><label>Cliente cadastrado *</label><input id="qClient" list="quoteClientOptions" placeholder="Digite para pesquisar" oninput="syncQuoteClient()"><input type="hidden" id="qClientId"><datalist id="quoteClientOptions"></datalist></div>
               <div class="field"><label>Cidade / UF</label><input id="qCity" placeholder="Cidade / UF"></div>
               <div class="field"><label>Contato</label><input id="qContact" placeholder="Contato"></div>
               <div class="field"><label>Vendedor</label><input id="qSeller" placeholder="Vendedor"></div>
