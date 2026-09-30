@@ -29,13 +29,13 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.4.1' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.5.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
 
       case 'clientes':
-        return json_({ ok: true, dados: listarObjetos_(ABAS.CLIENTES) });
+        return json_({ ok: true, dados: listarClientes_() });
 
       case 'orcamentos':
         return json_({ ok: true, dados: listarOrcamentosResumo_() });
@@ -106,6 +106,15 @@ function getBootstrap_() {
   };
 }
 
+function listarClientes_() {
+  return listarObjetos_(ABAS.CLIENTES)
+    .sort(function(a, b) {
+      const na = String(a.NOME_FANTASIA || a.RAZAO_SOCIAL || '').toUpperCase();
+      const nb = String(b.NOME_FANTASIA || b.RAZAO_SOCIAL || '').toUpperCase();
+      return na.localeCompare(nb, 'pt-BR');
+    });
+}
+
 function salvarCliente_(cliente) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -115,13 +124,24 @@ function salvarCliente_(cliente) {
       throw new Error('Informe a razão social ou nome fantasia.');
     }
 
+    const sh = aba_(ABAS.CLIENTES);
+    const headers = cabecalhos_(sh);
+    const agora = isoAgora_();
+
     const novo = Object.assign({}, cliente);
     novo.ID_CLIENTE = novo.ID_CLIENTE || novoId_('CLI');
     novo.ATIVO = novo.ATIVO !== false;
-    novo.DT_CADASTRO = novo.DT_CADASTRO || isoAgora_();
+    novo.DT_CADASTRO = novo.DT_CADASTRO || agora;
 
-    appendObjeto_(ABAS.CLIENTES, novo);
-    return { ok: true, cliente: novo };
+    const row = localizarLinha_(sh, headers.ID_CLIENTE, novo.ID_CLIENTE);
+
+    if (row) {
+      escreverObjetoNaLinha_(sh, row, novo);
+    } else {
+      appendObjeto_(ABAS.CLIENTES, novo);
+    }
+
+    return { ok: true, cliente: novo, atualizado: !!row };
   } finally {
     lock.releaseLock();
   }
