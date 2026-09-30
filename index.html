@@ -872,6 +872,7 @@ const GUIDES={
     ["Escolha o preço","Mínimo, objetivo e cenários ajudam; quem define o preço final é o usuário."],
     ["Salve ou envie","Rascunho pode ser retomado. Ao enviar, o preço final fica registrado."]
   ]}
+};
 
 function initUiPreferences(){
   const theme=localStorage.getItem("neosonics_theme")||"dark";
@@ -894,8 +895,8 @@ function toggleSidebar(){
   localStorage.setItem("neosonics_sidebar",collapsed?"collapsed":"expanded");
 }
 function openGuide(page){
-  const id=page||currentPage||document.querySelector(".page.active")?.id||"overview";
-  const g=GUIDES[id]||GUIDES.overview;
+  const id=page||currentPage||document.querySelector(".page.active")?.id||"clients";
+  const g=GUIDES[id]||GUIDES.clients;
   guideTitle.textContent=g.title+" — como funciona";
   guideContent.innerHTML=g.steps.map((s,i)=>'<div class="guide-step"><b>'+(i+1)+'</b><div><strong>'+escapeHtml(s[0])+'</strong><span>'+escapeHtml(s[1])+'</span></div></div>').join("");
   guideBg.classList.add("open");
