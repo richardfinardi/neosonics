@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.5.1' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.5.2' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -116,182 +116,164 @@ function listarClientes_() {
 }
 
 function salvarCliente_(cliente) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-
-  try {
-    if (!cliente.RAZAO_SOCIAL && !cliente.NOME_FANTASIA) {
-      throw new Error('Informe a razão social ou nome fantasia.');
-    }
-
-    const sh = aba_(ABAS.CLIENTES);
-    const headers = cabecalhos_(sh);
-    const agora = isoAgora_();
-
-    const novo = Object.assign({}, cliente);
-    novo.ID_CLIENTE = novo.ID_CLIENTE || novoId_('CLI');
-    novo.ATIVO = novo.ATIVO !== false;
-    novo.DT_CADASTRO = novo.DT_CADASTRO || agora;
-
-    const row = localizarLinha_(sh, headers.ID_CLIENTE, novo.ID_CLIENTE);
-
-    if (row) {
-      escreverObjetoNaLinha_(sh, row, novo);
-    } else {
-      appendObjeto_(ABAS.CLIENTES, novo);
-    }
-
-    return { ok: true, cliente: novo, atualizado: !!row };
-  } finally {
-    lock.releaseLock();
+  if (!cliente.RAZAO_SOCIAL && !cliente.NOME_FANTASIA) {
+    throw new Error('Informe a razão social ou nome fantasia.');
   }
+
+  const sh = aba_(ABAS.CLIENTES);
+  const headers = cabecalhos_(sh);
+  const agora = isoAgora_();
+
+  const novo = Object.assign({}, cliente);
+  novo.ID_CLIENTE = novo.ID_CLIENTE || novoId_('CLI');
+  novo.ATIVO = novo.ATIVO !== false;
+  novo.DT_CADASTRO = novo.DT_CADASTRO || agora;
+
+  const row = localizarLinha_(sh, headers.ID_CLIENTE, novo.ID_CLIENTE);
+
+  if (row) {
+    escreverObjetoNaLinha_(sh, row, novo);
+  } else {
+    appendObjeto_(ABAS.CLIENTES, novo);
+  }
+
+  SpreadsheetApp.flush();
+  return { ok: true, cliente: novo, atualizado: !!row };
 }
 
 function salvarOrcamento_(orcamento) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  const itens = Array.isArray(orcamento.itens) ? orcamento.itens : [];
+  if (!orcamento.CLIENTE_ID) throw new Error('CLIENTE_ID é obrigatório.');
+  if (!itens.length) throw new Error('O orçamento precisa ter pelo menos um item.');
+  if (itens.length > 10) throw new Error('Limite máximo de 10 itens por proposta atingido.');
 
-  try {
-    const itens = Array.isArray(orcamento.itens) ? orcamento.itens : [];
-    if (!orcamento.CLIENTE_ID) throw new Error('CLIENTE_ID é obrigatório.');
-    if (!itens.length) throw new Error('O orçamento precisa ter pelo menos um item.');
-    if (itens.length > 10) throw new Error('Limite máximo de 10 itens por proposta atingido.');
+  const idOrcamento = orcamento.ID_ORCAMENTO || novoId_('ORC');
+  const numero = orcamento.NUMERO_ORCAMENTO || proximoNumeroOrcamentoSeguro_();
+  const agora = isoAgora_();
+  const statusSolicitado = String(orcamento.STATUS || 'RASCUNHO').toUpperCase();
 
-    const idOrcamento = orcamento.ID_ORCAMENTO || novoId_('ORC');
-    const numero = orcamento.NUMERO_ORCAMENTO || proximoNumeroOrcamento_();
-    const agora = isoAgora_();
-    const statusSolicitado = String(orcamento.STATUS || 'RASCUNHO').toUpperCase();
-
-    if (statusSolicitado !== 'RASCUNHO') {
-      validarPrecoFinalItensPayload_(itens);
-    }
-
-    const valorFinalOrcamento = itens.reduce(function(total, item) {
-      return total + numero_(item.PRECO_FINAL_TOTAL);
-    }, 0);
-
-    // Regra de versionamento:
-    // - orçamento novo fixa a versão vigente naquele momento;
-    // - orçamento já criado continua usando sua versão original;
-    // - atualização global de custos nunca recalcula orçamento antigo automaticamente.
-    const versaoParametros = orcamento.PARAMETRO_VERSAO_ID
-      ? getVersaoParametrosPorId_(orcamento.PARAMETRO_VERSAO_ID)
-      : getVersaoParametrosAtiva_();
-
-    if (!versaoParametros) {
-      throw new Error('Nenhuma versão de parâmetros de custo está ativa.');
-    }
-
-    const cab = Object.assign({}, orcamento, {
-      ID_ORCAMENTO: idOrcamento,
-      NUMERO_ORCAMENTO: numero,
-      VERSAO: orcamento.VERSAO || 1,
-      DATA_ORCAMENTO: orcamento.DATA_ORCAMENTO || agora.substring(0, 10),
-      STATUS: statusSolicitado,
-      VALOR_TOTAL: valorFinalOrcamento || numero_(orcamento.VALOR_TOTAL),
-      PARAMETRO_VERSAO_ID: versaoParametros.ID_VERSAO,
-      DESPESA_FIXA_PCT: orcamento.DESPESA_FIXA_PCT !== undefined && orcamento.DESPESA_FIXA_PCT !== ''
-        ? orcamento.DESPESA_FIXA_PCT
-        : versaoParametros.DESPESA_FIXA_PCT,
-      FONTE_PARAMETROS: orcamento.FONTE_PARAMETROS || versaoParametros.ORIGEM_TITULO || CUSTOS_ORIGEM_TITULO,
-      DT_CRIACAO: orcamento.DT_CRIACAO || (function(){
-        const sh = aba_(ABAS.ORCAMENTOS);
-        const hs = cabecalhos_(sh);
-        const rr = localizarLinha_(sh, hs.ID_ORCAMENTO, idOrcamento);
-        return rr ? objetoDaLinha_(sh, rr).DT_CRIACAO : agora;
-      })(),
-      DT_ATUALIZACAO: agora,
-      CONVERTIDO_PEDIDO_ID: orcamento.CONVERTIDO_PEDIDO_ID || ''
-    });
-    delete cab.itens;
-
-    const shOrc = aba_(ABAS.ORCAMENTOS);
-    const hOrc = cabecalhos_(shOrc);
-    const rowExistente = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
-
-    if (rowExistente) {
-      // Atualiza o cabeçalho sem criar duplicidade.
-      escreverObjetoNaLinha_(shOrc, rowExistente, cab);
-
-      // Regrava os filhos do orçamento. O snapshot antigo não é alterado fora deste
-      // orçamento; apenas o próprio rascunho em edição é substituído.
-      deletarLinhasPorValor_(ABAS.ORCAMENTO_COMPONENTES, 'ORCAMENTO_ID', idOrcamento);
-      deletarLinhasPorValor_(ABAS.ORCAMENTO_ITENS, 'ORCAMENTO_ID', idOrcamento);
-    } else {
-      appendObjeto_(ABAS.ORCAMENTOS, cab);
-    }
-
-    itens.forEach(function(item, idx) {
-      const idItem = item.ID_ITEM || novoId_('ORI');
-      const precoFinalTotal = numero_(item.PRECO_FINAL_TOTAL);
-      const qtdeItem = numero_(item.QTDE);
-      const custoMP = numero_(item.CUSTO_MP);
-      const custoTerceiros = numero_(item.CUSTO_TERCEIROS);
-      const custoFerramental = numero_(item.CUSTO_FERRAMENTAL);
-      const custoHoras = numero_(item.CUSTO_HORAS);
-      const impostos = numero_(cab.IMPOSTOS_PCT);
-      const despesaFixa = numero_(cab.DESPESA_FIXA_PCT);
-
-      const mcFinal = precoFinalTotal
-        ? precoFinalTotal - custoMP - custoTerceiros - custoFerramental - (impostos * precoFinalTotal)
-        : 0;
-      const lucroFinal = precoFinalTotal
-        ? mcFinal - custoHoras - (precoFinalTotal * despesaFixa)
-        : 0;
-
-      const linhaItem = Object.assign({}, item, {
-        ID_ITEM: idItem,
-        ORCAMENTO_ID: idOrcamento,
-        SEQ: item.SEQ || (idx + 1),
-        PRECO_FINAL_TOTAL: precoFinalTotal,
-        PRECO_FINAL_UNIT: qtdeItem ? precoFinalTotal / qtdeItem : precoFinalTotal,
-        MC_FINAL: mcFinal,
-        LUCRO_FINAL: lucroFinal,
-        MARGEM_FINAL_PCT: precoFinalTotal ? lucroFinal / precoFinalTotal : 0,
-        STATUS: item.STATUS || 'ATIVO'
-      });
-      delete linhaItem.componentes;
-      appendObjeto_(ABAS.ORCAMENTO_ITENS, linhaItem);
-
-      const componentes = Array.isArray(item.componentes) ? item.componentes : [];
-      componentes.forEach(function(comp, compIdx) {
-        const linhaComp = Object.assign({}, comp, {
-          ID_COMPONENTE: comp.ID_COMPONENTE || novoId_('ORC-CMP'),
-          ORCAMENTO_ID: idOrcamento,
-          ITEM_ID: idItem,
-          ORDEM: comp.ORDEM || (compIdx + 1),
-          ATIVO: comp.ATIVO !== false
-        });
-
-        // Para mão de obra/processo produtivo, congela o custo/hora da versão do orçamento.
-        const tipo = String(linhaComp.TIPO_COMPONENTE || '').toUpperCase();
-        if ((tipo === 'MO' || tipo === 'PROCESSO' || tipo === 'PROCESSO_PRODUTIVO') &&
-            (!linhaComp.CUSTO_HORA && linhaComp.CUSTO_HORA !== 0)) {
-          linhaComp.CUSTO_HORA = getCustoHoraNaVersao_(versaoParametros.ID_VERSAO, linhaComp.DESCRICAO);
-        }
-
-        // Replica a regra atual da calculadora:
-        // custo processo = (horas setup * custo/hora) + (horas/peça * custo/hora * quantidade do item)
-        if ((tipo === 'MO' || tipo === 'PROCESSO' || tipo === 'PROCESSO_PRODUTIVO') &&
-            (linhaComp.CUSTO_TOTAL === undefined || linhaComp.CUSTO_TOTAL === '')) {
-          linhaComp.CUSTO_TOTAL =
-            numero_(linhaComp.HORAS_SETUP) * numero_(linhaComp.CUSTO_HORA) +
-            numero_(linhaComp.HORAS_PECA) * numero_(linhaComp.CUSTO_HORA) * numero_(item.QTDE);
-        }
-
-        appendObjeto_(ABAS.ORCAMENTO_COMPONENTES, linhaComp);
-      });
-    });
-
-    return {
-      ok: true,
-      id_orcamento: idOrcamento,
-      numero_orcamento: numero,
-      status: cab.STATUS
-    };
-  } finally {
-    lock.releaseLock();
+  if (statusSolicitado !== 'RASCUNHO') {
+    validarPrecoFinalItensPayload_(itens);
   }
+
+  const valorFinalOrcamento = itens.reduce(function(total, item) {
+    return total + numero_(item.PRECO_FINAL_TOTAL);
+  }, 0);
+
+  const versaoParametros = orcamento.PARAMETRO_VERSAO_ID
+    ? getVersaoParametrosPorId_(orcamento.PARAMETRO_VERSAO_ID)
+    : getVersaoParametrosAtiva_();
+
+  if (!versaoParametros) {
+    throw new Error('Nenhuma versão de parâmetros de custo está ativa.');
+  }
+
+  const shOrc = aba_(ABAS.ORCAMENTOS);
+  const hOrc = cabecalhos_(shOrc);
+  const rowExistente = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
+  const existente = rowExistente ? objetoDaLinha_(shOrc, rowExistente) : null;
+
+  const cab = Object.assign({}, orcamento, {
+    ID_ORCAMENTO: idOrcamento,
+    NUMERO_ORCAMENTO: numero,
+    VERSAO: orcamento.VERSAO || 1,
+    DATA_ORCAMENTO: orcamento.DATA_ORCAMENTO || agora.substring(0, 10),
+    STATUS: statusSolicitado,
+    VALOR_TOTAL: valorFinalOrcamento || numero_(orcamento.VALOR_TOTAL),
+    PARAMETRO_VERSAO_ID: versaoParametros.ID_VERSAO,
+    DESPESA_FIXA_PCT: orcamento.DESPESA_FIXA_PCT !== undefined && orcamento.DESPESA_FIXA_PCT !== ''
+      ? orcamento.DESPESA_FIXA_PCT
+      : versaoParametros.DESPESA_FIXA_PCT,
+    FONTE_PARAMETROS: orcamento.FONTE_PARAMETROS || versaoParametros.ORIGEM_TITULO || CUSTOS_ORIGEM_TITULO,
+    DT_CRIACAO: orcamento.DT_CRIACAO || (existente ? existente.DT_CRIACAO : agora),
+    DT_ATUALIZACAO: agora,
+    CONVERTIDO_PEDIDO_ID: orcamento.CONVERTIDO_PEDIDO_ID || (existente ? existente.CONVERTIDO_PEDIDO_ID : '') || ''
+  });
+  delete cab.itens;
+
+  // Cabeçalho primeiro. Não mantemos um lock global durante toda a gravação.
+  // Isso evita que um orçamento com muitos componentes bloqueie outros usuários.
+  if (rowExistente) {
+    escreverObjetoNaLinha_(shOrc, rowExistente, cab);
+    deletarLinhasPorValor_(ABAS.ORCAMENTO_COMPONENTES, 'ORCAMENTO_ID', idOrcamento);
+    deletarLinhasPorValor_(ABAS.ORCAMENTO_ITENS, 'ORCAMENTO_ID', idOrcamento);
+  } else {
+    appendObjeto_(ABAS.ORCAMENTOS, cab);
+  }
+
+  const linhasItens = [];
+  const linhasComponentes = [];
+
+  itens.forEach(function(item, idx) {
+    const idItem = item.ID_ITEM || novoId_('ORI');
+    const precoFinalTotal = numero_(item.PRECO_FINAL_TOTAL);
+    const qtdeItem = numero_(item.QTDE);
+    const custoMP = numero_(item.CUSTO_MP);
+    const custoTerceiros = numero_(item.CUSTO_TERCEIROS);
+    const custoFerramental = numero_(item.CUSTO_FERRAMENTAL);
+    const custoHoras = numero_(item.CUSTO_HORAS);
+    const impostos = numero_(cab.IMPOSTOS_PCT);
+    const despesaFixa = numero_(cab.DESPESA_FIXA_PCT);
+
+    const mcFinal = precoFinalTotal
+      ? precoFinalTotal - custoMP - custoTerceiros - custoFerramental - (impostos * precoFinalTotal)
+      : 0;
+    const lucroFinal = precoFinalTotal
+      ? mcFinal - custoHoras - (precoFinalTotal * despesaFixa)
+      : 0;
+
+    const linhaItem = Object.assign({}, item, {
+      ID_ITEM: idItem,
+      ORCAMENTO_ID: idOrcamento,
+      SEQ: item.SEQ || (idx + 1),
+      PRECO_FINAL_TOTAL: precoFinalTotal,
+      PRECO_FINAL_UNIT: qtdeItem ? precoFinalTotal / qtdeItem : precoFinalTotal,
+      MC_FINAL: mcFinal,
+      LUCRO_FINAL: lucroFinal,
+      MARGEM_FINAL_PCT: precoFinalTotal ? lucroFinal / precoFinalTotal : 0,
+      STATUS: item.STATUS || 'ATIVO'
+    });
+    delete linhaItem.componentes;
+    linhasItens.push(linhaItem);
+
+    const componentes = Array.isArray(item.componentes) ? item.componentes : [];
+    componentes.forEach(function(comp, compIdx) {
+      const linhaComp = Object.assign({}, comp, {
+        ID_COMPONENTE: comp.ID_COMPONENTE || novoId_('ORC-CMP'),
+        ORCAMENTO_ID: idOrcamento,
+        ITEM_ID: idItem,
+        ORDEM: comp.ORDEM || (compIdx + 1),
+        ATIVO: comp.ATIVO !== false
+      });
+
+      const tipo = String(linhaComp.TIPO_COMPONENTE || '').toUpperCase();
+      if ((tipo === 'MO' || tipo === 'PROCESSO' || tipo === 'PROCESSO_PRODUTIVO') &&
+          (!linhaComp.CUSTO_HORA && linhaComp.CUSTO_HORA !== 0)) {
+        linhaComp.CUSTO_HORA = getCustoHoraNaVersao_(versaoParametros.ID_VERSAO, linhaComp.DESCRICAO);
+      }
+
+      if ((tipo === 'MO' || tipo === 'PROCESSO' || tipo === 'PROCESSO_PRODUTIVO') &&
+          (linhaComp.CUSTO_TOTAL === undefined || linhaComp.CUSTO_TOTAL === '')) {
+        linhaComp.CUSTO_TOTAL =
+          numero_(linhaComp.HORAS_SETUP) * numero_(linhaComp.CUSTO_HORA) +
+          numero_(linhaComp.HORAS_PECA) * numero_(linhaComp.CUSTO_HORA) * numero_(item.QTDE);
+      }
+
+      linhasComponentes.push(linhaComp);
+    });
+  });
+
+  appendObjetos_(ABAS.ORCAMENTO_ITENS, linhasItens);
+  appendObjetos_(ABAS.ORCAMENTO_COMPONENTES, linhasComponentes);
+
+  SpreadsheetApp.flush();
+
+  return {
+    ok: true,
+    id_orcamento: idOrcamento,
+    numero_orcamento: numero,
+    status: cab.STATUS
+  };
 }
 
 function listarOrcamentosResumo_() {
@@ -772,6 +754,22 @@ function appendObjeto_(nomeAba, obj) {
   sh.appendRow(row);
 }
 
+function appendObjetos_(nomeAba, objetos) {
+  if (!Array.isArray(objetos) || !objetos.length) return;
+
+  const sh = aba_(nomeAba);
+  const lastCol = sh.getLastColumn();
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  const rows = objetos.map(function(obj) {
+    return headers.map(function(h) {
+      return Object.prototype.hasOwnProperty.call(obj, h) ? obj[h] : '';
+    });
+  });
+
+  const startRow = sh.getLastRow() + 1;
+  sh.getRange(startRow, 1, rows.length, headers.length).setValues(rows);
+}
+
 function escreverObjetoNaLinha_(sh, row, obj) {
   const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
   const atual = sh.getRange(row, 1, 1, headers.length).getValues()[0];
@@ -783,16 +781,40 @@ function escreverObjetoNaLinha_(sh, row, obj) {
 
 function deletarLinhasPorValor_(nomeAba, nomeColuna, valor) {
   const sh = aba_(nomeAba);
-  if (sh.getLastRow() < 2) return;
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return;
 
   const headers = cabecalhos_(sh);
   const col = headers[nomeColuna];
   if (!col) throw new Error('Coluna não encontrada em ' + nomeAba + ': ' + nomeColuna);
 
-  const vals = sh.getRange(2, col, sh.getLastRow() - 1, 1).getValues();
-  for (let i = vals.length - 1; i >= 0; i--) {
-    if (String(vals[i][0]) === String(valor)) sh.deleteRow(i + 2);
+  const vals = sh.getRange(2, col, lastRow - 1, 1).getValues();
+  const rows = [];
+
+  vals.forEach(function(r, i) {
+    if (String(r[0]) === String(valor)) rows.push(i + 2);
+  });
+
+  if (!rows.length) return;
+
+  // Exclui em blocos contíguos, de baixo para cima, reduzindo chamadas ao Sheets.
+  const blocos = [];
+  let inicio = rows[0];
+  let anterior = rows[0];
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i] === anterior + 1) {
+      anterior = rows[i];
+    } else {
+      blocos.push([inicio, anterior]);
+      inicio = anterior = rows[i];
+    }
   }
+  blocos.push([inicio, anterior]);
+
+  blocos.reverse().forEach(function(b) {
+    sh.deleteRows(b[0], b[1] - b[0] + 1);
+  });
 }
 
 function objetoDaLinha_(sh, row) {
@@ -833,6 +855,31 @@ function setCelulaPorHeader_(sh, headers, row, header, value) {
 
 function proximoNumeroOrcamento_() {
   return proximoSequencial_(ABAS.ORCAMENTOS, 'NUMERO_ORCAMENTO', 1001);
+}
+
+function proximoNumeroOrcamentoSeguro_() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(8000)) {
+    throw new Error('O sistema está gerando outro número de orçamento. Tente salvar novamente em alguns segundos.');
+  }
+
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const chave = 'NEOSONICS_ORC_SEQ';
+    const salvo = Number(props.getProperty(chave) || 0);
+
+    let proximo;
+    if (salvo > 0) {
+      proximo = salvo + 1;
+    } else {
+      proximo = proximoNumeroOrcamento_();
+    }
+
+    props.setProperty(chave, String(proximo));
+    return proximo;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function proximoNumeroPedido_() {
