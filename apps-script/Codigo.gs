@@ -29,13 +29,16 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.5.2' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.6.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
 
       case 'clientes':
         return json_({ ok: true, dados: listarClientes_() });
+
+      case 'map_clientes':
+        return json_({ ok: true, dados: listarMapClientes_() });
 
       case 'orcamentos':
         return json_({ ok: true, dados: listarOrcamentosResumo_() });
@@ -65,6 +68,12 @@ function doPost(e) {
     switch (acao) {
       case 'salvar_cliente':
         return json_(salvarCliente_(body.cliente || {}));
+
+      case 'salvar_mapeamento_cliente':
+        return json_(salvarMapeamentoCliente_(body.chave_origem, body.id_cliente_oficial));
+
+      case 'criar_cliente_mapeamento':
+        return json_(criarClienteDoMapeamento_(body.chave_origem));
 
       case 'salvar_orcamento':
         return json_(salvarOrcamento_(body.orcamento || {}));
@@ -113,6 +122,79 @@ function listarClientes_() {
       const nb = String(b.NOME_FANTASIA || b.RAZAO_SOCIAL || '').toUpperCase();
       return na.localeCompare(nb, 'pt-BR');
     });
+}
+
+function listarMapClientes_() {
+  return listarObjetos_(ABAS.MAP_CLIENTES)
+    .sort(function(a,b) {
+      const sa = String(a.STATUS_MAPEAMENTO || '');
+      const sb = String(b.STATUS_MAPEAMENTO || '');
+      if (sa !== sb) return sa.localeCompare(sb);
+      const ca = numero_(a.COD_CLIENTE_ORIGEM);
+      const cb = numero_(b.COD_CLIENTE_ORIGEM);
+      if (ca !== cb) return ca - cb;
+      return String(a.CLIENTE_ORIGEM || '').localeCompare(String(b.CLIENTE_ORIGEM || ''), 'pt-BR');
+    });
+}
+
+function salvarMapeamentoCliente_(chaveOrigem, idClienteOficial) {
+  if (!chaveOrigem) throw new Error('CHAVE_ORIGEM não informada.');
+  if (!idClienteOficial) throw new Error('Selecione o cliente oficial.');
+
+  const clientes = listarObjetos_(ABAS.CLIENTES);
+  const cliente = clientes.find(function(c) {
+    return String(c.ID_CLIENTE) === String(idClienteOficial);
+  });
+  if (!cliente) throw new Error('Cliente oficial não encontrado.');
+
+  const sh = aba_(ABAS.MAP_CLIENTES);
+  const headers = cabecalhos_(sh);
+  const row = localizarLinha_(sh, headers.CHAVE_ORIGEM, chaveOrigem);
+  if (!row) throw new Error('Origem histórica não encontrada.');
+
+  setCelulaPorHeader_(sh, headers, row, 'ID_CLIENTE_OFICIAL', cliente.ID_CLIENTE);
+  setCelulaPorHeader_(sh, headers, row, 'CLIENTE_OFICIAL', cliente.NOME_FANTASIA || cliente.RAZAO_SOCIAL || '');
+  setCelulaPorHeader_(sh, headers, row, 'SEGMENTO_OFICIAL', cliente.SEGMENTO_ID || '');
+  setCelulaPorHeader_(sh, headers, row, 'STATUS_MAPEAMENTO', 'MAPEADO_MANUAL');
+  setCelulaPorHeader_(sh, headers, row, 'OBS', 'Vinculado manualmente pelo sistema.');
+  setCelulaPorHeader_(sh, headers, row, 'ATIVO', true);
+
+  SpreadsheetApp.flush();
+  return { ok: true, chave_origem: chaveOrigem, cliente: cliente };
+}
+
+function criarClienteDoMapeamento_(chaveOrigem) {
+  if (!chaveOrigem) throw new Error('CHAVE_ORIGEM não informada.');
+
+  const mapas = listarObjetos_(ABAS.MAP_CLIENTES);
+  const origem = mapas.find(function(m) {
+    return String(m.CHAVE_ORIGEM) === String(chaveOrigem);
+  });
+  if (!origem) throw new Error('Origem histórica não encontrada.');
+
+  const nome = String(origem.CLIENTE_ORIGEM || '').trim().replace(/\s+/g, ' ');
+  const cliente = {
+    ID_CLIENTE: novoId_('CLI'),
+    COD_CLIENTE_ORIGEM: origem.COD_CLIENTE_ORIGEM || '',
+    RAZAO_SOCIAL: nome,
+    NOME_FANTASIA: nome,
+    CNPJ_CPF: '',
+    SEGMENTO_ID: '',
+    UF: origem.UF_ORIGEM || '',
+    CIDADE: '',
+    CONTATO: '',
+    EMAIL: '',
+    TELEFONE: '',
+    VENDEDOR: '',
+    ATIVO: true,
+    DT_CADASTRO: isoAgora_(),
+    OBS: 'Criado a partir do histórico da planilha do cliente.'
+  };
+
+  appendObjeto_(ABAS.CLIENTES, cliente);
+  salvarMapeamentoCliente_(chaveOrigem, cliente.ID_CLIENTE);
+
+  return { ok: true, cliente: cliente, chave_origem: chaveOrigem };
 }
 
 function salvarCliente_(cliente) {
