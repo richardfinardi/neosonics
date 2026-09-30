@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.4.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.4.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -38,7 +38,7 @@ function doGet(e) {
         return json_({ ok: true, dados: listarObjetos_(ABAS.CLIENTES) });
 
       case 'orcamentos':
-        return json_({ ok: true, dados: listarObjetos_(ABAS.ORCAMENTOS) });
+        return json_({ ok: true, dados: listarOrcamentosResumo_() });
 
       case 'orcamento_detalhe':
         return json_(getOrcamentoDetalhe_((e && e.parameter && e.parameter.id) || ''));
@@ -272,6 +272,30 @@ function salvarOrcamento_(orcamento) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function listarOrcamentosResumo_() {
+  const orcamentos = listarObjetos_(ABAS.ORCAMENTOS);
+  const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS);
+  const contador = {};
+
+  itens.forEach(function(item) {
+    const id = String(item.ORCAMENTO_ID || '');
+    contador[id] = (contador[id] || 0) + 1;
+  });
+
+  return orcamentos
+    .map(function(o) {
+      return Object.assign({}, o, {
+        QTD_ITENS: contador[String(o.ID_ORCAMENTO)] || 0
+      });
+    })
+    .sort(function(a, b) {
+      const nb = numero_(b.NUMERO_ORCAMENTO);
+      const na = numero_(a.NUMERO_ORCAMENTO);
+      if (nb !== na) return nb - na;
+      return String(b.DT_ATUALIZACAO || '').localeCompare(String(a.DT_ATUALIZACAO || ''));
+    });
 }
 
 function getOrcamentoDetalhe_(idOrcamento) {
