@@ -768,13 +768,13 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
 <script>
 const names={overview:"Visão Executiva",clients:"Clientes",quotes:"Orçamentos",orders:"Pedidos",segments:"Segmentos",products:"Produtos",states:"Estados"};
 
-/* A URL será preenchida quando o Web App do Apps Script for publicado.
-   Enquanto isso, o front funciona integralmente em modo local para teste da UX/calculadora. */
-const NEOSONICS_API_URL="";
-const PARAM_VERSION="PV-20260924-001";
-const FIXED_EXPENSE=0.12741625391756686;
+const NEOSONICS_API_URL="https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec";
+let PARAM_VERSION="PV-20260924-001";
+let FIXED_EXPENSE=0.12741625391756686;
+let apiOnline=false;
+let quoteHistoryCache=[];
 
-const PROCESS_COSTS=[
+let PROCESS_COSTS=[
   ["ENGENHARIA DE APLICAÇÃO",174.9593757254843],
   ["PROJETO/DETALHAMENTO",117.69897799821157],
   ["LABORATÓRIO - SHOWROOM",183.59909017769877],
@@ -791,7 +791,7 @@ const PROCESS_COSTS=[
   ["IMPRESSÃO 3D",0]
 ];
 
-const TAX_RULES={
+let TAX_RULES={
   "NORMAL|INTERNA|VENDA":0.2473,
   "NORMAL|INTERNA|REVENDA":0.2473,
   "NORMAL|INTERNA|SERVICO_8_02":0.1473,
@@ -846,16 +846,63 @@ function openDrawer(c,s,r,m,sh){
 function closeDrawer(e){if(e.target.id==="drawerBg")forceClose()}
 function forceClose(){drawerBg.classList.remove("open")}
 
-function initQuotesPage(){
+async function initQuotesPage(){
+  document.getElementById("quoteParamBadge").textContent="Conectando ao banco...";
+  await loadBootstrap();
+
   if(document.getElementById("mpRows")?.children.length===0) addCostRow("mp");
   if(document.getElementById("ferrRows")?.children.length===0) addCostRow("ferr");
   if(document.getElementById("thirdRows")?.children.length===0) addCostRow("third");
   if(document.getElementById("processRows")?.children.length===0) addProcessRow();
+
   document.getElementById("qFixedExpense").value=formatPctInput(FIXED_EXPENSE);
-  document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
+  document.getElementById("quoteParamBadge").textContent=(apiOnline?"Banco online • ":"API indisponível • ")+PARAM_VERSION;
   syncTaxRule();
-  renderQuoteHistory();
+  await renderQuoteHistory();
   recalculateItem();
+}
+
+async function apiGet(acao, params={}){
+  if(!NEOSONICS_API_URL) throw new Error("URL da API não configurada.");
+  const url=new URL(NEOSONICS_API_URL);
+  url.searchParams.set("acao",acao);
+  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+  const r=await fetch(url.toString(),{method:"GET",cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const j=await r.json();
+  if(!j.ok) throw new Error(j.erro||"Falha na API");
+  return j;
+}
+
+async function loadBootstrap(){
+  try{
+    const j=await apiGet("bootstrap");
+    apiOnline=true;
+
+    if(j.parametro_versao_ativa){
+      PARAM_VERSION=j.parametro_versao_ativa.ID_VERSAO||PARAM_VERSION;
+      FIXED_EXPENSE=Number(j.parametro_versao_ativa.DESPESA_FIXA_PCT||FIXED_EXPENSE);
+    }
+
+    if(Array.isArray(j.custos_hora_ativos)&&j.custos_hora_ativos.length){
+      PROCESS_COSTS=j.custos_hora_ativos
+        .filter(x=>x.PROCESSO)
+        .map(x=>[String(x.PROCESSO),Number(x.CUSTO_HORA||0)]);
+    }
+
+    if(Array.isArray(j.impostos)&&j.impostos.length){
+      const regras={};
+      j.impostos.forEach(x=>{
+        if(x.ATIVO===false)return;
+        const key=[x.ENQUADRAMENTO,x.DESTINO,x.TIPO_VENDA].map(v=>String(v||"").trim()).join("|");
+        if(key!=="||")regras[key]=Number(x.IMPOSTOS_PCT||0);
+      });
+      if(Object.keys(regras).length)TAX_RULES=regras;
+    }
+  }catch(e){
+    apiOnline=false;
+    console.warn("Bootstrap Neosonics:",e);
+  }
 }
 
 function toggleCostSection(id){document.getElementById(id)?.classList.toggle("open")}
@@ -1150,64 +1197,139 @@ async function saveQuoteDraft(){
   if(!quoteState.items.length){alert("Adicione pelo menos um item ao orçamento.");return}
   const payload=collectQuotePayload("RASCUNHO");
   const saved=await persistQuote(payload);
-  if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo";}
+  if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo no banco";}
 }
 async function sendQuote(){
   if(!quoteState.items.length){alert("Adicione pelo menos um item.");return}
   if(quoteState.items.some(x=>!Number(x.PRECO_FINAL_TOTAL))){alert("Todos os itens precisam ter preço final.");return}
   const payload=collectQuotePayload("ENVIADO");
   const saved=await persistQuote(payload);
-  if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);renderQuoteHistory();quoteStatusNote.textContent="Enviado • preço comercial congelado";alert("Orçamento marcado como enviado.");}
+  if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Enviado • preço comercial congelado";alert("Orçamento marcado como enviado.");}
 }
 function updateQuoteIdentity(saved){
   quoteState.id=saved.id_orcamento||saved.ID_ORCAMENTO||quoteState.id;
-  quoteState.number=saved.numero_orcamento||saved.NUMERO_ORCAMENTO||quoteState.number||nextLocalQuoteNumber();
+  quoteState.number=saved.numero_orcamento||saved.NUMERO_ORCAMENTO||quoteState.number;
   quoteNumberChip.textContent="Orçamento #"+quoteState.number;
 }
 
 async function persistQuote(payload){
-  if(NEOSONICS_API_URL){
-    try{
-      const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"salvar_orcamento",orcamento:payload})});
-      const j=await r.json();if(!j.ok)throw new Error(j.erro||"Falha ao salvar");return j;
-    }catch(e){alert("Erro ao salvar no servidor: "+e.message);return null}
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"salvar_orcamento",orcamento:payload})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Falha ao salvar");
+    apiOnline=true;
+    return j;
+  }catch(e){
+    apiOnline=false;
+    document.getElementById("quoteParamBadge").textContent="API indisponível • "+PARAM_VERSION;
+    alert("Não foi possível salvar no banco: "+e.message);
+    return null;
   }
-  const all=getLocalQuotes();
-  if(!payload.ID_ORCAMENTO) payload.ID_ORCAMENTO="ORC-LOCAL-"+Date.now();
-  if(!payload.NUMERO_ORCAMENTO) payload.NUMERO_ORCAMENTO=nextLocalQuoteNumber();
-  payload.DATA_ORCAMENTO=payload.DATA_ORCAMENTO||new Date().toISOString().slice(0,10);
-  const idx=all.findIndex(x=>x.ID_ORCAMENTO===payload.ID_ORCAMENTO);
-  const clone=JSON.parse(JSON.stringify(payload));
-  if(idx>=0)all[idx]=clone;else all.push(clone);
-  localStorage.setItem("neosonics_quotes_v1",JSON.stringify(all));
-  return {ok:true,id_orcamento:payload.ID_ORCAMENTO,numero_orcamento:payload.NUMERO_ORCAMENTO};
 }
-function getLocalQuotes(){try{return JSON.parse(localStorage.getItem("neosonics_quotes_v1")||"[]")}catch(e){return[]}}
-function nextLocalQuoteNumber(){const nums=getLocalQuotes().map(x=>Number(x.NUMERO_ORCAMENTO)||1000);return Math.max(1000,...nums)+1}
-function renderQuoteHistory(){
+
+async function renderQuoteHistory(){
   const body=document.getElementById("quoteHistoryBody");if(!body)return;
-  const all=getLocalQuotes().slice().sort((a,b)=>Number(b.NUMERO_ORCAMENTO)-Number(a.NUMERO_ORCAMENTO));
-  if(!all.length){body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum orçamento salvo neste navegador ainda.</td></tr>';return}
-  body.innerHTML=all.map(q=>`<tr>
-    <td>${q.NUMERO_ORCAMENTO}</td><td>${escapeHtml(q.CLIENTE_NOME_SNAPSHOT||"")}</td><td>${q.DATA_ORCAMENTO||""}</td>
-    <td>${(q.itens||[]).length}</td><td>${formatBRL(q.VALOR_TOTAL)}</td><td><span class="status ${q.STATUS==="ENVIADO"?"mid":q.STATUS==="APROVADO"?"good":""}">${q.STATUS||"RASCUNHO"}</span></td>
-    <td><button class="secondary" style="height:29px" onclick="openLocalQuote('${q.ID_ORCAMENTO}')">Abrir</button></td>
+  body.innerHTML='<tr class="empty-row"><td colspan="7">Carregando orçamentos...</td></tr>';
+
+  try{
+    const j=await apiGet("orcamentos");
+    apiOnline=true;
+    quoteHistoryCache=Array.isArray(j.dados)?j.dados:[];
+  }catch(e){
+    apiOnline=false;
+    quoteHistoryCache=[];
+    body.innerHTML='<tr class="empty-row"><td colspan="7">API ainda não liberada para acesso. O cálculo funciona, mas o banco não está disponível.</td></tr>';
+    return;
+  }
+
+  if(!quoteHistoryCache.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum orçamento salvo no banco ainda.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=quoteHistoryCache.map(q=>`<tr>
+    <td>${q.NUMERO_ORCAMENTO||""}</td>
+    <td>${escapeHtml(q.CLIENTE_NOME_SNAPSHOT||"")}</td>
+    <td>${formatDateBR(q.DATA_ORCAMENTO)}</td>
+    <td>${q.QTD_ITENS||0}</td>
+    <td>${formatBRL(q.VALOR_TOTAL)}</td>
+    <td><span class="status ${statusClass(q.STATUS)}">${q.STATUS||"RASCUNHO"}</span></td>
+    <td><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button></td>
   </tr>`).join("");
+
+  document.getElementById("quoteParamBadge").textContent="Banco online • "+PARAM_VERSION;
 }
-function openLocalQuote(id){
-  const q=getLocalQuotes().find(x=>x.ID_ORCAMENTO===id);if(!q)return;
-  quoteState={id:q.ID_ORCAMENTO,number:q.NUMERO_ORCAMENTO,status:q.STATUS||"RASCUNHO",items:q.itens||[]};
-  qClient.value=q.CLIENTE_NOME_SNAPSHOT||"";qCity.value=q.CIDADE_UF||"";qContact.value=q.CONTATO||"";qSeller.value=q.VENDEDOR||"";qPayment.value=q.COND_PAGAMENTO||"";qDelivery.value=q.PRAZO_ENTREGA||"";
-  qFramework.value=q.ENQUADRAMENTO||"NORMAL";qSaleType.value=q.TIPO_VENDA||"VENDA";qDestination.value=q.DESTINO||"INTERNA";qTaxes.value=formatPctInput(q.IMPOSTOS_PCT||0);qFixedExpense.value=formatPctInput(q.DESPESA_FIXA_PCT||FIXED_EXPENSE);qDesiredMargin.value=formatPctInput(q.LUCRO_DESEJADO_PCT||.30);
-  quoteNumberChip.textContent="Orçamento #"+q.NUMERO_ORCAMENTO;quoteStatusNote.textContent=(q.STATUS||"RASCUNHO")+" • carregado do histórico";
-  renderQuoteItems();clearItemForm();
+
+async function openQuote(id){
+  try{
+    const j=await apiGet("orcamento_detalhe",{id});
+    applyQuoteToForm(j.orcamento);
+  }catch(e){
+    alert("Não foi possível abrir o orçamento: "+e.message);
+  }
 }
+
+function applyQuoteToForm(q){
+  if(!q)return;
+  quoteState={
+    id:q.ID_ORCAMENTO,
+    number:q.NUMERO_ORCAMENTO,
+    status:q.STATUS||"RASCUNHO",
+    items:Array.isArray(q.itens)?q.itens:[]
+  };
+
+  qClient.value=q.CLIENTE_NOME_SNAPSHOT||"";
+  qCity.value=q.CIDADE_UF||"";
+  qContact.value=q.CONTATO||"";
+  qSeller.value=q.VENDEDOR||"";
+  qPayment.value=q.COND_PAGAMENTO||"";
+  qDelivery.value=q.PRAZO_ENTREGA||"";
+  qFramework.value=q.ENQUADRAMENTO||"NORMAL";
+  qSaleType.value=q.TIPO_VENDA||"VENDA";
+  qDestination.value=q.DESTINO||"INTERNA";
+  qTaxes.value=formatPctInput(Number(q.IMPOSTOS_PCT||0));
+  qFixedExpense.value=formatPctInput(Number(q.DESPESA_FIXA_PCT||FIXED_EXPENSE));
+  qDesiredMargin.value=formatPctInput(Number(q.LUCRO_DESEJADO_PCT||.30));
+
+  quoteNumberChip.textContent="Orçamento #"+q.NUMERO_ORCAMENTO;
+  quoteStatusNote.textContent=(q.STATUS||"RASCUNHO")+" • carregado do banco";
+  renderQuoteItems();
+  clearItemForm();
+}
+
 function searchQuote(){
   const term=quoteSearchInput.value.trim().toUpperCase();
   if(!term){renderQuoteHistory();return}
-  const q=getLocalQuotes().find(x=>String(x.NUMERO_ORCAMENTO).includes(term)||String(x.CLIENTE_NOME_SNAPSHOT||"").toUpperCase().includes(term));
-  if(q)openLocalQuote(q.ID_ORCAMENTO);else alert("Orçamento não encontrado neste navegador.");
+  const q=quoteHistoryCache.find(x=>
+    String(x.NUMERO_ORCAMENTO||"").toUpperCase().includes(term)||
+    String(x.CLIENTE_NOME_SNAPSHOT||"").toUpperCase().includes(term)
+  );
+  if(q)openQuote(q.ID_ORCAMENTO);
+  else alert("Orçamento não encontrado no banco.");
 }
+
+function statusClass(s){
+  const v=String(s||"").toUpperCase();
+  if(v==="APROVADO"||v==="CONVERTIDO")return "good";
+  if(v==="ENVIADO"||v==="RASCUNHO")return "mid";
+  if(v==="RECUSADO"||v==="CANCELADO")return "low";
+  return "";
+}
+
+function formatDateBR(v){
+  if(!v)return "";
+  const s=String(v);
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[3]+"/"+m[2]+"/"+m[1];
+  const d=new Date(v);
+  return Number.isNaN(d.getTime())?s:d.toLocaleDateString("pt-BR");
+}
+
 function newQuote(){
   quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
   ["qClient","qCity","qContact","qSeller","qPayment","qDelivery"].forEach(id=>document.getElementById(id).value="");
