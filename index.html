@@ -398,6 +398,12 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
   .client-summary-grid{grid-template-columns:1fr 1fr}
 }
 
+.history-map-panel{margin-top:14px}
+.history-help{margin:12px 15px 0}
+.history-map-table{min-width:860px}
+.map-select{min-width:260px}
+.map-actions{display:flex;gap:7px}
+@media(max-width:560px){.map-actions{flex-direction:column}.map-select{min-width:220px}}
 </style>
 </head>
 <body>
@@ -406,25 +412,16 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">N</div>
-      <div class="brand-copy"><b>NEOSONIC</b><small>Plataforma Comercial</small></div>
+      <div class="brand-copy"><b>NEOSONICS</b><small>Plataforma Comercial</small></div>
     </div>
 
-    <div class="group-title">Gestão</div>
+    <div class="group-title">Comercial</div>
     <div class="nav">
-      <button class="active" data-page="overview"><span class="ico">⌂</span><span class="nav-text">Visão Executiva</span></button>
-      <button data-page="clients"><span class="ico">◎</span><span class="nav-text">Clientes</span></button>
+      <button class="active" data-page="clients"><span class="ico">◎</span><span class="nav-text">Clientes</span></button>
       <button data-page="quotes"><span class="ico">R$</span><span class="nav-text">Orçamentos</span></button>
-      <button data-page="orders"><span class="ico">▣</span><span class="nav-text">Pedidos</span></button>
     </div>
 
-    <div class="group-title">Análises</div>
-    <div class="nav">
-      <button data-page="segments"><span class="ico">◫</span><span class="nav-text">Segmentos</span></button>
-      <button data-page="products"><span class="ico">◇</span><span class="nav-text">Produtos</span></button>
-      <button data-page="states"><span class="ico">⌖</span><span class="nav-text">Estados</span></button>
-    </div>
-
-    <div class="sidebar-foot"><b>Plataforma Comercial</b>Clientes, orçamentos, indicadores e análises gerenciais em uma única interface.</div>
+    <div class="sidebar-foot"><b>Plataforma Comercial</b>Cadastro de clientes e formação de orçamentos conectados ao banco real.</div>
   </aside>
 
   <main class="main">
@@ -432,8 +429,8 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
       <div style="display:flex;align-items:center;gap:10px">
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Abrir menu">☰</button>
         <div>
-        <div class="breadcrumb">Neosonic › <b id="crumb">Visão Executiva</b></div>
-        <div class="title" id="pageTitle">Visão Executiva</div>
+        <div class="breadcrumb">Neosonics › <b id="crumb">Clientes</b></div>
+        <div class="title" id="pageTitle">Clientes</div>
         </div>
       </div>
       <div class="actions">
@@ -447,95 +444,13 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
 
     <div class="content">
 
-      <section id="overview" class="page active">
-        <div class="hero">
-          <div><h2>Visão consolidada da performance comercial</h2><p>Acompanhe faturamento, custo, lucro, margem, clientes, produtos, segmentos e evolução histórica em uma única interface.</p></div>
-          <div class="badge">● Base atualizada • ambiente demonstrativo</div>
-        </div>
+      
 
-        <div class="toolbar">
-          <div class="field"><label>Ano</label><select><option>2026</option><option>2025</option><option>Todos</option></select></div>
-          <div class="field"><label>Mês</label><select><option>Todos</option><option>Janeiro</option><option>Fevereiro</option></select></div>
-          <div class="field"><label>Segmento</label><select><option>Todos</option><option>Automotivo</option><option>Industrial</option></select></div>
-          <div class="field"><label>Cliente</label><select><option>Todos</option><option>Cliente A</option><option>Cliente B</option></select></div>
-          <div class="field"><label>Estado</label><select><option>Todos</option><option>SP</option><option>MG</option></select></div>
-          <button class="secondary">Limpar</button><button class="primary">Aplicar</button>
-        </div>
-
-        <div class="kpis">
-          <div class="kpi"><div class="kpi-top"><span class="label">Faturamento</span><span class="mini">R$</span></div><div class="value">R$ 9,06 mi</div><div class="delta">▲ 12,4% <span class="muted">vs período anterior</span></div></div>
-          <div class="kpi"><div class="kpi-top"><span class="label">Custo total</span><span class="mini">∑</span></div><div class="value">R$ 5,48 mi</div><div class="delta red">▲ 6,8% <span class="muted">vs período anterior</span></div></div>
-          <div class="kpi"><div class="kpi-top"><span class="label">Lucro bruto</span><span class="mini">↗</span></div><div class="value">R$ 3,58 mi</div><div class="delta">▲ 18,7% <span class="muted">evolução</span></div></div>
-          <div class="kpi"><div class="kpi-top"><span class="label">Margem bruta</span><span class="mini">%</span></div><div class="value">39,5%</div><div class="delta">▲ 2,1 p.p.</div></div>
-          <div class="kpi"><div class="kpi-top"><span class="label">Pedidos</span><span class="mini">#</span></div><div class="value">433</div><div class="delta">▲ 9,3%</div></div>
-          <div class="kpi"><div class="kpi-top"><span class="label">Ticket médio</span><span class="mini">◌</span></div><div class="value">R$ 20,9 mil</div><div class="delta">▲ 3,2%</div></div>
-        </div>
-
-        <div class="grid2">
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Evolução mensal de faturamento</div><div class="panel-sub">Acompanhamento contínuo</div></div><span class="chip">2026</span></div>
-            <div class="panel-body">
-              <div class="chart">
-                <div class="barcol"><div class="barval">610k</div><div class="bar" style="height:42%"></div><div class="barlab">Jan</div></div>
-                <div class="barcol"><div class="barval">740k</div><div class="bar" style="height:53%"></div><div class="barlab">Fev</div></div>
-                <div class="barcol"><div class="barval">690k</div><div class="bar" style="height:49%"></div><div class="barlab">Mar</div></div>
-                <div class="barcol"><div class="barval">820k</div><div class="bar" style="height:61%"></div><div class="barlab">Abr</div></div>
-                <div class="barcol"><div class="barval">930k</div><div class="bar" style="height:72%"></div><div class="barlab">Mai</div></div>
-                <div class="barcol"><div class="barval">1,02M</div><div class="bar" style="height:82%"></div><div class="barlab">Jun</div></div>
-                <div class="barcol"><div class="barval">1,16M</div><div class="bar" style="height:94%"></div><div class="barlab">Jul</div></div>
-              </div>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Participação por segmento</div><div class="panel-sub">Distribuição do faturamento</div></div></div>
-            <div class="panel-body">
-              <div class="donut-zone">
-                <div class="donut"><div class="center"><div><b>R$ 9,06 mi</b><br><span>faturamento</span></div></div></div>
-                <div class="legend">
-                  <div><span class="box" style="background:#f39b52"></span><span>Automotivo</span><b>34%</b></div>
-                  <div><span class="box" style="background:#76aaff"></span><span>Plásticos</span><b>23%</b></div>
-                  <div><span class="box" style="background:#ab8cff"></span><span>Embalagens</span><b>19%</b></div>
-                  <div><span class="box" style="background:#4fd5a4"></span><span>Industrial</span><b>15%</b></div>
-                  <div><span class="box" style="background:#3b4c66"></span><span>Outros</span><b>9%</b></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid2eq">
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Top clientes</div><div class="panel-sub">Clique para detalhar</div></div><span class="chip">Top 5</span></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Cliente</th><th>Segmento</th><th>Faturamento</th><th>Margem</th><th>% Segmento</th></tr></thead>
-                <tbody>
-                  <tr onclick="openDrawer('Cliente A','Automotivo','R$ 1,48 mi','43,8%','51,0%')"><td>Cliente A</td><td>Automotivo</td><td>R$ 1,48 mi</td><td><span class="status good">43,8%</span></td><td>51,0%</td></tr>
-                  <tr onclick="openDrawer('Cliente B','Plásticos','R$ 1,11 mi','40,4%','37,2%')"><td>Cliente B</td><td>Plásticos</td><td>R$ 1,11 mi</td><td><span class="status good">40,4%</span></td><td>37,2%</td></tr>
-                  <tr onclick="openDrawer('Cliente C','Automotivo','R$ 890 mil','31,5%','30,7%')"><td>Cliente C</td><td>Automotivo</td><td>R$ 890 mil</td><td><span class="status mid">31,5%</span></td><td>30,7%</td></tr>
-                  <tr onclick="openDrawer('Cliente D','Industrial','R$ 715 mil','37,9%','28,5%')"><td>Cliente D</td><td>Industrial</td><td>R$ 715 mil</td><td><span class="status good">37,9%</span></td><td>28,5%</td></tr>
-                  <tr onclick="openDrawer('Cliente E','Embalagens','R$ 602 mil','22,8%','26,3%')"><td>Cliente E</td><td>Embalagens</td><td>R$ 602 mil</td><td><span class="status low">22,8%</span></td><td>26,3%</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Rentabilidade por segmento</div><div class="panel-sub">Margem bruta consolidada</div></div></div>
-            <div class="panel-body" style="display:grid;gap:16px">
-              <div class="bar-row"><span style="width:85px;font-size:9px">Automotivo</span><div class="track"><div class="fill" style="width:84%"></div></div><b style="font-size:9px">42,2%</b></div>
-              <div class="bar-row"><span style="width:85px;font-size:9px">Industrial</span><div class="track"><div class="fill green" style="width:79%"></div></div><b style="font-size:9px">39,6%</b></div>
-              <div class="bar-row"><span style="width:85px;font-size:9px">Plásticos</span><div class="track"><div class="fill blue" style="width:73%"></div></div><b style="font-size:9px">36,7%</b></div>
-              <div class="bar-row"><span style="width:85px;font-size:9px">Embalagens</span><div class="track"><div class="fill" style="width:62%"></div></div><b style="font-size:9px">31,3%</b></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="clients" class="page">
+      <section id="clients" class="page active">
         <div class="hero">
           <div>
             <h2>Cadastro e gestão de clientes</h2>
-            <p>Cadastre o cliente uma vez e reutilize os dados nos orçamentos, pedidos e análises.</p>
+            <p>A base histórica da planilha do cliente já está aqui. Cadastre novos clientes e revise somente os casos que ficaram ambíguos.</p>
           </div>
           <div class="badge" id="clientApiBadge">Banco online</div>
         </div>
@@ -583,7 +498,7 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
               <div class="grid4 client-summary-grid" style="margin-bottom:0">
                 <div class="summary"><span>Clientes</span><strong id="clientKpiTotal">0</strong><small>cadastrados</small></div>
                 <div class="summary"><span>Ativos</span><strong id="clientKpiActive">0</strong><small>disponíveis</small></div>
-                <div class="summary"><span>Segmentados</span><strong id="clientKpiSegmented">0%</strong><small>com segmento</small></div>
+                <div class="summary"><span>Pendências histórico</span><strong id="clientKpiPending">0</strong><small>DE/PARA para revisar</small></div>
                 <div class="summary"><span>Estados</span><strong id="clientKpiStates">0</strong><small>UFs diferentes</small></div>
               </div>
               <div class="simple-help">
@@ -609,7 +524,28 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
             </table>
           </div>
         </div>
-      </section>
+      
+
+        <div class="panel history-map-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Revisão do histórico da planilha</div>
+              <div class="panel-sub">Só aparecem aqui os códigos que ficaram ambíguos e precisam de decisão humana.</div>
+            </div>
+            <span class="chip" id="mapPendingChip">0 pendências</span>
+          </div>
+          <div class="simple-help history-help">
+            <b>O que fazer?</b>
+            <span>Se duas linhas são o mesmo cliente, vincule as duas ao mesmo cadastro oficial. Se forem clientes/unidades diferentes, use “Criar separado”.</span>
+          </div>
+          <div class="table-wrap">
+            <table class="history-map-table">
+              <thead><tr><th>Código antigo</th><th>Nome na planilha</th><th>UF</th><th>Cliente oficial</th><th>Ação</th></tr></thead>
+              <tbody id="clientMapBody"><tr class="empty-row"><td colspan="5">Carregando pendências...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+</section>
 
       <section id="quotes" class="page">
         <div class="hero quote-hero">
@@ -831,103 +767,16 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
       </section>
 
 
-      <section id="orders" class="page">
-        <div class="hero">
-          <div><h2>Pedidos</h2><p>Pedidos gerados a partir de orçamentos aprovados, mantendo rastreabilidade entre a proposta comercial, os preços aprovados e a venda realizada.</p></div>
-          <div class="badge">Orçamento → Pedido</div>
-        </div>
+      
 
-        <div class="grid4">
-          <div class="summary"><span>Pedidos abertos</span><strong>12</strong><small>Aguardando andamento</small></div>
-          <div class="summary"><span>Confirmados</span><strong>8</strong><small>Pedidos ativos</small></div>
-          <div class="summary"><span>Faturados</span><strong>31</strong><small>Período atual</small></div>
-          <div class="summary"><span>Valor em carteira</span><strong>R$ 386 mil</strong><small>Exemplo visual</small></div>
-        </div>
+      
 
-        <div class="panel">
-          <div class="panel-head">
-            <div><div class="panel-title">Carteira de pedidos</div><div class="panel-sub">Rastreabilidade desde o orçamento de origem</div></div>
-            <button class="secondary">Exportar</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Orçamento origem</th><th>Vendedor</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
-              <tbody>
-                <tr><td>PED-0001</td><td>24/09/2026</td><td>Cliente B</td><td>1001</td><td>Alexandro</td><td>R$ 18.900</td><td><span class="status good">Confirmado</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
-                <tr><td>PED-0002</td><td>23/09/2026</td><td>Cliente A</td><td>0997</td><td>Alexandro</td><td>R$ 27.400</td><td><span class="status mid">Aberto</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
-                <tr><td>PED-0003</td><td>21/09/2026</td><td>Cliente D</td><td>0992</td><td>Comercial 02</td><td>R$ 14.250</td><td><span class="status good">Faturado</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      
 
-      <section id="segments" class="page">
-        <div class="hero"><div><h2>Segmentos</h2><p>Participação, faturamento, custo, lucro e margem por segmento com análise comparativa.</p></div><div class="badge">Visão estratégica</div></div>
-        <div class="grid4">
-          <div class="summary"><span>Maior participação</span><strong>34%</strong><small>Automotivo</small></div>
-          <div class="summary"><span>Maior margem</span><strong>42,2%</strong><small>Automotivo</small></div>
-          <div class="summary"><span>Maior crescimento</span><strong>+18,6%</strong><small>Industrial</small></div>
-          <div class="summary"><span>Segmentos ativos</span><strong>8</strong><small>Base atual</small></div>
-        </div>
-        <div class="panel"><div class="panel-head"><div><div class="panel-title">Desempenho por segmento</div><div class="panel-sub">Indicadores consolidados</div></div></div><div class="table-wrap">
-          <table><thead><tr><th>Segmento</th><th>Clientes</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Margem</th><th>Participação</th></tr></thead>
-          <tbody><tr><td>Automotivo</td><td>12</td><td>R$ 3,08 mi</td><td>R$ 1,78 mi</td><td>R$ 1,30 mi</td><td><span class="status good">42,2%</span></td><td>34%</td></tr>
-          <tr><td>Plásticos</td><td>9</td><td>R$ 2,08 mi</td><td>R$ 1,32 mi</td><td>R$ 763 mil</td><td><span class="status good">36,7%</span></td><td>23%</td></tr>
-          <tr><td>Embalagens</td><td>7</td><td>R$ 1,72 mi</td><td>R$ 1,18 mi</td><td>R$ 538 mil</td><td><span class="status mid">31,3%</span></td><td>19%</td></tr></tbody></table>
-        </div></div>
-      </section>
-
-      <section id="products" class="page">
-        <div class="hero"><div><h2>Produtos</h2><p>Rentabilidade por produto e por cliente, identificando itens de maior faturamento, lucro e margem.</p></div><div class="badge">Análise por SKU</div></div>
-        <div class="panel"><div class="panel-head"><div><div class="panel-title">Detalhamento por produto</div><div class="panel-sub">Preço, custo, lucro e margem</div></div></div><div class="table-wrap">
-          <table><thead><tr><th>SKU</th><th>Produto</th><th>Qtd.</th><th>Preço médio</th><th>Custo médio</th><th>Faturamento</th><th>Lucro</th><th>Margem</th></tr></thead>
-          <tbody><tr><td>SKU-001</td><td>Produto Alpha</td><td>42</td><td>R$ 9.760</td><td>R$ 5.480</td><td>R$ 410 mil</td><td>R$ 180 mil</td><td><span class="status good">43,9%</span></td></tr>
-          <tr><td>SKU-002</td><td>Produto Beta</td><td>27</td><td>R$ 12.220</td><td>R$ 7.430</td><td>R$ 330 mil</td><td>R$ 129 mil</td><td><span class="status good">39,1%</span></td></tr>
-          <tr><td>SKU-003</td><td>Produto Gamma</td><td>31</td><td>R$ 8.390</td><td>R$ 6.330</td><td>R$ 260 mil</td><td>R$ 64 mil</td><td><span class="status mid">24,6%</span></td></tr></tbody></table>
-        </div></div>
-      </section>
-
-      <section id="states" class="page">
-        <div class="hero"><div><h2>Estados</h2><p>Distribuição geográfica de vendas, faturamento, clientes e margem.</p></div><div class="badge">Brasil</div></div>
-        <div class="grid2eq">
-          <div class="panel"><div class="panel-head"><div><div class="panel-title">Vendas por estado</div></div></div><div class="panel-body" style="display:grid;gap:15px">
-            <div class="bar-row"><span style="width:35px;font-size:9px">SP</span><div class="track"><div class="fill" style="width:100%"></div></div><b style="font-size:9px">178</b></div>
-            <div class="bar-row"><span style="width:35px;font-size:9px">MG</span><div class="track"><div class="fill blue" style="width:42%"></div></div><b style="font-size:9px">74</b></div>
-            <div class="bar-row"><span style="width:35px;font-size:9px">PR</span><div class="track"><div class="fill green" style="width:35%"></div></div><b style="font-size:9px">63</b></div>
-          </div></div>
-          <div class="panel"><div class="panel-head"><div><div class="panel-title">Indicadores geográficos</div></div></div><div class="table-wrap">
-            <table style="min-width:520px"><thead><tr><th>UF</th><th>Vendas</th><th>Faturamento</th><th>Margem</th></tr></thead><tbody>
-              <tr><td>SP</td><td>178</td><td>R$ 3,42 mi</td><td><span class="status good">40,8%</span></td></tr>
-              <tr><td>MG</td><td>74</td><td>R$ 1,32 mi</td><td><span class="status good">38,6%</span></td></tr>
-              <tr><td>PR</td><td>63</td><td>R$ 1,08 mi</td><td><span class="status good">37,9%</span></td></tr>
-            </tbody></table>
-          </div></div>
-        </div>
-      </section>
+      
 
     </div>
   </main>
-</div>
-
-<div class="drawer-bg" id="drawerBg" onclick="closeDrawer(event)">
-  <aside class="drawer">
-    <div class="drawer-head">
-      <div><h3 id="dClient">Cliente A</h3><p id="dSegment">Automotivo • visão gerencial</p></div>
-      <button class="close" onclick="forceClose()">×</button>
-    </div>
-    <div class="drawer-grid">
-      <div class="drawer-card"><span>Faturamento</span><strong id="dRevenue">R$ 1,48 mi</strong></div>
-      <div class="drawer-card"><span>Margem</span><strong id="dMargin">43,8%</strong></div>
-      <div class="drawer-card"><span>% no segmento</span><strong id="dShare">51,0%</strong></div>
-      <div class="drawer-card"><span>Produtos</span><strong>14</strong></div>
-    </div>
-    <div class="panel" style="margin-top:12px"><div class="panel-head"><div><div class="panel-title">Histórico recente</div></div></div><div class="panel-body">
-      <div class="bar-row"><span style="width:52px;font-size:9px">Jan</span><div class="track"><div class="fill" style="width:63%"></div></div><b style="font-size:9px">R$ 120k</b></div><br>
-      <div class="bar-row"><span style="width:52px;font-size:9px">Fev</span><div class="track"><div class="fill blue" style="width:78%"></div></div><b style="font-size:9px">R$ 148k</b></div><br>
-      <div class="bar-row"><span style="width:52px;font-size:9px">Mar</span><div class="track"><div class="fill green" style="width:91%"></div></div><b style="font-size:9px">R$ 172k</b></div>
-    </div></div>
-  </aside>
 </div>
 
 <div class="guide-bg" id="guideBg" onclick="closeGuide(event)">
@@ -942,15 +791,15 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
 </div>
 
 <script>
-const names={overview:"Visão Executiva",clients:"Clientes",quotes:"Orçamentos",orders:"Pedidos",segments:"Segmentos",products:"Produtos",states:"Estados"};
+const names={clients:"Clientes",quotes:"Orçamentos"};
 
 const NEOSONICS_API_URL="https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec";
 let PARAM_VERSION="PV-20260924-001";
 let FIXED_EXPENSE=0.12741625391756686;
 let apiOnline=false;
 let quoteHistoryCache=[];
-let APP_DATA={clients:[],segments:[]};
-let currentPage="overview";
+let APP_DATA={clients:[],segments:[],clientMap:[]};
+let currentPage="clients";
 
 let PROCESS_COSTS=[
   ["ENGENHARIA DE APLICAÇÃO",174.9593757254843],
@@ -1012,43 +861,17 @@ document.querySelectorAll(".nav button").forEach(btn=>{
 });
 
 const GUIDES={
-  overview:{title:"Visão Executiva",steps:[
-    ["Filtre","Escolha período, segmento, cliente ou estado."],
-    ["Leia os indicadores","Os cards mostram faturamento, custo, lucro, margem e volume."],
-    ["Aprofunde","Use as análises para descobrir onde estão os melhores resultados."]
-  ]},
   clients:{title:"Clientes",steps:[
-    ["Cadastre","Preencha razão social ou nome fantasia e os dados que você tiver."],
-    ["Salve","O cliente passa a ficar disponível para novos orçamentos."],
-    ["Edite quando precisar","Abra o cadastro pela tabela e atualize os dados. Orçamentos antigos mantêm o histórico."]
+    ["Base histórica","Os clientes sem conflito já vieram automaticamente da planilha para o cadastro oficial."],
+    ["Revise exceções","Na tabela de revisão aparecem somente os códigos ambíguos. Vincule ao cliente certo ou crie separado."],
+    ["Cadastre novos","Clientes novos são cadastrados normalmente e ficam disponíveis para orçamento."]
   ]},
   quotes:{title:"Orçamentos",steps:[
     ["Escolha o cliente","O cliente precisa estar cadastrado antes."],
     ["Monte o custo","Informe matéria-prima, ferramental, terceiros e processos."],
     ["Escolha o preço","Mínimo, objetivo e cenários ajudam; quem define o preço final é o usuário."],
     ["Salve ou envie","Rascunho pode ser retomado. Ao enviar, o preço final fica registrado."]
-  ]},
-  orders:{title:"Pedidos",steps:[
-    ["Origem","O pedido nasce de um orçamento aprovado."],
-    ["Rastreabilidade","O pedido mantém o vínculo com o orçamento e os preços fechados."],
-    ["Acompanhe","Consulte a carteira pelo status do pedido."]
-  ]},
-  segments:{title:"Segmentos",steps:[
-    ["Compare","Veja participação, faturamento e resultado por segmento."],
-    ["Filtre","Use o período e demais filtros para comparar bases iguais."],
-    ["Aprofunde","Abra os clientes do segmento para entender a composição."]
-  ]},
-  products:{title:"Produtos",steps:[
-    ["Localize","Veja produtos e SKUs vendidos."],
-    ["Compare","Analise faturamento, custo e margem."],
-    ["Cruze","Use cliente e segmento para entender onde cada produto performa melhor."]
-  ]},
-  states:{title:"Estados",steps:[
-    ["Distribuição","Veja onde as vendas acontecem."],
-    ["Compare","Analise faturamento e margem por UF."],
-    ["Detalhe","Combine com cliente e segmento para explicar o resultado."]
   ]}
-};
 
 function initUiPreferences(){
   const theme=localStorage.getItem("neosonics_theme")||"dark";
@@ -1094,12 +917,6 @@ function closeMobileMenu(){
   document.getElementById("menuOverlay").classList.remove("open");
 }
 function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transition=".6s";setTimeout(()=>btn.style.transform="",650)}
-function openDrawer(c,s,r,m,sh){
-  dClient.textContent=c;dSegment.textContent=s+" • visão gerencial";dRevenue.textContent=r;dMargin.textContent=m;dShare.textContent=sh;
-  drawerBg.classList.add("open");
-}
-function closeDrawer(e){if(e.target.id==="drawerBg")forceClose()}
-function forceClose(){drawerBg.classList.remove("open")}
 
 function clientName(c){return String(c.NOME_FANTASIA||c.RAZAO_SOCIAL||"").trim()}
 function truthy(v){return v===true||String(v).toLowerCase()==="true"||String(v)==="1"}
@@ -1121,15 +938,19 @@ async function initClientsPage(){
   const badge=document.getElementById("clientApiBadge");
   if(badge)badge.textContent="Carregando...";
   await loadBootstrap();
-  if(!apiOnline){
-    try{
-      const j=await apiGet("clientes");
-      APP_DATA.clients=Array.isArray(j.dados)?j.dados:[];
-      apiOnline=true;
-    }catch(e){console.warn(e)}
+
+  try{
+    const [cj,mj]=await Promise.all([apiGet("clientes"),apiGet("map_clientes")]);
+    APP_DATA.clients=Array.isArray(cj.dados)?cj.dados:APP_DATA.clients;
+    APP_DATA.clientMap=Array.isArray(mj.dados)?mj.dados:[];
+    apiOnline=true;
+  }catch(e){
+    console.warn("Clientes/DE-PARA:",e);
   }
+
   populateClientSelectors();
   renderClientsTable();
+  renderClientMappings();
   updateClientKpis();
   if(badge)badge.textContent=apiOnline?"Banco online":"API indisponível";
 }
@@ -1159,13 +980,64 @@ function renderClientsTable(){
 function updateClientKpis(){
   const all=APP_DATA.clients;
   const active=all.filter(c=>truthy(c.ATIVO));
-  const segmented=all.filter(c=>String(c.SEGMENTO_ID||"").trim()).length;
+  const pending=APP_DATA.clientMap.filter(m=>String(m.STATUS_MAPEAMENTO||"").toUpperCase()==="PENDENTE");
   const states=new Set(all.map(c=>String(c.UF||"").trim()).filter(Boolean));
   if(document.getElementById("clientKpiTotal"))clientKpiTotal.textContent=all.length;
   if(document.getElementById("clientKpiActive"))clientKpiActive.textContent=active.length;
-  if(document.getElementById("clientKpiSegmented"))clientKpiSegmented.textContent=all.length?Math.round(segmented/all.length*100)+"%":"0%";
+  if(document.getElementById("clientKpiPending"))clientKpiPending.textContent=pending.length;
   if(document.getElementById("clientKpiStates"))clientKpiStates.textContent=states.size;
+  if(document.getElementById("mapPendingChip"))mapPendingChip.textContent=pending.length+" pendência"+(pending.length===1?"":"s");
 }
+
+function renderClientMappings(){
+  const body=document.getElementById("clientMapBody");if(!body)return;
+  const pending=APP_DATA.clientMap.filter(m=>String(m.STATUS_MAPEAMENTO||"").toUpperCase()==="PENDENTE");
+
+  if(!pending.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="5">Tudo revisado. Não há pendências no histórico.</td></tr>';
+    return;
+  }
+
+  const options=APP_DATA.clients
+    .filter(c=>truthy(c.ATIVO))
+    .map(c=>'<option value="'+escapeHtml(c.ID_CLIENTE)+'">'+escapeHtml(clientName(c))+(c.UF?' • '+escapeHtml(c.UF):'')+'</option>')
+    .join("");
+
+  body.innerHTML=pending.map((m,i)=>{
+    const sid='mapSel'+i;
+    return '<tr>'+
+      '<td><b>'+escapeHtml(m.COD_CLIENTE_ORIGEM||"")+'</b></td>'+
+      '<td>'+escapeHtml(String(m.CLIENTE_ORIGEM||"").trim())+'</td>'+
+      '<td>'+escapeHtml(m.UF_ORIGEM||"")+'</td>'+
+      '<td><select id="'+sid+'" class="map-select"><option value="">Selecione o cliente...</option>'+options+'</select></td>'+
+      '<td><div class="map-actions">'+
+        '<button class="secondary" onclick="linkHistoryClient(\''+escapeJs(m.CHAVE_ORIGEM)+'\',\''+sid+'\')">Vincular</button>'+
+        '<button class="primary" onclick="createHistoryClient(\''+escapeJs(m.CHAVE_ORIGEM)+'\')">Criar separado</button>'+
+      '</div></td>'+
+    '</tr>';
+  }).join("");
+}
+
+async function linkHistoryClient(key,selectId){
+  const sel=document.getElementById(selectId);
+  if(!sel||!sel.value){alert("Selecione o cliente oficial.");return}
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"salvar_mapeamento_cliente",chave_origem:key,id_cliente_oficial:sel.value})});
+    const j=await r.json();if(!j.ok)throw new Error(j.erro||"Erro ao vincular");
+    await initClientsPage();
+  }catch(e){alert("Não foi possível vincular: "+e.message)}
+}
+
+async function createHistoryClient(key){
+  if(!confirm("Criar este registro histórico como um cliente separado?"))return;
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"criar_cliente_mapeamento",chave_origem:key})});
+    const j=await r.json();if(!j.ok)throw new Error(j.erro||"Erro ao criar");
+    await initClientsPage();
+  }catch(e){alert("Não foi possível criar o cliente: "+e.message)}
+}
+
+function escapeJs(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}
 
 function clearClientForm(){
   ["cId","cRazao","cFantasia","cDocumento","cSegment","cCidade","cContato","cVendedor","cEmail","cTelefone","cObs"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
@@ -1748,7 +1620,8 @@ function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;",
 
 document.addEventListener("DOMContentLoaded",()=>{
   initUiPreferences();
-  currentPage=document.querySelector(".page.active")?.id||"overview";
+  currentPage=document.querySelector(".page.active")?.id||"clients";
+  initClientsPage();
 });
 </script>
 </body>
