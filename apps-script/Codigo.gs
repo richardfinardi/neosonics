@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.3.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.4.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -39,6 +39,9 @@ function doGet(e) {
 
       case 'orcamentos':
         return json_({ ok: true, dados: listarObjetos_(ABAS.ORCAMENTOS) });
+
+      case 'orcamento_detalhe':
+        return json_(getOrcamentoDetalhe_((e && e.parameter && e.parameter.id) || ''));
 
       case 'pedidos':
         return json_({ ok: true, dados: listarObjetos_(ABAS.PEDIDOS) });
@@ -171,13 +174,32 @@ function salvarOrcamento_(orcamento) {
         ? orcamento.DESPESA_FIXA_PCT
         : versaoParametros.DESPESA_FIXA_PCT,
       FONTE_PARAMETROS: orcamento.FONTE_PARAMETROS || versaoParametros.ORIGEM_TITULO || CUSTOS_ORIGEM_TITULO,
-      DT_CRIACAO: orcamento.DT_CRIACAO || agora,
+      DT_CRIACAO: orcamento.DT_CRIACAO || (function(){
+        const sh = aba_(ABAS.ORCAMENTOS);
+        const hs = cabecalhos_(sh);
+        const rr = localizarLinha_(sh, hs.ID_ORCAMENTO, idOrcamento);
+        return rr ? objetoDaLinha_(sh, rr).DT_CRIACAO : agora;
+      })(),
       DT_ATUALIZACAO: agora,
       CONVERTIDO_PEDIDO_ID: orcamento.CONVERTIDO_PEDIDO_ID || ''
     });
     delete cab.itens;
 
-    appendObjeto_(ABAS.ORCAMENTOS, cab);
+    const shOrc = aba_(ABAS.ORCAMENTOS);
+    const hOrc = cabecalhos_(shOrc);
+    const rowExistente = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
+
+    if (rowExistente) {
+      // Atualiza o cabeçalho sem criar duplicidade.
+      escreverObjetoNaLinha_(shOrc, rowExistente, cab);
+
+      // Regrava os filhos do orçamento. O snapshot antigo não é alterado fora deste
+      // orçamento; apenas o próprio rascunho em edição é substituído.
+      deletarLinhasPorValor_(ABAS.ORCAMENTO_COMPONENTES, 'ORCAMENTO_ID', idOrcamento);
+      deletarLinhasPorValor_(ABAS.ORCAMENTO_ITENS, 'ORCAMENTO_ID', idOrcamento);
+    } else {
+      appendObjeto_(ABAS.ORCAMENTOS, cab);
+    }
 
     itens.forEach(function(item, idx) {
       const idItem = item.ID_ITEM || novoId_('ORI');
@@ -250,6 +272,33 @@ function salvarOrcamento_(orcamento) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function getOrcamentoDetalhe_(idOrcamento) {
+  if (!idOrcamento) return { ok: false, erro: 'ID do orçamento não informado.' };
+
+  const orcamentos = listarObjetos_(ABAS.ORCAMENTOS);
+  const orc = orcamentos.find(function(x) {
+    return String(x.ID_ORCAMENTO) === String(idOrcamento) ||
+           String(x.NUMERO_ORCAMENTO) === String(idOrcamento);
+  });
+
+  if (!orc) return { ok: false, erro: 'Orçamento não encontrado.' };
+
+  const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS)
+    .filter(function(x) { return String(x.ORCAMENTO_ID) === String(orc.ID_ORCAMENTO); })
+    .sort(function(a,b) { return numero_(a.SEQ) - numero_(b.SEQ); });
+
+  const componentes = listarObjetos_(ABAS.ORCAMENTO_COMPONENTES)
+    .filter(function(x) { return String(x.ORCAMENTO_ID) === String(orc.ID_ORCAMENTO); });
+
+  itens.forEach(function(item) {
+    item.componentes = componentes
+      .filter(function(c) { return String(c.ITEM_ID) === String(item.ID_ITEM); })
+      .sort(function(a,b) { return numero_(a.ORDEM) - numero_(b.ORDEM); });
+  });
+
+  return { ok: true, orcamento: Object.assign({}, orc, { itens: itens }) };
 }
 
 function alterarStatusOrcamento_(idOrcamento, novoStatus) {
@@ -659,6 +708,29 @@ function appendObjeto_(nomeAba, obj) {
     return Object.prototype.hasOwnProperty.call(obj, h) ? obj[h] : '';
   });
   sh.appendRow(row);
+}
+
+function escreverObjetoNaLinha_(sh, row, obj) {
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const atual = sh.getRange(row, 1, 1, headers.length).getValues()[0];
+  const valores = headers.map(function(h, i) {
+    return Object.prototype.hasOwnProperty.call(obj, h) ? obj[h] : atual[i];
+  });
+  sh.getRange(row, 1, 1, headers.length).setValues([valores]);
+}
+
+function deletarLinhasPorValor_(nomeAba, nomeColuna, valor) {
+  const sh = aba_(nomeAba);
+  if (sh.getLastRow() < 2) return;
+
+  const headers = cabecalhos_(sh);
+  const col = headers[nomeColuna];
+  if (!col) throw new Error('Coluna não encontrada em ' + nomeAba + ': ' + nomeColuna);
+
+  const vals = sh.getRange(2, col, sh.getLastRow() - 1, 1).getValues();
+  for (let i = vals.length - 1; i >= 0; i--) {
+    if (String(vals[i][0]) === String(valor)) sh.deleteRow(i + 2);
+  }
 }
 
 function objetoDaLinha_(sh, row) {
