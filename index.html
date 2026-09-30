@@ -207,6 +207,72 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
   .hero{padding:17px}
   .donut-zone{flex-direction:column}
 }
+
+/* ===== Orçamentos / Calculadora ===== */
+.quote-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px}
+.quote-search{display:flex;gap:8px;min-width:min(520px,58vw)}
+.quote-search input{min-width:280px}
+.quote-actions{display:flex;gap:8px}
+.quote-head-grid{grid-template-columns:repeat(4,1fr)}
+.quote-workspace{grid-template-columns:minmax(0,1.32fr) minmax(360px,.68fr)}
+.cost-section{border:1px solid #213753;border-radius:13px;margin-top:10px;background:#0d192a;overflow:hidden}
+.cost-section-head{width:100%;height:42px;border:0;background:#101f34;color:#d9e6f5;padding:0 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:left}
+.cost-section-head span{font-size:10px;font-weight:800}.cost-section-head b{font-size:10px;color:var(--accent2)}
+.cost-section-body{display:none;padding:10px;border-top:1px solid #20344f}.cost-section.open .cost-section-body{display:block}
+.cost-rows,.process-rows{display:grid;gap:7px}
+.cost-row{display:grid;grid-template-columns:1.6fr .55fr .8fr .65fr .65fr .72fr 34px;gap:6px;align-items:end}
+.cost-row.third{grid-template-columns:1.6fr .65fr .85fr .85fr 34px}
+.process-row{display:grid;grid-template-columns:1.7fr .8fr .7fr .7fr .88fr 34px;gap:6px;align-items:end}
+.cost-row label,.process-row label{display:block;font-size:7px;text-transform:uppercase;color:#6f84a2;margin:0 0 4px 2px}
+.cost-row input,.cost-row select,.process-row input,.process-row select{height:34px;border-radius:8px;font-size:9px;padding:0 7px}
+.cost-row .readonly,.process-row .readonly{background:#0b1626;color:#91a3bb}
+.row-total{height:34px;border:1px solid #29405f;border-radius:8px;background:#0b1626;display:flex;align-items:center;padding:0 7px;font-size:9px;white-space:nowrap}
+.row-remove{width:34px;height:34px;border:1px solid #3a4052;border-radius:8px;background:#181c29;color:#ff969a;cursor:pointer}
+.mini-add{margin-top:8px;height:31px;padding:0 10px;border-radius:8px;border:1px dashed #345071;background:transparent;color:#92a9c6;cursor:pointer;font-size:9px}
+.quote-result-panel{position:sticky;top:88px;align-self:start}
+.result-stack{display:grid;gap:8px}
+.result-line{display:flex;justify-content:space-between;gap:10px;font-size:9px;color:#8fa2bd;padding-bottom:7px;border-bottom:1px solid #1c3049}
+.result-line b{color:#dce8f6}.result-line.total{font-size:11px;padding:9px 0;border-bottom:0}.result-line.total b{color:var(--accent2);font-size:15px}
+.suggestions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.suggestion-card{border:1px solid #28425f;background:#10213a;border-radius:12px;padding:11px}
+.suggestion-card span{display:block;font-size:8px;color:#7f93ae}.suggestion-card b{display:block;margin-top:6px;font-size:15px}.suggestion-card small{display:block;font-size:7px;color:#667d9b;margin-top:4px}
+.scenario-title{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#6d83a1;margin:13px 0 7px}
+.scenario-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.scenario-btn{border:1px solid #29435f;border-radius:9px;background:#0e1c30;color:#b8c9dc;padding:8px 5px;cursor:pointer;text-align:center}
+.scenario-btn:hover{border-color:#d98b4b}.scenario-btn span{display:block;font-size:7px;color:#7890ad}.scenario-btn b{display:block;font-size:9px;margin-top:3px}
+.final-price-box{margin-top:14px;border:1px solid rgba(243,155,82,.42);background:rgba(243,155,82,.08);border-radius:14px;padding:13px}
+.final-price-box label{display:block;font-size:9px;font-weight:800;color:#f5bb86;margin-bottom:7px}
+.money-input{height:45px;border:1px solid #b46b34;border-radius:10px;background:#0d1928;display:flex;align-items:center;overflow:hidden}
+.money-input span{padding:0 10px;color:#f2ae71;font-size:11px;font-weight:800}.money-input input{border:0;background:transparent;height:43px;border-radius:0;font-size:18px;font-weight:900;color:#fff;padding-left:0}
+.final-price-box small{display:block;font-size:8px;color:#9b7d63;margin-top:7px}
+.final-kpis{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.final-kpis div{border:1px solid #223853;background:#0d1a2c;border-radius:10px;padding:9px}.final-kpis span{display:block;font-size:7px;color:#7489a6}.final-kpis b{display:block;font-size:11px;margin-top:4px}
+.quote-item-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.quote-total{display:flex;align-items:center;gap:10px}.quote-total span{font-size:8px;color:#7e92ae}.quote-total b{font-size:15px;color:var(--accent2)}
+.quote-items-panel,.quote-history-panel{margin-top:14px}.quote-items-table{min-width:920px}
+.empty-row td{text-align:center;color:#607793;padding:24px}
+.quote-footer-actions{padding:12px 15px;border-top:1px solid #20344f;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.quote-footer-actions>div:last-child{display:flex;gap:8px}.quote-status-note{font-size:9px;color:#7e93af}
+.quote-final-missing{color:#ff9ea2!important}
+@media(max-width:1200px){
+  .quote-head-grid{grid-template-columns:repeat(2,1fr)}
+  .quote-workspace{grid-template-columns:1fr}
+  .quote-result-panel{position:static}
+}
+@media(max-width:820px){
+  .quote-toolbar{align-items:stretch;flex-direction:column}.quote-search{min-width:0;width:100%}.quote-search input{min-width:0}
+}
+@media(max-width:560px){
+  .quote-head-grid{grid-template-columns:1fr}
+  .quote-search,.quote-actions{display:grid;grid-template-columns:1fr 1fr}
+  .cost-row,.cost-row.third,.process-row{grid-template-columns:1fr 1fr}
+  .cost-row>div:first-child,.process-row>div:first-child{grid-column:1/-1}
+  .row-remove{width:100%}
+  .suggestions,.final-kpis{grid-template-columns:1fr 1fr}
+  .scenario-grid{grid-template-columns:repeat(2,1fr)}
+  .quote-footer-actions{align-items:stretch;flex-direction:column}.quote-footer-actions>div:last-child{display:grid;grid-template-columns:1fr 1fr}
+}
+
 </style>
 </head>
 <body>
@@ -390,52 +456,210 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
       </section>
 
       <section id="quotes" class="page">
-        <div class="hero">
-          <div><h2>Orçamentos e formação de preço</h2><p>Monte o preço pela calculadora, salve versões, acompanhe o histórico da proposta e converta o orçamento aprovado diretamente em pedido.</p></div>
-          <div class="badge">Calculadora + orçamento</div>
+        <div class="hero quote-hero">
+          <div>
+            <h2>Orçamentos e formação de preço</h2>
+            <p>Simule os custos, compare cenários e defina o único preço comercial que será efetivamente enviado ao cliente.</p>
+          </div>
+          <div class="badge" id="quoteParamBadge">Custos vigentes • PV-20260924-001</div>
         </div>
 
-        <div class="grid2">
+        <div class="quote-toolbar">
+          <div class="quote-search">
+            <input id="quoteSearchInput" placeholder="Pesquisar nº do orçamento ou cliente">
+            <button class="secondary" onclick="searchQuote()">Pesquisar</button>
+          </div>
+          <div class="quote-actions">
+            <button class="secondary" onclick="newQuote()">+ Novo orçamento</button>
+            <button class="primary" onclick="saveQuoteDraft()">Salvar rascunho</button>
+          </div>
+        </div>
+
+        <div class="panel quote-header-card">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Dados da proposta</div>
+              <div class="panel-sub">Cabeçalho comercial do orçamento</div>
+            </div>
+            <span class="chip" id="quoteNumberChip">Novo orçamento</span>
+          </div>
+          <div class="panel-body">
+            <div class="form-grid quote-head-grid">
+              <div class="field"><label>Cliente</label><input id="qClient" placeholder="Cliente"></div>
+              <div class="field"><label>Cidade / UF</label><input id="qCity" placeholder="Cidade / UF"></div>
+              <div class="field"><label>Contato</label><input id="qContact" placeholder="Contato"></div>
+              <div class="field"><label>Vendedor</label><input id="qSeller" placeholder="Vendedor"></div>
+              <div class="field"><label>Condição pagamento</label><input id="qPayment" placeholder="Ex.: 28 dias"></div>
+              <div class="field"><label>Prazo entrega</label><input id="qDelivery" placeholder="Ex.: 10 dias úteis"></div>
+              <div class="field"><label>Enquadramento</label>
+                <select id="qFramework" onchange="syncTaxRule()">
+                  <option>NORMAL</option>
+                  <option>SN SUB</option>
+                </select>
+              </div>
+              <div class="field"><label>Tipo de venda</label>
+                <select id="qSaleType" onchange="syncTaxRule()">
+                  <option>VENDA</option>
+                  <option>REVENDA</option>
+                  <option>SERVICO_8_02</option>
+                  <option>SERVICO_14_01</option>
+                </select>
+              </div>
+              <div class="field"><label>Destino</label>
+                <select id="qDestination" onchange="syncTaxRule()">
+                  <option>INTERNA</option>
+                  <option>SUL/SUDESTE</option>
+                  <option>NORTE/NORDESTE/CENTRO OESTE</option>
+                  <option>OUTROS</option>
+                </select>
+              </div>
+              <div class="field"><label>Impostos</label><input id="qTaxes" value="24,73%" oninput="recalculateItem()"></div>
+              <div class="field"><label>Despesa fixa</label><input id="qFixedExpense" value="12,7416%" readonly></div>
+              <div class="field"><label>Margem de referência</label><input id="qDesiredMargin" value="30%" oninput="recalculateItem()"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid2 quote-workspace">
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Simulação de preço de venda</div><div class="panel-sub">Exemplo baseado na lógica comercial já utilizada</div></div><span class="chip">Orçamento #1002</span></div>
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Formação de preço do item</div>
+                <div class="panel-sub">Custos ficam congelados no orçamento quando o item é gravado</div>
+              </div>
+              <span class="chip" id="itemModeChip">Novo item</span>
+            </div>
             <div class="panel-body">
               <div class="form-grid">
-                <div class="field"><label>Cliente</label><select><option>Cliente A</option><option>Cliente B</option></select></div>
-                <div class="field"><label>Quantidade</label><input type="number" value="1"></div>
-                <div class="field full"><label>Item</label><input value="SONOTRODO EM Ti 35kHz ONDA COMPLETA"></div>
-                <div class="field"><label>Custo matéria-prima</label><input value="R$ 2.880,00"></div>
-                <div class="field"><label>Custo terceiros</label><input value="R$ 2.220,00"></div>
-                <div class="field"><label>Impostos</label><input value="24,73%"></div>
-                <div class="field"><label>Margem desejada</label><input value="35,00%"></div>
+                <div class="field full"><label>Item</label><input id="iDescription" placeholder="Descrição do item"></div>
+                <div class="field"><label>SKU / referência</label><input id="iSku" placeholder="Opcional"></div>
+                <div class="field"><label>Quantidade de peças</label><input id="iQty" type="number" min="1" step="1" value="1" oninput="recalculateItem()"></div>
               </div>
-              <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="primary" onclick="alert('Cálculo demonstrativo')">Calcular preço</button></div>
+
+              <div class="cost-section open" id="secMP">
+                <button class="cost-section-head" onclick="toggleCostSection('secMP')" type="button">
+                  <span>Matéria-prima</span><b id="mpTotal">R$ 0,00</b>
+                </button>
+                <div class="cost-section-body">
+                  <div id="mpRows" class="cost-rows"></div>
+                  <button class="mini-add" type="button" onclick="addCostRow('mp')">+ Matéria-prima</button>
+                </div>
+              </div>
+
+              <div class="cost-section" id="secFerr">
+                <button class="cost-section-head" onclick="toggleCostSection('secFerr')" type="button">
+                  <span>Ferramental</span><b id="ferrTotal">R$ 0,00</b>
+                </button>
+                <div class="cost-section-body">
+                  <div id="ferrRows" class="cost-rows"></div>
+                  <button class="mini-add" type="button" onclick="addCostRow('ferr')">+ Ferramental</button>
+                </div>
+              </div>
+
+              <div class="cost-section" id="secThird">
+                <button class="cost-section-head" onclick="toggleCostSection('secThird')" type="button">
+                  <span>Serviços de terceiros</span><b id="thirdTotal">R$ 0,00</b>
+                </button>
+                <div class="cost-section-body">
+                  <div id="thirdRows" class="cost-rows"></div>
+                  <button class="mini-add" type="button" onclick="addCostRow('third')">+ Serviço terceiro</button>
+                </div>
+              </div>
+
+              <div class="cost-section" id="secProcess">
+                <button class="cost-section-head" onclick="toggleCostSection('secProcess')" type="button">
+                  <span>Processos / custo-hora</span><b id="processTotal">R$ 0,00</b>
+                </button>
+                <div class="cost-section-body">
+                  <div id="processRows" class="process-rows"></div>
+                  <button class="mini-add" type="button" onclick="addProcessRow()">+ Processo</button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Resultado da simulação</div><div class="panel-sub">Resumo comercial</div></div></div>
-            <div class="panel-body">
-              <div class="grid4" style="grid-template-columns:1fr 1fr">
-                <div class="summary"><span>Custo calculado</span><strong>R$ 6.420</strong><small>Exemplo</small></div>
-                <div class="summary"><span>Preço sugerido</span><strong>R$ 10.480</strong><small>Exemplo</small></div>
-                <div class="summary"><span>Margem estimada</span><strong>35,0%</strong><small>Simulação</small></div>
-                <div class="summary"><span>Markup</span><strong>1,63x</strong><small>Simulação</small></div>
+          <div class="panel quote-result-panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Preço e resultado</div>
+                <div class="panel-sub">Sugestões são referência. O preço final é uma decisão do usuário.</div>
               </div>
-              <div class="cta"><b>Fluxo:</b> calcular preço → salvar orçamento → enviar proposta → aprovar → converter em pedido. Todos os valores e componentes de custo ficam gravados como histórico do orçamento.</div>
+            </div>
+            <div class="panel-body">
+              <div class="result-stack">
+                <div class="result-line"><span>Custo matéria-prima</span><b id="rMP">R$ 0,00</b></div>
+                <div class="result-line"><span>Custo ferramental</span><b id="rFerr">R$ 0,00</b></div>
+                <div class="result-line"><span>Serviços terceiros</span><b id="rThird">R$ 0,00</b></div>
+                <div class="result-line"><span>Custo horas</span><b id="rProcess">R$ 0,00</b></div>
+                <div class="result-line total"><span>Custo total</span><b id="rCostTotal">R$ 0,00</b></div>
+              </div>
+
+              <div class="suggestions">
+                <div class="suggestion-card"><span>Preço mínimo</span><b id="rMinPrice">R$ 0,00</b><small>Resultado próximo de zero</small></div>
+                <div class="suggestion-card"><span>Preço objetivo</span><b id="rObjectivePrice">R$ 0,00</b><small id="objectiveLabel">Margem de referência</small></div>
+              </div>
+
+              <div class="scenario-title">Cenários de preço</div>
+              <div class="scenario-grid" id="scenarioGrid"></div>
+
+              <div class="final-price-box">
+                <label>Preço final a enviar</label>
+                <div class="money-input">
+                  <span>R$</span>
+                  <input id="iFinalPrice" inputmode="decimal" placeholder="0,00" oninput="recalculateItem()">
+                </div>
+                <small>Este é o único preço comercial que ficará registrado no item.</small>
+              </div>
+
+              <div class="final-kpis">
+                <div><span>Preço unitário</span><b id="rFinalUnit">R$ 0,00</b></div>
+                <div><span>Margem contribuição</span><b id="rFinalMC">R$ 0,00</b></div>
+                <div><span>Lucro</span><b id="rFinalProfit">R$ 0,00</b></div>
+                <div><span>Lucro %</span><b id="rFinalMargin">0,00%</b></div>
+              </div>
+
+              <div class="quote-item-actions">
+                <button class="secondary" onclick="clearItemForm()">Limpar item</button>
+                <button class="primary" onclick="addItemToQuote()">Adicionar ao orçamento</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-head"><div><div class="panel-title">Histórico de orçamentos</div><div class="panel-sub">Consulta de propostas comerciais</div></div><button class="secondary">+ Novo orçamento</button></div>
+        <div class="panel quote-items-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Itens do orçamento</div>
+              <div class="panel-sub">Máximo de 10 itens • preço final já definido em cada item</div>
+            </div>
+            <div class="quote-total"><span>Total proposta</span><b id="quoteGrandTotal">R$ 0,00</b></div>
+          </div>
+          <div class="table-wrap">
+            <table class="quote-items-table">
+              <thead><tr><th>#</th><th>Item</th><th>Qtde</th><th>Custo</th><th>Preço final</th><th>Unitário</th><th>Lucro</th><th>Lucro %</th><th></th></tr></thead>
+              <tbody id="quoteItemsBody">
+                <tr class="empty-row"><td colspan="9">Nenhum item adicionado ainda.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="quote-footer-actions">
+            <div class="quote-status-note" id="quoteStatusNote">Rascunho • ainda não enviado</div>
+            <div>
+              <button class="secondary" onclick="saveQuoteDraft()">Salvar rascunho</button>
+              <button class="primary" onclick="sendQuote()">Definir como enviado</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel quote-history-panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Orçamentos salvos</div><div class="panel-sub">Pesquisar, reabrir e reenviar sem depender de PDF armazenado</div></div>
+            <button class="secondary" onclick="renderQuoteHistory()">Atualizar</button>
+          </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nº</th><th>Cliente</th><th>Item</th><th>Data</th><th>Valor</th><th>Margem</th><th>Status</th><th>Ações</th></tr></thead>
-              <tbody>
-                <tr><td>1002</td><td>Cliente A</td><td>Sonotrodo 35kHz</td><td>22/09/2026</td><td>R$ 10.480</td><td>35,0%</td><td><span class="status mid">Em análise</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
-                <tr><td>1001</td><td>Cliente B</td><td>Conjunto especial</td><td>18/09/2026</td><td>R$ 18.900</td><td>38,2%</td><td><span class="status good">Aprovado</span></td><td><button class="primary" style="height:30px" onclick="convertQuoteDemo()">Converter em pedido</button></td></tr>
-                <tr><td>0998</td><td>Cliente C</td><td>Ferramenta especial</td><td>10/09/2026</td><td>R$ 7.850</td><td>29,1%</td><td><span class="status low">Perdido</span></td><td><button class="secondary" style="height:30px">Abrir</button></td></tr>
-              </tbody>
+              <thead><tr><th>Nº</th><th>Cliente</th><th>Data</th><th>Itens</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="quoteHistoryBody"></tbody>
             </table>
           </div>
         </div>
@@ -543,6 +767,54 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
 
 <script>
 const names={overview:"Visão Executiva",clients:"Clientes",quotes:"Orçamentos",orders:"Pedidos",segments:"Segmentos",products:"Produtos",states:"Estados"};
+
+/* A URL será preenchida quando o Web App do Apps Script for publicado.
+   Enquanto isso, o front funciona integralmente em modo local para teste da UX/calculadora. */
+const NEOSONICS_API_URL="";
+const PARAM_VERSION="PV-20260924-001";
+const FIXED_EXPENSE=0.12741625391756686;
+
+const PROCESS_COSTS=[
+  ["ENGENHARIA DE APLICAÇÃO",174.9593757254843],
+  ["PROJETO/DETALHAMENTO",117.69897799821157],
+  ["LABORATÓRIO - SHOWROOM",183.59909017769877],
+  ["ASTEC ELETRÔNICA",85.40446337686996],
+  ["ASTEC MECÂNICA",173.46404987078347],
+  ["ASTEC/MONTAGEM DE CONVERSOR",148.92133759174305],
+  ["CQ - SALA DE TESTES",113.38804848286583],
+  ["TORNO",78.42230361349905],
+  ["FRESA",72.03043116303286],
+  ["PLAINA",0],["POLIMENTO",0],
+  ["JATEAMENTO",117.41458691623801],
+  ["GRAVAÇÃO A LASER",138.4278444919956],
+  ["RECEBIMENTO E EXPEDIÇÃO",123.54483167148274],
+  ["IMPRESSÃO 3D",0]
+];
+
+const TAX_RULES={
+  "NORMAL|INTERNA|VENDA":0.2473,
+  "NORMAL|INTERNA|REVENDA":0.2473,
+  "NORMAL|INTERNA|SERVICO_8_02":0.1473,
+  "NORMAL|INTERNA|SERVICO_14_01":0.1573,
+  "NORMAL|SUL/SUDESTE|VENDA":0.1873,
+  "NORMAL|SUL/SUDESTE|REVENDA":0.1873,
+  "NORMAL|SUL/SUDESTE|SERVICO_8_02":0.1473,
+  "NORMAL|SUL/SUDESTE|SERVICO_14_01":0.1573,
+  "NORMAL|NORTE/NORDESTE/CENTRO OESTE|VENDA":0.1373,
+  "NORMAL|NORTE/NORDESTE/CENTRO OESTE|REVENDA":0.1373,
+  "NORMAL|NORTE/NORDESTE/CENTRO OESTE|SERVICO_8_02":0.1473,
+  "NORMAL|NORTE/NORDESTE/CENTRO OESTE|SERVICO_14_01":0.1573,
+  "SN SUB|INTERNA|VENDA":0.18,
+  "SN SUB|INTERNA|REVENDA":0.18,
+  "SN SUB|SUL/SUDESTE|VENDA":0.12,
+  "SN SUB|SUL/SUDESTE|REVENDA":0.12,
+  "SN SUB|OUTROS|VENDA":0.07,
+  "SN SUB|OUTROS|REVENDA":0.07
+};
+
+let quoteState={id:null,number:null,status:"RASCUNHO",items:[]};
+let editingItemIndex=null;
+
 document.querySelectorAll(".nav button").forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
@@ -554,8 +826,10 @@ document.querySelectorAll(".nav button").forEach(btn=>{
     document.getElementById("crumb").textContent=names[id];
     closeMobileMenu();
     window.scrollTo({top:0,behavior:"smooth"});
+    if(id==="quotes") initQuotesPage();
   }
 });
+
 function toggleMobileMenu(){
   document.querySelector(".sidebar").classList.toggle("open");
   document.getElementById("menuOverlay").classList.toggle("open");
@@ -564,9 +838,6 @@ function closeMobileMenu(){
   document.querySelector(".sidebar").classList.remove("open");
   document.getElementById("menuOverlay").classList.remove("open");
 }
-function convertQuoteDemo(){
-  alert("Orçamento aprovado convertido em pedido. No sistema real, o pedido herdará cliente, itens, preços e vínculo com o orçamento de origem.");
-}
 function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transition=".6s";setTimeout(()=>btn.style.transform="",650)}
 function openDrawer(c,s,r,m,sh){
   dClient.textContent=c;dSegment.textContent=s+" • visão gerencial";dRevenue.textContent=r;dMargin.textContent=m;dShare.textContent=sh;
@@ -574,6 +845,378 @@ function openDrawer(c,s,r,m,sh){
 }
 function closeDrawer(e){if(e.target.id==="drawerBg")forceClose()}
 function forceClose(){drawerBg.classList.remove("open")}
+
+function initQuotesPage(){
+  if(document.getElementById("mpRows")?.children.length===0) addCostRow("mp");
+  if(document.getElementById("ferrRows")?.children.length===0) addCostRow("ferr");
+  if(document.getElementById("thirdRows")?.children.length===0) addCostRow("third");
+  if(document.getElementById("processRows")?.children.length===0) addProcessRow();
+  document.getElementById("qFixedExpense").value=formatPctInput(FIXED_EXPENSE);
+  document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
+  syncTaxRule();
+  renderQuoteHistory();
+  recalculateItem();
+}
+
+function toggleCostSection(id){document.getElementById(id)?.classList.toggle("open")}
+
+function formatBRL(v){
+  return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+}
+function formatPct(v){return (Number(v||0)*100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"%"}
+function formatPctInput(v){return (Number(v||0)*100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+"%"}
+function parseNum(v){
+  if(typeof v==="number") return Number.isFinite(v)?v:0;
+  let s=String(v??"").trim().replace(/R\$|%|\s/g,"");
+  if(!s) return 0;
+  if(s.includes(",")&&s.includes(".")) s=s.replace(/\./g,"").replace(",",".");
+  else if(s.includes(",")) s=s.replace(",",".");
+  s=s.replace(/[^0-9.-]/g,"");
+  const n=Number(s);
+  return Number.isFinite(n)?n:0;
+}
+function parsePct(v){return parseNum(v)/100}
+function moneyInputValue(v){
+  const n=parseNum(v);
+  return n? n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "";
+}
+
+function costRowTemplate(type){
+  const isThird=type==="third";
+  if(isThird) return `
+    <div class="cost-row third" data-type="third">
+      <div><label>Descrição</label><input class="c-desc" placeholder="Serviço"></div>
+      <div><label>Qtde</label><input class="c-qty" type="number" step="0.01" value="1" oninput="recalculateItem()"></div>
+      <div><label>Valor unit.</label><input class="c-unit" inputmode="decimal" value="0" oninput="recalculateItem()"></div>
+      <div><label>Custo total</label><div class="row-total">R$ 0,00</div></div>
+      <button class="row-remove" onclick="removeRow(this)" type="button">×</button>
+    </div>`;
+  return `
+    <div class="cost-row" data-type="${type}">
+      <div><label>Descrição</label><input class="c-desc" placeholder="${type==="mp"?"Matéria-prima":"Ferramental"}"></div>
+      <div><label>Qtde</label><input class="c-qty" type="number" step="0.01" value="1" oninput="recalculateItem()"></div>
+      <div><label>Valor unit.</label><input class="c-unit" inputmode="decimal" value="0" oninput="recalculateItem()"></div>
+      <div><label>ICMS</label><input class="c-icms" value="0%" oninput="recalculateItem()"></div>
+      <div><label>IPI</label><input class="c-ipi" value="0%" oninput="recalculateItem()"></div>
+      <div><label>Por lote?</label><select class="c-lot" onchange="recalculateItem()"><option value="NAO">Não</option><option value="SIM">Sim</option></select></div>
+      <button class="row-remove" onclick="removeRow(this)" type="button">×</button>
+    </div>`;
+}
+function addCostRow(type){
+  const target=type==="mp"?"mpRows":type==="ferr"?"ferrRows":"thirdRows";
+  document.getElementById(target)?.insertAdjacentHTML("beforeend",costRowTemplate(type));
+  recalculateItem();
+}
+function removeRow(btn){btn.closest(".cost-row,.process-row")?.remove();recalculateItem()}
+
+function addProcessRow(){
+  const opts=PROCESS_COSTS.map(([n])=>`<option>${n}</option>`).join("");
+  const html=`
+    <div class="process-row">
+      <div><label>Processo</label><select class="p-name" onchange="syncProcessCost(this);recalculateItem()">${opts}</select></div>
+      <div><label>Custo/hora</label><input class="p-cost readonly" readonly></div>
+      <div><label>Setup</label><input class="p-setup" type="number" step="0.01" value="0" oninput="recalculateItem()"></div>
+      <div><label>Horas/peça</label><input class="p-hours" type="number" step="0.01" value="0" oninput="recalculateItem()"></div>
+      <div><label>Custo total</label><div class="row-total">R$ 0,00</div></div>
+      <button class="row-remove" onclick="removeRow(this)" type="button">×</button>
+    </div>`;
+  document.getElementById("processRows")?.insertAdjacentHTML("beforeend",html);
+  const row=document.getElementById("processRows")?.lastElementChild;
+  if(row) syncProcessCost(row.querySelector(".p-name"));
+  recalculateItem();
+}
+function syncProcessCost(sel){
+  const row=sel.closest(".process-row");
+  const found=PROCESS_COSTS.find(([n])=>n===sel.value);
+  row.querySelector(".p-cost").value=(found?found[1]:0).toFixed(6);
+}
+
+function syncTaxRule(){
+  const f=document.getElementById("qFramework")?.value;
+  const d=document.getElementById("qDestination")?.value;
+  const t=document.getElementById("qSaleType")?.value;
+  const key=f+"|"+d+"|"+t;
+  if(TAX_RULES[key]!==undefined) document.getElementById("qTaxes").value=formatPctInput(TAX_RULES[key]);
+  recalculateItem();
+}
+
+function readCostRows(){
+  const qtyItem=Math.max(parseNum(document.getElementById("iQty")?.value),0);
+  const out={mp:[],ferr:[],third:[],process:[],totals:{mp:0,ferr:0,third:0,process:0}};
+
+  document.querySelectorAll("#mpRows .cost-row,#ferrRows .cost-row").forEach(row=>{
+    const type=row.dataset.type;
+    const q=parseNum(row.querySelector(".c-qty").value);
+    const unit=parseNum(row.querySelector(".c-unit").value);
+    const icms=parsePct(row.querySelector(".c-icms").value);
+    const ipi=parsePct(row.querySelector(".c-ipi").value);
+    const lot=row.querySelector(".c-lot").value;
+    const base=q*unit;
+    const adjusted=(base-(icms*base))+(ipi*base);
+    const total=lot==="NAO"?adjusted*qtyItem:adjusted;
+    const obj={TIPO_COMPONENTE:type==="mp"?"MP":"FERR",DESCRICAO:row.querySelector(".c-desc").value,QTDE:q,CUSTO_UNITARIO:unit,ICMS_PCT:icms,IPI_PCT:ipi,VALOR_POR_LOTE:lot,CUSTO_TOTAL:total};
+    out[type].push(obj);out.totals[type]+=total;
+  });
+
+  document.querySelectorAll("#thirdRows .cost-row").forEach(row=>{
+    const q=parseNum(row.querySelector(".c-qty").value);
+    const unit=parseNum(row.querySelector(".c-unit").value);
+    const total=q*unit*qtyItem;
+    out.third.push({TIPO_COMPONENTE:"ST",DESCRICAO:row.querySelector(".c-desc").value,QTDE:q,CUSTO_UNITARIO:unit,CUSTO_TOTAL:total});
+    out.totals.third+=total;
+  });
+
+  document.querySelectorAll("#processRows .process-row").forEach(row=>{
+    const cost=parseNum(row.querySelector(".p-cost").value);
+    const setup=parseNum(row.querySelector(".p-setup").value);
+    const hours=parseNum(row.querySelector(".p-hours").value);
+    const total=(setup*cost)+(hours*cost*qtyItem);
+    out.process.push({TIPO_COMPONENTE:"MO",DESCRICAO:row.querySelector(".p-name").value,CUSTO_HORA:cost,HORAS_SETUP:setup,HORAS_PECA:hours,CUSTO_TOTAL:total});
+    out.totals.process+=total;
+  });
+  return out;
+}
+
+function calculatePriceSnapshot(){
+  const costs=readCostRows();
+  const t=costs.totals;
+  const costTotal=t.mp+t.ferr+t.third+t.process;
+  const taxes=parsePct(document.getElementById("qTaxes")?.value);
+  const fixed=parsePct(document.getElementById("qFixedExpense")?.value);
+  const desired=parsePct(document.getElementById("qDesiredMargin")?.value);
+  const finalPrice=parseNum(document.getElementById("iFinalPrice")?.value);
+  const qty=Math.max(parseNum(document.getElementById("iQty")?.value),0);
+
+  const objectiveDen=1-taxes-fixed-desired;
+  const minDen=1-taxes-fixed;
+  const objective=objectiveDen>0?costTotal/objectiveDen:0;
+  const minimum=minDen>0?costTotal/minDen:0;
+
+  const mc=finalPrice?finalPrice-t.mp-t.third-t.ferr-(taxes*finalPrice):0;
+  const profit=finalPrice?mc-t.process-(fixed*finalPrice):0;
+  const margin=finalPrice?profit/finalPrice:0;
+
+  return {costs,taxes,fixed,desired,costTotal,objective,minimum,finalPrice,qty,mc,profit,margin};
+}
+
+function recalculateItem(){
+  if(!document.getElementById("rCostTotal")) return;
+  const r=calculatePriceSnapshot();
+  const t=r.costs.totals;
+  mpTotal.textContent=formatBRL(t.mp);ferrTotal.textContent=formatBRL(t.ferr);thirdTotal.textContent=formatBRL(t.third);processTotal.textContent=formatBRL(t.process);
+  rMP.textContent=formatBRL(t.mp);rFerr.textContent=formatBRL(t.ferr);rThird.textContent=formatBRL(t.third);rProcess.textContent=formatBRL(t.process);
+  rCostTotal.textContent=formatBRL(r.costTotal);rMinPrice.textContent=formatBRL(r.minimum);rObjectivePrice.textContent=formatBRL(r.objective);
+  objectiveLabel.textContent="Referência de "+formatPct(r.desired);
+  rFinalUnit.textContent=formatBRL(r.qty?r.finalPrice/r.qty:r.finalPrice);
+  rFinalMC.textContent=formatBRL(r.mc);rFinalProfit.textContent=formatBRL(r.profit);rFinalMargin.textContent=formatPct(r.margin);
+
+  document.querySelectorAll(".cost-row.third").forEach(row=>{
+    const total=parseNum(row.querySelector(".c-qty").value)*parseNum(row.querySelector(".c-unit").value)*r.qty;
+    row.querySelector(".row-total").textContent=formatBRL(total);
+  });
+  document.querySelectorAll(".process-row").forEach(row=>{
+    const total=parseNum(row.querySelector(".p-setup").value)*parseNum(row.querySelector(".p-cost").value)+parseNum(row.querySelector(".p-hours").value)*parseNum(row.querySelector(".p-cost").value)*r.qty;
+    row.querySelector(".row-total").textContent=formatBRL(total);
+  });
+  renderScenarios(r);
+}
+
+function renderScenarios(r){
+  const grid=document.getElementById("scenarioGrid");if(!grid)return;
+  grid.innerHTML=[5,10,15,20,25,30].map(p=>{
+    const den=1-r.taxes-r.fixed-(p/100);
+    const price=den>0?r.costTotal/den:0;
+    return `<button class="scenario-btn" type="button" onclick="useScenarioPrice(${price})"><span>${p}% lucro</span><b>${formatBRL(price)}</b></button>`;
+  }).join("");
+}
+function useScenarioPrice(v){
+  document.getElementById("iFinalPrice").value=moneyInputValue(v);
+  recalculateItem();
+}
+
+function collectCurrentItem(){
+  const r=calculatePriceSnapshot();
+  const desc=document.getElementById("iDescription").value.trim();
+  if(!desc){alert("Informe a descrição do item.");return null}
+  if(!r.qty){alert("Informe a quantidade.");return null}
+  if(!r.finalPrice||r.finalPrice<=0){alert("Defina o preço final que será enviado ao cliente.");document.getElementById("iFinalPrice").focus();return null}
+
+  const components=[...r.costs.mp,...r.costs.ferr,...r.costs.third,...r.costs.process].filter(x=>x.DESCRICAO||x.CUSTO_TOTAL);
+  return {
+    ID_ITEM:editingItemIndex!==null?quoteState.items[editingItemIndex]?.ID_ITEM:null,
+    SEQ:editingItemIndex!==null?editingItemIndex+1:quoteState.items.length+1,
+    SKU:document.getElementById("iSku").value.trim(),
+    DESCRICAO:desc,
+    QTDE:r.qty,
+    CUSTO_MP:r.costs.totals.mp,
+    CUSTO_TERCEIROS:r.costs.totals.third,
+    CUSTO_FERRAMENTAL:r.costs.totals.ferr,
+    CUSTO_HORAS:r.costs.totals.process,
+    CUSTO_TOTAL:r.costTotal,
+    PRECO_OBJETIVO_TOTAL:r.objective,
+    PRECO_MINIMO_TOTAL:r.minimum,
+    PRECO_FINAL_TOTAL:r.finalPrice,
+    PRECO_FINAL_UNIT:r.qty?r.finalPrice/r.qty:r.finalPrice,
+    MC_FINAL:r.mc,
+    LUCRO_FINAL:r.profit,
+    MARGEM_FINAL_PCT:r.margin,
+    STATUS:"ATIVO",
+    componentes:components
+  };
+}
+
+function addItemToQuote(){
+  const item=collectCurrentItem();if(!item)return;
+  if(editingItemIndex===null && quoteState.items.length>=10){alert("Limite máximo de 10 itens por proposta.");return}
+  const duplicate=quoteState.items.findIndex((x,i)=>i!==editingItemIndex && x.DESCRICAO.trim().toUpperCase()===item.DESCRICAO.trim().toUpperCase());
+  if(duplicate>=0){alert("Este item já existe neste orçamento.");return}
+
+  if(editingItemIndex===null) quoteState.items.push(item);
+  else quoteState.items[editingItemIndex]=item;
+  editingItemIndex=null;
+  renderQuoteItems();
+  clearItemForm();
+}
+
+function renderQuoteItems(){
+  const body=document.getElementById("quoteItemsBody");if(!body)return;
+  if(!quoteState.items.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="9">Nenhum item adicionado ainda.</td></tr>';
+    quoteGrandTotal.textContent=formatBRL(0);return;
+  }
+  body.innerHTML=quoteState.items.map((x,i)=>`<tr>
+    <td>${i+1}</td><td>${escapeHtml(x.DESCRICAO)}</td><td>${x.QTDE}</td><td>${formatBRL(x.CUSTO_TOTAL)}</td>
+    <td><b>${formatBRL(x.PRECO_FINAL_TOTAL)}</b></td><td>${formatBRL(x.PRECO_FINAL_UNIT)}</td>
+    <td>${formatBRL(x.LUCRO_FINAL)}</td><td>${formatPct(x.MARGEM_FINAL_PCT)}</td>
+    <td><button class="secondary" style="height:29px" onclick="editQuoteItem(${i})">Editar</button> <button class="secondary" style="height:29px" onclick="removeQuoteItem(${i})">Excluir</button></td>
+  </tr>`).join("");
+  quoteGrandTotal.textContent=formatBRL(quoteState.items.reduce((s,x)=>s+Number(x.PRECO_FINAL_TOTAL||0),0));
+}
+function removeQuoteItem(i){quoteState.items.splice(i,1);quoteState.items.forEach((x,j)=>x.SEQ=j+1);renderQuoteItems()}
+function editQuoteItem(i){
+  const x=quoteState.items[i];if(!x)return;
+  editingItemIndex=i;itemModeChip.textContent="Editando item "+(i+1);
+  iDescription.value=x.DESCRICAO||"";iSku.value=x.SKU||"";iQty.value=x.QTDE||1;iFinalPrice.value=moneyInputValue(x.PRECO_FINAL_TOTAL);
+  mpRows.innerHTML="";ferrRows.innerHTML="";thirdRows.innerHTML="";processRows.innerHTML="";
+  (x.componentes||[]).forEach(comp=>loadComponentRow(comp));
+  if(!mpRows.children.length)addCostRow("mp");if(!ferrRows.children.length)addCostRow("ferr");if(!thirdRows.children.length)addCostRow("third");if(!processRows.children.length)addProcessRow();
+  recalculateItem();window.scrollTo({top:document.getElementById("quotes").offsetTop,behavior:"smooth"});
+}
+function loadComponentRow(comp){
+  const type=String(comp.TIPO_COMPONENTE||"").toUpperCase();
+  if(type==="MP"||type==="FERR"){
+    const key=type==="MP"?"mp":"ferr";addCostRow(key);
+    const row=document.getElementById(key==="mp"?"mpRows":"ferrRows").lastElementChild;
+    row.querySelector(".c-desc").value=comp.DESCRICAO||"";row.querySelector(".c-qty").value=comp.QTDE||0;row.querySelector(".c-unit").value=comp.CUSTO_UNITARIO||0;
+    row.querySelector(".c-icms").value=formatPctInput(comp.ICMS_PCT||0);row.querySelector(".c-ipi").value=formatPctInput(comp.IPI_PCT||0);row.querySelector(".c-lot").value=comp.VALOR_POR_LOTE||"NAO";
+  }else if(type==="ST"){
+    addCostRow("third");const row=thirdRows.lastElementChild;row.querySelector(".c-desc").value=comp.DESCRICAO||"";row.querySelector(".c-qty").value=comp.QTDE||0;row.querySelector(".c-unit").value=comp.CUSTO_UNITARIO||0;
+  }else if(type==="MO"){
+    addProcessRow();const row=processRows.lastElementChild;row.querySelector(".p-name").value=comp.DESCRICAO||PROCESS_COSTS[0][0];row.querySelector(".p-cost").value=comp.CUSTO_HORA||0;row.querySelector(".p-setup").value=comp.HORAS_SETUP||0;row.querySelector(".p-hours").value=comp.HORAS_PECA||0;
+  }
+}
+
+function clearItemForm(){
+  editingItemIndex=null;itemModeChip.textContent="Novo item";iDescription.value="";iSku.value="";iQty.value=1;iFinalPrice.value="";
+  mpRows.innerHTML="";ferrRows.innerHTML="";thirdRows.innerHTML="";processRows.innerHTML="";
+  addCostRow("mp");addCostRow("ferr");addCostRow("third");addProcessRow();recalculateItem();
+}
+
+function collectQuotePayload(status){
+  return {
+    ID_ORCAMENTO:quoteState.id,
+    NUMERO_ORCAMENTO:quoteState.number,
+    CLIENTE_ID:document.getElementById("qClient").value.trim(),
+    CLIENTE_NOME_SNAPSHOT:document.getElementById("qClient").value.trim(),
+    CIDADE_UF:document.getElementById("qCity").value.trim(),
+    CONTATO:document.getElementById("qContact").value.trim(),
+    VENDEDOR:document.getElementById("qSeller").value.trim(),
+    COND_PAGAMENTO:document.getElementById("qPayment").value.trim(),
+    PRAZO_ENTREGA:document.getElementById("qDelivery").value.trim(),
+    ENQUADRAMENTO:document.getElementById("qFramework").value,
+    TIPO_VENDA:document.getElementById("qSaleType").value,
+    DESTINO:document.getElementById("qDestination").value,
+    IMPOSTOS_PCT:parsePct(document.getElementById("qTaxes").value),
+    PARAMETRO_VERSAO_ID:PARAM_VERSION,
+    DESPESA_FIXA_PCT:parsePct(document.getElementById("qFixedExpense").value),
+    LUCRO_DESEJADO_PCT:parsePct(document.getElementById("qDesiredMargin").value),
+    VALOR_TOTAL:quoteState.items.reduce((s,x)=>s+Number(x.PRECO_FINAL_TOTAL||0),0),
+    STATUS:status,
+    itens:quoteState.items
+  };
+}
+
+async function saveQuoteDraft(){
+  if(!quoteState.items.length){alert("Adicione pelo menos um item ao orçamento.");return}
+  const payload=collectQuotePayload("RASCUNHO");
+  const saved=await persistQuote(payload);
+  if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo";}
+}
+async function sendQuote(){
+  if(!quoteState.items.length){alert("Adicione pelo menos um item.");return}
+  if(quoteState.items.some(x=>!Number(x.PRECO_FINAL_TOTAL))){alert("Todos os itens precisam ter preço final.");return}
+  const payload=collectQuotePayload("ENVIADO");
+  const saved=await persistQuote(payload);
+  if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);renderQuoteHistory();quoteStatusNote.textContent="Enviado • preço comercial congelado";alert("Orçamento marcado como enviado.");}
+}
+function updateQuoteIdentity(saved){
+  quoteState.id=saved.id_orcamento||saved.ID_ORCAMENTO||quoteState.id;
+  quoteState.number=saved.numero_orcamento||saved.NUMERO_ORCAMENTO||quoteState.number||nextLocalQuoteNumber();
+  quoteNumberChip.textContent="Orçamento #"+quoteState.number;
+}
+
+async function persistQuote(payload){
+  if(NEOSONICS_API_URL){
+    try{
+      const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"salvar_orcamento",orcamento:payload})});
+      const j=await r.json();if(!j.ok)throw new Error(j.erro||"Falha ao salvar");return j;
+    }catch(e){alert("Erro ao salvar no servidor: "+e.message);return null}
+  }
+  const all=getLocalQuotes();
+  if(!payload.ID_ORCAMENTO) payload.ID_ORCAMENTO="ORC-LOCAL-"+Date.now();
+  if(!payload.NUMERO_ORCAMENTO) payload.NUMERO_ORCAMENTO=nextLocalQuoteNumber();
+  payload.DATA_ORCAMENTO=payload.DATA_ORCAMENTO||new Date().toISOString().slice(0,10);
+  const idx=all.findIndex(x=>x.ID_ORCAMENTO===payload.ID_ORCAMENTO);
+  const clone=JSON.parse(JSON.stringify(payload));
+  if(idx>=0)all[idx]=clone;else all.push(clone);
+  localStorage.setItem("neosonics_quotes_v1",JSON.stringify(all));
+  return {ok:true,id_orcamento:payload.ID_ORCAMENTO,numero_orcamento:payload.NUMERO_ORCAMENTO};
+}
+function getLocalQuotes(){try{return JSON.parse(localStorage.getItem("neosonics_quotes_v1")||"[]")}catch(e){return[]}}
+function nextLocalQuoteNumber(){const nums=getLocalQuotes().map(x=>Number(x.NUMERO_ORCAMENTO)||1000);return Math.max(1000,...nums)+1}
+function renderQuoteHistory(){
+  const body=document.getElementById("quoteHistoryBody");if(!body)return;
+  const all=getLocalQuotes().slice().sort((a,b)=>Number(b.NUMERO_ORCAMENTO)-Number(a.NUMERO_ORCAMENTO));
+  if(!all.length){body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum orçamento salvo neste navegador ainda.</td></tr>';return}
+  body.innerHTML=all.map(q=>`<tr>
+    <td>${q.NUMERO_ORCAMENTO}</td><td>${escapeHtml(q.CLIENTE_NOME_SNAPSHOT||"")}</td><td>${q.DATA_ORCAMENTO||""}</td>
+    <td>${(q.itens||[]).length}</td><td>${formatBRL(q.VALOR_TOTAL)}</td><td><span class="status ${q.STATUS==="ENVIADO"?"mid":q.STATUS==="APROVADO"?"good":""}">${q.STATUS||"RASCUNHO"}</span></td>
+    <td><button class="secondary" style="height:29px" onclick="openLocalQuote('${q.ID_ORCAMENTO}')">Abrir</button></td>
+  </tr>`).join("");
+}
+function openLocalQuote(id){
+  const q=getLocalQuotes().find(x=>x.ID_ORCAMENTO===id);if(!q)return;
+  quoteState={id:q.ID_ORCAMENTO,number:q.NUMERO_ORCAMENTO,status:q.STATUS||"RASCUNHO",items:q.itens||[]};
+  qClient.value=q.CLIENTE_NOME_SNAPSHOT||"";qCity.value=q.CIDADE_UF||"";qContact.value=q.CONTATO||"";qSeller.value=q.VENDEDOR||"";qPayment.value=q.COND_PAGAMENTO||"";qDelivery.value=q.PRAZO_ENTREGA||"";
+  qFramework.value=q.ENQUADRAMENTO||"NORMAL";qSaleType.value=q.TIPO_VENDA||"VENDA";qDestination.value=q.DESTINO||"INTERNA";qTaxes.value=formatPctInput(q.IMPOSTOS_PCT||0);qFixedExpense.value=formatPctInput(q.DESPESA_FIXA_PCT||FIXED_EXPENSE);qDesiredMargin.value=formatPctInput(q.LUCRO_DESEJADO_PCT||.30);
+  quoteNumberChip.textContent="Orçamento #"+q.NUMERO_ORCAMENTO;quoteStatusNote.textContent=(q.STATUS||"RASCUNHO")+" • carregado do histórico";
+  renderQuoteItems();clearItemForm();
+}
+function searchQuote(){
+  const term=quoteSearchInput.value.trim().toUpperCase();
+  if(!term){renderQuoteHistory();return}
+  const q=getLocalQuotes().find(x=>String(x.NUMERO_ORCAMENTO).includes(term)||String(x.CLIENTE_NOME_SNAPSHOT||"").toUpperCase().includes(term));
+  if(q)openLocalQuote(q.ID_ORCAMENTO);else alert("Orçamento não encontrado neste navegador.");
+}
+function newQuote(){
+  quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
+  ["qClient","qCity","qContact","qSeller","qPayment","qDelivery"].forEach(id=>document.getElementById(id).value="");
+  qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="INTERNA";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
+  quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();
+}
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
+
+document.addEventListener("DOMContentLoaded",()=>{if(document.getElementById("quotes"))initQuotesPage()});
 </script>
 </body>
 </html>
