@@ -992,6 +992,7 @@ let TAX_RULES={
 
 let quoteState={id:null,number:null,status:"RASCUNHO",items:[]};
 let editingItemIndex=null;
+let quoteSaving=false;
 
 document.querySelectorAll(".nav button").forEach(btn=>{
   btn.onclick=()=>{
@@ -1575,20 +1576,43 @@ function collectQuotePayload(status){
 }
 
 async function saveQuoteDraft(){
+  if(quoteSaving)return;
   if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item ao orçamento.");return}
   const payload=collectQuotePayload("RASCUNHO");
-  const saved=await persistQuote(payload);
-  if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo no banco";}
+  setQuoteSaving(true,"Salvando...");
+  try{
+    const saved=await persistQuote(payload);
+    if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo no banco";}
+  }finally{
+    setQuoteSaving(false);
+  }
 }
 async function sendQuote(){
+  if(quoteSaving)return;
   if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item.");return}
   if(quoteState.items.some(x=>!Number(x.PRECO_FINAL_TOTAL))){alert("Todos os itens precisam ter preço final.");return}
   const payload=collectQuotePayload("ENVIADO");
-  const saved=await persistQuote(payload);
-  if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Enviado • preço comercial congelado";alert("Orçamento marcado como enviado.");}
+  setQuoteSaving(true,"Enviando...");
+  try{
+    const saved=await persistQuote(payload);
+    if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Enviado • preço comercial congelado";alert("Orçamento marcado como enviado.");}
+  }finally{
+    setQuoteSaving(false);
+  }
 }
+function setQuoteSaving(active,label){
+  quoteSaving=active;
+  document.querySelectorAll('button[onclick="saveQuoteDraft()"],button[onclick="sendQuote()"]').forEach(btn=>{
+    btn.disabled=active;
+    if(!btn.dataset.originalText)btn.dataset.originalText=btn.textContent;
+    btn.textContent=active?(label||"Salvando..."):btn.dataset.originalText;
+    btn.style.opacity=active?".65":"";
+    btn.style.cursor=active?"wait":"";
+  });
+}
+
 function updateQuoteIdentity(saved){
   quoteState.id=saved.id_orcamento||saved.ID_ORCAMENTO||quoteState.id;
   quoteState.number=saved.numero_orcamento||saved.NUMERO_ORCAMENTO||quoteState.number;
