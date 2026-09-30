@@ -34,3 +34,21 @@ O Web App do Apps Script ainda precisa ser criado/deployado para gerar a URL da 
 ## Frontend
 
 `index.html` contém a interface inicial responsiva do sistema.
+
+
+## Publicação
+
+Frontend:
+- GitHub Pages: `https://richardfinardi.github.io/neosonics/`
+- Workflow: `.github/workflows/pages.yml`
+
+Backend:
+- Apps Script ID: `19bBKpBAxecnbcp4aCRaG15CXdnww2mdhX2sb-jTuaIK9Hc17MlniEwGL`
+- Deployment ID: `AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT`
+- Web App: `https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec`
+
+O deploy automático do backend usa o workflow central em `richardfinardi/fluxo_caixa` com a autorização CLASP já existente.
+
+### Primeiro acesso do Web App
+
+O projeto e o deployment foram criados automaticamente, mas o `clasp deploy` não configura o acesso público do Web App em um deployment novo. Portanto, uma única vez é necessário abrir o Apps Script e editar o deployment como Web App, executando como o proprietário e permitindo acesso a qualquer pessoa. Depois disso, os redeploys automáticos preservam o mesmo deployment e URL.
