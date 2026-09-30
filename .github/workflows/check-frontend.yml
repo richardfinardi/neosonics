@@ -1,0 +1,32 @@
+name: Check Neosonics Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "index.html"
+      - ".github/workflows/check-frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar JavaScript inline
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const html=fs.readFileSync('index.html','utf8');
+          const matches=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+          if(!matches.length) throw new Error('Nenhum <script> encontrado');
+          matches.forEach((m,i)=>{
+            try{ new Function(m[1]); }
+            catch(e){ console.error('Erro no script '+(i+1)+': '+e.message); process.exit(1); }
+          });
+          console.log('JavaScript OK');
+          NODE
