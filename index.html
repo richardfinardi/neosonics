@@ -273,6 +273,131 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
   .quote-footer-actions{align-items:stretch;flex-direction:column}.quote-footer-actions>div:last-child{display:grid;grid-template-columns:1fr 1fr}
 }
 
+/* ===== Acessibilidade visual / temas / navegação ===== */
+body{font-size:14px}
+.brand b{font-size:17px}.brand small{font-size:12px}
+.nav button{font-size:13px}
+.group-title{font-size:10px}
+.breadcrumb{font-size:12px}.title{font-size:22px}
+.hero h2{font-size:21px}.hero p{font-size:14px;line-height:1.55}
+.badge{font-size:11px}
+.field label{font-size:11px;font-weight:700}
+select,input{height:43px;font-size:14px}
+.panel-title{font-size:14px}.panel-sub{font-size:11px}
+.chip{font-size:10px}
+.summary span,.summary small{font-size:11px}.summary strong{font-size:20px}
+.kpi .label{font-size:11px}.kpi .value{font-size:22px}.delta{font-size:10px}
+th{font-size:10px;padding:12px 13px}td{font-size:13px;padding:13px}
+.status{font-size:10px}
+.module-card p,.cta{font-size:12px}
+.profile b{font-size:12px}.profile span{font-size:10px}
+.sidebar-foot{font-size:11px}.sidebar-foot b{font-size:12px}
+
+.cost-section-head span,.cost-section-head b{font-size:12px}
+.cost-row label,.process-row label{font-size:10px}
+.cost-row input,.cost-row select,.process-row input,.process-row select{font-size:12px;height:38px}
+.row-total{font-size:11px;height:38px}
+.mini-add{font-size:11px;height:34px}
+.result-line{font-size:12px}.result-line.total{font-size:13px}.result-line.total b{font-size:17px}
+.suggestion-card span{font-size:10px}.suggestion-card b{font-size:16px}.suggestion-card small{font-size:10px}
+.scenario-title{font-size:10px}.scenario-btn span{font-size:10px}.scenario-btn b{font-size:12px}
+.final-price-box label{font-size:12px}.final-price-box small{font-size:10px}
+.final-kpis span{font-size:10px}.final-kpis b{font-size:13px}
+.quote-status-note,.quote-total span{font-size:11px}
+
+body.sidebar-collapsed .sidebar{width:82px}
+body.sidebar-collapsed .main{margin-left:82px;width:calc(100% - 82px)}
+body.sidebar-collapsed .brand-copy,
+body.sidebar-collapsed .group-title,
+body.sidebar-collapsed .nav-text,
+body.sidebar-collapsed .sidebar-foot{display:none}
+body.sidebar-collapsed .brand{justify-content:center;padding-left:0;padding-right:0}
+body.sidebar-collapsed .nav button{justify-content:center;padding:10px}
+body.sidebar-collapsed #sidebarToggle{transform:rotate(180deg)}
+
+body.theme-light{
+  --bg:#f4f7fb;--bg2:#ffffff;--panel:#ffffff;--panel2:#f8fafc;
+  --line:#d9e1eb;--text:#182334;--muted:#66758a;
+  --shadow:0 14px 38px rgba(32,48,70,.10);
+  background:#f4f7fb;color:var(--text)
+}
+body.theme-light .sidebar{background:#fff;border-color:#dce4ee}
+body.theme-light .brand{border-color:#e1e7ef}
+body.theme-light .nav button{color:#536277}
+body.theme-light .nav button:hover{background:#f0f4f9;color:#162132}
+body.theme-light .nav button.active{color:#182334;background:linear-gradient(90deg,rgba(243,155,82,.18),rgba(243,155,82,.04))}
+body.theme-light .ico{background:#eef3f8;color:#546b86}
+body.theme-light .sidebar-foot,
+body.theme-light .profile,
+body.theme-light .icon-btn,
+body.theme-light .secondary{background:#fff;border-color:#d5dee9;color:#40536b}
+body.theme-light .sidebar-foot b{color:#213147}
+body.theme-light .topbar{background:rgba(255,255,255,.90);border-color:#dce4ee}
+body.theme-light .breadcrumb b{color:#27374c}
+body.theme-light .hero{background:radial-gradient(circle at 86% 14%,rgba(243,155,82,.15),transparent 30%),linear-gradient(135deg,#fff,#f7f9fc);border-color:#d9e3ee}
+body.theme-light .hero p{color:#66768a}
+body.theme-light .panel{background:#fff;border-color:#dce4ed;box-shadow:var(--shadow)}
+body.theme-light .panel-head{border-color:#e1e7ef}
+body.theme-light .panel-sub{color:#718096}
+body.theme-light .summary,
+body.theme-light .kpi,
+body.theme-light .drawer-card{background:#f8fafc;border-color:#dce4ed}
+body.theme-light select,
+body.theme-light input{background:#fff;color:#172336;border-color:#cfd9e5}
+body.theme-light th{background:#f3f6fa;color:#63758c;border-color:#dce4ed}
+body.theme-light td{color:#34465c;border-color:#e3e9f0}
+body.theme-light tbody tr:hover td{background:#f7f9fc}
+body.theme-light .chip,
+body.theme-light .data-chip{background:#f2f6fa;border-color:#d4deea;color:#566b84}
+body.theme-light .cost-section{background:#fff;border-color:#d8e1ec}
+body.theme-light .cost-section-head{background:#f5f8fb;color:#27384e}
+body.theme-light .cost-section-body{border-color:#e1e7ef}
+body.theme-light .cost-row .readonly,
+body.theme-light .process-row .readonly,
+body.theme-light .row-total{background:#f5f7fa;color:#41546c;border-color:#d4dee9}
+body.theme-light .suggestion-card,
+body.theme-light .scenario-btn,
+body.theme-light .final-kpis div{background:#f7f9fc;border-color:#d8e1ec;color:#27384e}
+body.theme-light .money-input{background:#fff}
+body.theme-light .drawer,
+body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec}
+
+.guide-strip{margin:-4px 0 16px;padding:11px 14px;border:1px solid rgba(118,170,255,.20);background:rgba(118,170,255,.06);border-radius:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.guide-strip b{color:var(--text)}.guide-strip span:before{content:"• ";color:var(--blue)}
+.guide-strip button{margin-left:auto;border:0;background:transparent;color:var(--blue);font-weight:800;cursor:pointer}
+.simple-help{margin-top:14px;padding:12px;border-radius:12px;background:rgba(118,170,255,.07);border:1px solid rgba(118,170,255,.17);display:grid;gap:5px}
+.simple-help b{font-size:12px}.simple-help span{font-size:12px;color:var(--muted);line-height:1.5}
+.form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.panel-head-actions{display:flex;align-items:center;gap:8px}
+.compact-search{height:36px;width:230px;font-size:12px}
+.client-summary-grid{grid-template-columns:repeat(2,1fr)}
+.guide-top-btn{font-weight:900;font-size:15px}
+
+.guide-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.44);z-index:90}
+.guide-bg.open{display:block}
+.guide-panel{position:absolute;right:0;top:0;bottom:0;width:min(460px,94vw);background:#0a1626;border-left:1px solid #2b4261;padding:24px;overflow:auto}
+.guide-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;padding-bottom:15px;border-bottom:1px solid var(--line)}
+.guide-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+.guide-head h3{margin:5px 0 0;font-size:20px}
+.guide-content{display:grid;gap:10px;margin:18px 0}
+.guide-step{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(118,170,255,.04)}
+.guide-step b{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(243,155,82,.12);color:var(--accent2)}
+.guide-step strong{display:block;font-size:13px;margin-bottom:3px}.guide-step span{font-size:12px;color:var(--muted);line-height:1.45}
+.guide-note{font-size:11px;color:var(--muted);padding-top:12px;border-top:1px solid var(--line)}
+
+@media(max-width:820px){
+  .desktop-collapse{display:none}
+  body.sidebar-collapsed .sidebar{width:76px}
+  body.sidebar-collapsed .main{margin-left:76px;width:calc(100% - 76px)}
+}
+@media(max-width:560px){
+  body.sidebar-collapsed .main{margin:0;width:100%}
+  .actions{gap:6px}.actions .icon-btn{width:36px;height:36px}
+  .guide-strip{align-items:flex-start}.guide-strip span{width:100%}.guide-strip button{margin-left:0}
+  .panel-head-actions{width:100%;flex-direction:column;align-items:stretch}.compact-search{width:100%}
+  .client-summary-grid{grid-template-columns:1fr 1fr}
+}
+
 </style>
 </head>
 <body>
@@ -312,8 +437,10 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
         </div>
       </div>
       <div class="actions">
-        <button class="icon-btn" onclick="refreshBtn(this)">↻</button>
-        <button class="secondary" onclick="alert('Exportação simulada')">Exportar</button>
+        <button class="icon-btn desktop-collapse" id="sidebarToggle" onclick="toggleSidebar()" title="Recolher ou expandir menu">⇤</button>
+        <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar claro/escuro">☾</button>
+        <button class="icon-btn guide-top-btn" onclick="openGuide()" title="Como funciona esta tela">?</button>
+        <button class="icon-btn" onclick="refreshCurrentPage(this)" title="Atualizar">↻</button>
         <div class="profile"><div class="avatar">NS</div><div class="profile-copy"><b>Neosonic</b><span>Acesso executivo</span></div></div>
       </div>
     </div>
@@ -803,6 +930,17 @@ tbody tr{cursor:pointer}tbody tr:hover td{background:#102139}
   </aside>
 </div>
 
+<div class="guide-bg" id="guideBg" onclick="closeGuide(event)">
+  <aside class="guide-panel">
+    <div class="guide-head">
+      <div><span class="guide-kicker">Guia rápido</span><h3 id="guideTitle">Como funciona</h3></div>
+      <button class="close" onclick="forceCloseGuide()">×</button>
+    </div>
+    <div id="guideContent" class="guide-content"></div>
+    <div class="guide-note">A ideia é ser simples: abra este guia sempre que tiver dúvida sobre a tela.</div>
+  </aside>
+</div>
+
 <script>
 const names={overview:"Visão Executiva",clients:"Clientes",quotes:"Orçamentos",orders:"Pedidos",segments:"Segmentos",products:"Produtos",states:"Estados"};
 
@@ -811,6 +949,8 @@ let PARAM_VERSION="PV-20260924-001";
 let FIXED_EXPENSE=0.12741625391756686;
 let apiOnline=false;
 let quoteHistoryCache=[];
+let APP_DATA={clients:[],segments:[]};
+let currentPage="overview";
 
 let PROCESS_COSTS=[
   ["ENGENHARIA DE APLICAÇÃO",174.9593757254843],
@@ -859,14 +999,90 @@ document.querySelectorAll(".nav button").forEach(btn=>{
     btn.classList.add("active");
     document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
     const id=btn.dataset.page;
+    currentPage=id;
     document.getElementById(id).classList.add("active");
     document.getElementById("pageTitle").textContent=names[id];
     document.getElementById("crumb").textContent=names[id];
     closeMobileMenu();
     window.scrollTo({top:0,behavior:"smooth"});
     if(id==="quotes") initQuotesPage();
+    if(id==="clients") initClientsPage();
   }
 });
+
+const GUIDES={
+  overview:{title:"Visão Executiva",steps:[
+    ["Filtre","Escolha período, segmento, cliente ou estado."],
+    ["Leia os indicadores","Os cards mostram faturamento, custo, lucro, margem e volume."],
+    ["Aprofunde","Use as análises para descobrir onde estão os melhores resultados."]
+  ]},
+  clients:{title:"Clientes",steps:[
+    ["Cadastre","Preencha razão social ou nome fantasia e os dados que você tiver."],
+    ["Salve","O cliente passa a ficar disponível para novos orçamentos."],
+    ["Edite quando precisar","Abra o cadastro pela tabela e atualize os dados. Orçamentos antigos mantêm o histórico."]
+  ]},
+  quotes:{title:"Orçamentos",steps:[
+    ["Escolha o cliente","O cliente precisa estar cadastrado antes."],
+    ["Monte o custo","Informe matéria-prima, ferramental, terceiros e processos."],
+    ["Escolha o preço","Mínimo, objetivo e cenários ajudam; quem define o preço final é o usuário."],
+    ["Salve ou envie","Rascunho pode ser retomado. Ao enviar, o preço final fica registrado."]
+  ]},
+  orders:{title:"Pedidos",steps:[
+    ["Origem","O pedido nasce de um orçamento aprovado."],
+    ["Rastreabilidade","O pedido mantém o vínculo com o orçamento e os preços fechados."],
+    ["Acompanhe","Consulte a carteira pelo status do pedido."]
+  ]},
+  segments:{title:"Segmentos",steps:[
+    ["Compare","Veja participação, faturamento e resultado por segmento."],
+    ["Filtre","Use o período e demais filtros para comparar bases iguais."],
+    ["Aprofunde","Abra os clientes do segmento para entender a composição."]
+  ]},
+  products:{title:"Produtos",steps:[
+    ["Localize","Veja produtos e SKUs vendidos."],
+    ["Compare","Analise faturamento, custo e margem."],
+    ["Cruze","Use cliente e segmento para entender onde cada produto performa melhor."]
+  ]},
+  states:{title:"Estados",steps:[
+    ["Distribuição","Veja onde as vendas acontecem."],
+    ["Compare","Analise faturamento e margem por UF."],
+    ["Detalhe","Combine com cliente e segmento para explicar o resultado."]
+  ]}
+};
+
+function initUiPreferences(){
+  const theme=localStorage.getItem("neosonics_theme")||"dark";
+  document.body.classList.toggle("theme-light",theme==="light");
+  document.body.classList.toggle("sidebar-collapsed",localStorage.getItem("neosonics_sidebar")==="collapsed");
+  updateThemeButton();
+}
+
+function toggleTheme(){
+  const light=document.body.classList.toggle("theme-light");
+  localStorage.setItem("neosonics_theme",light?"light":"dark");
+  updateThemeButton();
+}
+function updateThemeButton(){
+  const b=document.getElementById("themeBtn");
+  if(b)b.textContent=document.body.classList.contains("theme-light")?"☀":"☾";
+}
+function toggleSidebar(){
+  const collapsed=document.body.classList.toggle("sidebar-collapsed");
+  localStorage.setItem("neosonics_sidebar",collapsed?"collapsed":"expanded");
+}
+function openGuide(page){
+  const id=page||currentPage||document.querySelector(".page.active")?.id||"overview";
+  const g=GUIDES[id]||GUIDES.overview;
+  guideTitle.textContent=g.title+" — como funciona";
+  guideContent.innerHTML=g.steps.map((s,i)=>'<div class="guide-step"><b>'+(i+1)+'</b><div><strong>'+escapeHtml(s[0])+'</strong><span>'+escapeHtml(s[1])+'</span></div></div>').join("");
+  guideBg.classList.add("open");
+}
+function closeGuide(e){if(e.target.id==="guideBg")forceCloseGuide()}
+function forceCloseGuide(){guideBg.classList.remove("open")}
+function refreshCurrentPage(btn){
+  refreshBtn(btn);
+  if(currentPage==="clients")initClientsPage();
+  else if(currentPage==="quotes")initQuotesPage();
+}
 
 function toggleMobileMenu(){
   document.querySelector(".sidebar").classList.toggle("open");
@@ -883,6 +1099,130 @@ function openDrawer(c,s,r,m,sh){
 }
 function closeDrawer(e){if(e.target.id==="drawerBg")forceClose()}
 function forceClose(){drawerBg.classList.remove("open")}
+
+function clientName(c){return String(c.NOME_FANTASIA||c.RAZAO_SOCIAL||"").trim()}
+function truthy(v){return v===true||String(v).toLowerCase()==="true"||String(v)==="1"}
+
+function populateClientSelectors(){
+  const qList=document.getElementById("quoteClientOptions");
+  if(qList)qList.innerHTML=APP_DATA.clients.filter(c=>truthy(c.ATIVO)!==false).map(c=>'<option value="'+escapeHtml(clientName(c))+'"></option>').join("");
+
+  const segList=document.getElementById("clientSegmentOptions");
+  if(segList){
+    const segs=new Set();
+    APP_DATA.segments.forEach(s=>{const v=s.SEGMENTO||s.ID_SEGMENTO;if(v)segs.add(String(v))});
+    APP_DATA.clients.forEach(x=>{if(x.SEGMENTO_ID)segs.add(String(x.SEGMENTO_ID))});
+    segList.innerHTML=[...segs].sort((a,b)=>a.localeCompare(b,"pt-BR")).map(v=>'<option value="'+escapeHtml(v)+'"></option>').join("");
+  }
+}
+
+async function initClientsPage(){
+  const badge=document.getElementById("clientApiBadge");
+  if(badge)badge.textContent="Carregando...";
+  await loadBootstrap();
+  if(!apiOnline){
+    try{
+      const j=await apiGet("clientes");
+      APP_DATA.clients=Array.isArray(j.dados)?j.dados:[];
+      apiOnline=true;
+    }catch(e){console.warn(e)}
+  }
+  populateClientSelectors();
+  renderClientsTable();
+  updateClientKpis();
+  if(badge)badge.textContent=apiOnline?"Banco online":"API indisponível";
+}
+
+function renderClientsTable(){
+  const body=document.getElementById("clientsTableBody");if(!body)return;
+  const term=String(document.getElementById("clientSearch")?.value||"").trim().toUpperCase();
+  const list=APP_DATA.clients.filter(c=>{
+    const hay=[c.NOME_FANTASIA,c.RAZAO_SOCIAL,c.CNPJ_CPF,c.SEGMENTO_ID,c.UF,c.CIDADE,c.VENDEDOR].join(" ").toUpperCase();
+    return !term||hay.includes(term);
+  });
+  if(!list.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum cliente encontrado.</td></tr>';return;
+  }
+  body.innerHTML=list.map(c=>'<tr>'+
+    '<td><b>'+escapeHtml(clientName(c))+'</b></td>'+
+    '<td>'+escapeHtml(c.RAZAO_SOCIAL||"")+'</td>'+
+    '<td>'+escapeHtml(c.SEGMENTO_ID||"—")+'</td>'+
+    '<td>'+escapeHtml(c.UF||"—")+'</td>'+
+    '<td>'+escapeHtml(c.CONTATO||"—")+'</td>'+
+    '<td>'+escapeHtml(c.VENDEDOR||"—")+'</td>'+
+    '<td><span class="status '+(truthy(c.ATIVO)?"good":"low")+'">'+(truthy(c.ATIVO)?"Ativo":"Inativo")+'</span></td>'+
+    '<td><button class="secondary" style="height:31px" onclick="editClient(\''+String(c.ID_CLIENTE).replace(/'/g,"\\'")+'\')">Editar</button></td>'+
+  '</tr>').join("");
+}
+
+function updateClientKpis(){
+  const all=APP_DATA.clients;
+  const active=all.filter(c=>truthy(c.ATIVO));
+  const segmented=all.filter(c=>String(c.SEGMENTO_ID||"").trim()).length;
+  const states=new Set(all.map(c=>String(c.UF||"").trim()).filter(Boolean));
+  if(document.getElementById("clientKpiTotal"))clientKpiTotal.textContent=all.length;
+  if(document.getElementById("clientKpiActive"))clientKpiActive.textContent=active.length;
+  if(document.getElementById("clientKpiSegmented"))clientKpiSegmented.textContent=all.length?Math.round(segmented/all.length*100)+"%":"0%";
+  if(document.getElementById("clientKpiStates"))clientKpiStates.textContent=states.size;
+}
+
+function clearClientForm(){
+  ["cId","cRazao","cFantasia","cDocumento","cSegment","cCidade","cContato","cVendedor","cEmail","cTelefone","cObs"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
+  if(document.getElementById("cUf"))cUf.value="";
+  if(document.getElementById("cAtivo"))cAtivo.value="true";
+  if(document.getElementById("clientFormTitle"))clientFormTitle.textContent="Novo cliente";
+  if(document.getElementById("clientFormChip"))clientFormChip.textContent="Cadastro";
+  document.getElementById("cRazao")?.focus();
+}
+
+function editClient(id){
+  const c=APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===String(id));if(!c)return;
+  cId.value=c.ID_CLIENTE||"";cRazao.value=c.RAZAO_SOCIAL||"";cFantasia.value=c.NOME_FANTASIA||"";
+  cDocumento.value=c.CNPJ_CPF||"";cSegment.value=c.SEGMENTO_ID||"";cUf.value=c.UF||"";cCidade.value=c.CIDADE||"";
+  cContato.value=c.CONTATO||"";cVendedor.value=c.VENDEDOR||"";cEmail.value=c.EMAIL||"";cTelefone.value=c.TELEFONE||"";
+  cAtivo.value=truthy(c.ATIVO)?"true":"false";cObs.value=c.OBS||"";
+  clientFormTitle.textContent="Editar cliente";clientFormChip.textContent="Edição";
+  window.scrollTo({top:document.getElementById("clients").offsetTop,behavior:"smooth"});
+}
+
+async function saveClient(){
+  const cliente={
+    ID_CLIENTE:cId.value.trim(),
+    RAZAO_SOCIAL:cRazao.value.trim(),
+    NOME_FANTASIA:cFantasia.value.trim(),
+    CNPJ_CPF:cDocumento.value.trim(),
+    SEGMENTO_ID:cSegment.value.trim(),
+    UF:cUf.value,
+    CIDADE:cCidade.value.trim(),
+    CONTATO:cContato.value.trim(),
+    EMAIL:cEmail.value.trim(),
+    TELEFONE:cTelefone.value.trim(),
+    VENDEDOR:cVendedor.value.trim(),
+    ATIVO:cAtivo.value==="true",
+    OBS:cObs.value.trim()
+  };
+  if(!cliente.RAZAO_SOCIAL&&!cliente.NOME_FANTASIA){alert("Informe a razão social ou nome fantasia.");return}
+  clientSaveBtn.disabled=true;clientSaveBtn.textContent="Salvando...";
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"salvar_cliente",cliente})});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();if(!j.ok)throw new Error(j.erro||"Erro ao salvar");
+    await initClientsPage();
+    clearClientForm();
+  }catch(e){alert("Não foi possível salvar o cliente: "+e.message)}
+  finally{clientSaveBtn.disabled=false;clientSaveBtn.textContent="Salvar cliente"}
+}
+
+function syncQuoteClient(){
+  const name=String(qClient.value||"").trim().toUpperCase();
+  const c=APP_DATA.clients.find(x=>clientName(x).toUpperCase()===name);
+  qClientId.value=c?c.ID_CLIENTE:"";
+  if(c){
+    qCity.value=[c.CIDADE,c.UF].filter(Boolean).join(" / ");
+    qContact.value=c.CONTATO||"";
+    qSeller.value=c.VENDEDOR||"";
+  }
+}
 
 async function initQuotesPage(){
   document.getElementById("quoteParamBadge").textContent="Conectando ao banco...";
@@ -916,6 +1256,9 @@ async function loadBootstrap(){
   try{
     const j=await apiGet("bootstrap");
     apiOnline=true;
+    APP_DATA.clients=Array.isArray(j.clientes)?j.clientes:[];
+    APP_DATA.segments=Array.isArray(j.segmentos)?j.segmentos:[];
+    populateClientSelectors();
 
     if(j.parametro_versao_ativa){
       PARAM_VERSION=j.parametro_versao_ativa.ID_VERSAO||PARAM_VERSION;
@@ -1211,7 +1554,7 @@ function collectQuotePayload(status){
   return {
     ID_ORCAMENTO:quoteState.id,
     NUMERO_ORCAMENTO:quoteState.number,
-    CLIENTE_ID:document.getElementById("qClient").value.trim(),
+    CLIENTE_ID:document.getElementById("qClientId").value.trim(),
     CLIENTE_NOME_SNAPSHOT:document.getElementById("qClient").value.trim(),
     CIDADE_UF:document.getElementById("qCity").value.trim(),
     CONTATO:document.getElementById("qContact").value.trim(),
@@ -1232,12 +1575,14 @@ function collectQuotePayload(status){
 }
 
 async function saveQuoteDraft(){
+  if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item ao orçamento.");return}
   const payload=collectQuotePayload("RASCUNHO");
   const saved=await persistQuote(payload);
   if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo no banco";}
 }
 async function sendQuote(){
+  if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item.");return}
   if(quoteState.items.some(x=>!Number(x.PRECO_FINAL_TOTAL))){alert("Todos os itens precisam ter preço final.");return}
   const payload=collectQuotePayload("ENVIADO");
@@ -1322,6 +1667,7 @@ function applyQuoteToForm(q){
   };
 
   qClient.value=q.CLIENTE_NOME_SNAPSHOT||"";
+  qClientId.value=q.CLIENTE_ID||"";
   qCity.value=q.CIDADE_UF||"";
   qContact.value=q.CONTATO||"";
   qSeller.value=q.VENDEDOR||"";
@@ -1370,13 +1716,16 @@ function formatDateBR(v){
 
 function newQuote(){
   quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
-  ["qClient","qCity","qContact","qSeller","qPayment","qDelivery"].forEach(id=>document.getElementById(id).value="");
+  ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery"].forEach(id=>document.getElementById(id).value="");
   qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="INTERNA";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
   quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 
-document.addEventListener("DOMContentLoaded",()=>{if(document.getElementById("quotes"))initQuotesPage()});
+document.addEventListener("DOMContentLoaded",()=>{
+  initUiPreferences();
+  currentPage=document.querySelector(".page.active")?.id||"overview";
+});
 </script>
 </body>
 </html>
