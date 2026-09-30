@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.5.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.5.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -295,20 +295,38 @@ function salvarOrcamento_(orcamento) {
 }
 
 function listarOrcamentosResumo_() {
-  const orcamentos = listarObjetos_(ABAS.ORCAMENTOS);
-  const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS);
+  const shOrc = aba_(ABAS.ORCAMENTOS);
+  const lastOrc = shOrc.getLastRow();
+  if (lastOrc < 2) return [];
+
+  const lastCol = shOrc.getLastColumn();
+  const headers = shOrc.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  const idx = {};
+  headers.forEach(function(h, i) { idx[h] = i; });
+
+  const dados = shOrc.getRange(2, 1, lastOrc - 1, lastCol).getValues();
   const contador = {};
 
-  itens.forEach(function(item) {
-    const id = String(item.ORCAMENTO_ID || '');
-    contador[id] = (contador[id] || 0) + 1;
-  });
-
-  return orcamentos
-    .map(function(o) {
-      return Object.assign({}, o, {
-        QTD_ITENS: contador[String(o.ID_ORCAMENTO)] || 0
+  const shItens = aba_(ABAS.ORCAMENTO_ITENS);
+  const lastItens = shItens.getLastRow();
+  if (lastItens >= 2) {
+    const hItens = shItens.getRange(1, 1, 1, shItens.getLastColumn()).getValues()[0].map(String);
+    const colOrcId = hItens.indexOf('ORCAMENTO_ID') + 1;
+    if (colOrcId > 0) {
+      shItens.getRange(2, colOrcId, lastItens - 1, 1).getValues().forEach(function(r) {
+        const id = String(r[0] || '');
+        if (id) contador[id] = (contador[id] || 0) + 1;
       });
+    }
+  }
+
+  return dados
+    .filter(function(r) { return r.some(function(v) { return v !== '' && v !== null; }); })
+    .map(function(r) {
+      const o = {};
+      headers.forEach(function(h, i) { o[h] = r[i]; });
+      o.QTD_ITENS = contador[String(o.ID_ORCAMENTO)] || 0;
+      return o;
     })
     .sort(function(a, b) {
       const nb = numero_(b.NUMERO_ORCAMENTO);
@@ -839,8 +857,15 @@ function novoId_(prefixo) {
   return prefixo + '-' + Utilities.getUuid().replace(/-/g, '').substring(0, 12).toUpperCase();
 }
 
+let DB_CACHE_ = null;
+
+function db_() {
+  if (!DB_CACHE_) DB_CACHE_ = SpreadsheetApp.openById(DB_SPREADSHEET_ID);
+  return DB_CACHE_;
+}
+
 function aba_(nome) {
-  const sh = SpreadsheetApp.openById(DB_SPREADSHEET_ID).getSheetByName(nome);
+  const sh = db_().getSheetByName(nome);
   if (!sh) throw new Error('Aba não encontrada: ' + nome);
   return sh;
 }
