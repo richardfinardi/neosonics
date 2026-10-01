@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.1.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.2.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -54,7 +54,10 @@ function doGet(e) {
         return json_(getOrcamentoDetalhe_((e && e.parameter && e.parameter.id) || ''));
 
       case 'pedidos':
-        return json_({ ok: true, dados: listarObjetos_(ABAS.PEDIDOS) });
+        return json_({ ok: true, dados: listarPedidosResumo_() });
+
+      case 'pedido_detalhe':
+        return json_(getPedidoDetalhe_((e && e.parameter && e.parameter.id) || ''));
 
       case 'dashboard':
         return json_(getDashboardVendas_((e && e.parameter) || {}));
@@ -95,7 +98,7 @@ function doPost(e) {
         return json_(alterarStatusOrcamento_(body.id_orcamento, 'ENVIADO'));
 
       case 'aprovar_orcamento':
-        return json_(alterarStatusOrcamento_(body.id_orcamento, 'APROVADO'));
+        return json_(aprovarOrcamentoEGerarPedido_(body.id_orcamento));
 
       case 'recusar_orcamento':
         return json_(alterarStatusOrcamento_(body.id_orcamento, 'RECUSADO'));
@@ -882,6 +885,101 @@ function getOrcamentoDetalhe_(idOrcamento) {
   return { ok: true, orcamento: Object.assign({}, orc, { itens: itens }) };
 }
 
+function listarPedidosResumo_() {
+  const pedidos = listarObjetos_(ABAS.PEDIDOS);
+  const itens = listarObjetos_(ABAS.PEDIDO_ITENS);
+  const porPedido = {};
+
+  itens.forEach(function(item) {
+    const id = String(item.PEDIDO_ID || '');
+    if (!porPedido[id]) {
+      porPedido[id] = {
+        QTD_ITENS:0,
+        CUSTO_TOTAL:0,
+        DV_TOTAL:0,
+        DF_TOTAL:0,
+        LUCRO_TOTAL:0
+      };
+    }
+    const a = porPedido[id];
+    a.QTD_ITENS++;
+    a.CUSTO_TOTAL += numero_(item.CUSTO_TOTAL_SNAPSHOT);
+    a.DV_TOTAL += numero_(item.DV_VALOR_SNAPSHOT);
+    a.DF_TOTAL += numero_(item.DF_VALOR_SNAPSHOT);
+    a.LUCRO_TOTAL += numero_(item.LUCRO_SNAPSHOT);
+  });
+
+  return pedidos.map(function(p) {
+    const a = porPedido[String(p.ID_PEDIDO)] || {
+      QTD_ITENS:0,CUSTO_TOTAL:0,DV_TOTAL:0,DF_TOTAL:0,LUCRO_TOTAL:0
+    };
+    const faturamento = numero_(p.VALOR_TOTAL);
+    return Object.assign({}, p, a, {
+      LUCRATIVIDADE_PCT: faturamento ? a.LUCRO_TOTAL / faturamento : 0
+    });
+  }).sort(function(a,b) {
+    const da = String(a.DATA_PEDIDO || '');
+    const db = String(b.DATA_PEDIDO || '');
+    if (da !== db) return db.localeCompare(da);
+    return String(b.NUMERO_PEDIDO || '').localeCompare(String(a.NUMERO_PEDIDO || ''), 'pt-BR', {numeric:true});
+  });
+}
+
+function getPedidoDetalhe_(idPedido) {
+  if (!idPedido) throw new Error('ID do pedido não informado.');
+
+  const pedido = listarObjetos_(ABAS.PEDIDOS).find(function(p) {
+    return String(p.ID_PEDIDO) === String(idPedido);
+  });
+  if (!pedido) throw new Error('Pedido não encontrado.');
+
+  const itens = listarObjetos_(ABAS.PEDIDO_ITENS)
+    .filter(function(i) { return String(i.PEDIDO_ID) === String(idPedido); })
+    .sort(function(a,b) { return numero_(a.SEQ) - numero_(b.SEQ); });
+
+  const resumo = itens.reduce(function(a,item) {
+    a.custo += numero_(item.CUSTO_TOTAL_SNAPSHOT);
+    a.dv += numero_(item.DV_VALOR_SNAPSHOT);
+    a.df += numero_(item.DF_VALOR_SNAPSHOT);
+    a.lucro += numero_(item.LUCRO_SNAPSHOT);
+    return a;
+  }, {custo:0,dv:0,df:0,lucro:0});
+
+  resumo.faturamento = numero_(pedido.VALOR_TOTAL);
+  resumo.lucratividade = resumo.faturamento ? resumo.lucro / resumo.faturamento : 0;
+
+  return { ok:true, pedido:pedido, itens:itens, resumo:resumo };
+}
+
+function aprovarOrcamentoEGerarPedido_(idOrcamento) {
+  if (!idOrcamento) throw new Error('ID do orçamento não informado.');
+
+  const sh = aba_(ABAS.ORCAMENTOS);
+  const headers = cabecalhos_(sh);
+  const row = localizarLinha_(sh, headers.ID_ORCAMENTO, idOrcamento);
+  if (!row) throw new Error('Orçamento não encontrado.');
+
+  const orc = objetoDaLinha_(sh, row);
+  if (String(orc.STATUS || '').toUpperCase() === 'CONVERTIDO' && orc.CONVERTIDO_PEDIDO_ID) {
+    return {
+      ok:true,
+      status:'CONVERTIDO',
+      id_orcamento:idOrcamento,
+      id_pedido:orc.CONVERTIDO_PEDIDO_ID,
+      ja_convertido:true
+    };
+  }
+
+  alterarStatusOrcamento_(idOrcamento, 'APROVADO');
+  const pedido = converterOrcamentoEmPedido_(idOrcamento);
+
+  return Object.assign({
+    ok:true,
+    status:'CONVERTIDO',
+    id_orcamento:idOrcamento
+  }, pedido);
+}
+
 function alterarStatusOrcamento_(idOrcamento, novoStatus) {
   if (!idOrcamento) throw new Error('ID do orçamento não informado.');
 
@@ -942,7 +1040,10 @@ function converterOrcamentoEmPedido_(idOrcamento) {
       DT_CONVERSAO: agora,
       DT_CRIACAO: agora,
       DT_ATUALIZACAO: agora,
-      OBS: 'Gerado automaticamente pelo orçamento ' + orc.NUMERO_ORCAMENTO
+      OBS: 'Gerado automaticamente pelo orçamento ' + orc.NUMERO_ORCAMENTO,
+      ORIGEM: 'ORCAMENTO',
+      ANO_ORIGEM: Number(agora.substring(0,4)),
+      CHAVE_HISTORICA: ''
     });
 
     const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS).filter(function(x) {
@@ -983,7 +1084,10 @@ function converterOrcamentoEmPedido_(idOrcamento) {
         LUCRO_SNAPSHOT: numero_(item.LUCRO_FINAL),
         MARGEM_PCT_SNAPSHOT: numero_(item.MARGEM_FINAL_PCT),
         STATUS: 'ABERTO',
-        OBS: ''
+        OBS: '',
+        ORIGEM: 'ORCAMENTO',
+        VENDA_ID_ORIGEM: '',
+        RAW_ID: ''
       });
     });
 
