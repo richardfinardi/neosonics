@@ -1161,6 +1161,14 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
           <button type="button" onclick="openGuide('quotes')">Ver guia</button>
         </div>
 
+        <div class="quote-frozen-notice" id="quoteFrozenNotice" style="display:none">
+          <div class="quote-frozen-icon">✓</div>
+          <div>
+            <b>Orçamento aprovado e congelado</b>
+            <span>Os dados deste orçamento não podem mais ser alterados. O pedido gerado preserva exatamente os valores aprovados.</span>
+          </div>
+        </div>
+
         <div class="quote-toolbar">
           <div class="quote-search">
             <input id="quoteSearchInput" placeholder="Pesquisar nº do orçamento ou cliente">
@@ -2008,6 +2016,7 @@ async function approveCurrentQuote(){
 
     quoteState.status="CONVERTIDO";
     quoteStatusNote.textContent="Aprovado • pedido gerado";
+    applyQuoteFreezeState();
     await renderQuoteHistory();
     alert("Orçamento aprovado e pedido "+(j.numero_pedido||"")+" gerado.");
   }catch(err){
@@ -2031,6 +2040,10 @@ async function approveQuoteFromHistory(id){
     if(!r.ok)throw new Error("HTTP "+r.status);
     const j=await r.json();
     if(!j.ok)throw new Error(j.erro||"Falha ao aprovar");
+    if(String(quoteState.id||"")===String(id)){
+      quoteState.status="CONVERTIDO";
+      applyQuoteFreezeState();
+    }
     await renderQuoteHistory();
     alert("Pedido "+(j.numero_pedido||"")+" gerado.");
   }catch(err){
@@ -2947,6 +2960,7 @@ function renderQuoteItems(){
   }).join("");
 
   quoteGrandTotal.textContent=formatBRL(quoteState.items.reduce((sum,x)=>sum+Number(x.PRECO_FINAL_TOTAL||0),0));
+  applyQuoteFreezeState();
 }
 function removeQuoteItem(i){quoteState.items.splice(i,1);quoteState.items.forEach((x,j)=>x.SEQ=j+1);renderQuoteItems()}
 function editQuoteItem(i){
@@ -3039,7 +3053,38 @@ function collectQuotePayload(status){
   };
 }
 
+function quoteIsFrozen(){
+  const s=String(quoteState.status||"").toUpperCase();
+  return s==="APROVADO"||s==="CONVERTIDO";
+}
+
+function applyQuoteFreezeState(){
+  const frozen=quoteIsFrozen();
+  const notice=document.getElementById("quoteFrozenNotice");
+  if(notice)notice.style.display=frozen?"flex":"none";
+
+  document.querySelectorAll(
+    '#quotes .quote-header-card input,'+
+    '#quotes .quote-header-card select,'+
+    '#quotes .quote-workspace input,'+
+    '#quotes .quote-workspace select'
+  ).forEach(el=>{
+    if(el.id!=="quoteSearchInput")el.disabled=frozen;
+  });
+
+  document.querySelectorAll("#quotes button").forEach(btn=>{
+    const action=String(btn.getAttribute("onclick")||"");
+    const editAction=/saveQuoteDraft|sendQuote|approveCurrentQuote|addItemToQuote|editQuoteItem|removeQuoteItem|addCostRow|addProcessRow/.test(action);
+    if(editAction)btn.disabled=frozen;
+  });
+
+  if(frozen && document.getElementById("quoteStatusNote")){
+    quoteStatusNote.textContent="Aprovado • orçamento congelado";
+  }
+}
+
 async function saveQuoteDraft(){
+  if(quoteIsFrozen()){alert("Orçamento aprovado está congelado e não pode mais ser alterado.");return}
   if(quoteSaving)return;
   if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item ao orçamento.");return}
@@ -3053,6 +3098,7 @@ async function saveQuoteDraft(){
   }
 }
 async function sendQuote(){
+  if(quoteIsFrozen()){alert("Orçamento aprovado está congelado e não pode mais ser alterado.");return}
   if(quoteSaving)return;
   if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item.");return}
@@ -3061,7 +3107,7 @@ async function sendQuote(){
   setQuoteSaving(true,"Enviando...");
   try{
     const saved=await persistQuote(payload);
-    if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Enviado • preço comercial congelado";alert("Orçamento marcado como enviado.");}
+    if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Enviado • aguardando aprovação";alert("Orçamento marcado como enviado.");}
   }finally{
     setQuoteSaving(false);
   }
@@ -3173,6 +3219,7 @@ function applyQuoteToForm(q){
   quoteStatusNote.textContent=(q.STATUS||"RASCUNHO")+" • Orçamento carregado";
   renderQuoteItems();
   clearItemForm();
+  applyQuoteFreezeState();
 }
 
 function searchQuote(){
@@ -3207,7 +3254,7 @@ function newQuote(){
   quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
   ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery"].forEach(id=>document.getElementById(id).value="");
   qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxes.value="";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
-  quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();
+  quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();applyQuoteFreezeState();
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 
