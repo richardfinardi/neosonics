@@ -1494,37 +1494,55 @@ async function lookupCnpj(){
   const cnpj=String(document.getElementById("cDocumento")?.value||"").replace(/\D/g,"");
   if(cnpj.length!==14){alert("Informe um CNPJ com 14 dígitos.");cDocumento.focus();return}
 
+  const existing=APP_DATA.clients.find(x=>
+    String(x.CNPJ_CPF||"").replace(/\D/g,"")===cnpj &&
+    String(x.ID_CLIENTE||"")!==String(cId.value||"")
+  );
+  if(existing){
+    const abrir=confirm('Este CNPJ já está cadastrado para "'+clientName(existing)+'".\n\nDeseja abrir esse cadastro?');
+    if(abrir)editClient(existing.ID_CLIENTE);
+    return;
+  }
+
   btn.disabled=true;
   const original=btn.textContent;
   btn.textContent="Buscando...";
 
   try{
-    const j=await apiGet("consultar_cnpj",{cnpj});
-    const d=j.dados||{};
+    let data=null;
+    let source="";
 
-    if(d.ja_cadastrado && String(d.ja_cadastrado.ID_CLIENTE)!==String(cId.value||"")){
-      const abrir=confirm('Este CNPJ já está cadastrado para "'+(d.ja_cadastrado.NOME||"cliente existente")+'".\n\nDeseja abrir esse cadastro?');
-      if(abrir)editClient(d.ja_cadastrado.ID_CLIENTE);
-      return;
+    try{
+      const r=await fetch("https://brasilapi.com.br/api/cnpj/v1/"+encodeURIComponent(cnpj),{cache:"no-store"});
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      const j=await r.json();
+      data=normalizeBrasilApiCnpj(j,cnpj);
+      source="BrasilAPI";
+    }catch(primaryError){
+      const r=await fetch("https://publica.cnpj.ws/cnpj/"+encodeURIComponent(cnpj),{cache:"no-store"});
+      if(!r.ok)throw new Error("Falha na consulta de CNPJ.");
+      const j=await r.json();
+      data=normalizeCnpjWs(j,cnpj);
+      source="CNPJ.ws";
     }
 
-    cDocumento.value=d.cnpj||cDocumento.value;
-    cRazao.value=d.razao_social||cRazao.value;
-    cFantasia.value=d.nome_fantasia||cFantasia.value;
-    cUf.value=d.uf||cUf.value;
-    cCidade.value=d.cidade||cCidade.value;
-    cCep.value=formatCep(d.cep)||cCep.value;
-    cLogradouro.value=d.logradouro||cLogradouro.value;
-    cNumero.value=d.numero||cNumero.value;
-    cComplemento.value=d.complemento||cComplemento.value;
-    cBairro.value=d.bairro||cBairro.value;
-    cSituacao.value=d.situacao_cadastral||"";
-    cCnae.value=d.cnae_principal||"";
-    cCnaeDesc.value=d.cnae_principal_descricao||"";
-    if(d.email)cEmail.value=d.email;
-    if(d.telefone)cTelefone.value=d.telefone;
-    cCnpjSource.value=d.fonte||"";
-    cCnpjDate.value=d.dt_consulta||"";
+    cDocumento.value=data.cnpj||cDocumento.value;
+    cRazao.value=data.razao_social||cRazao.value;
+    cFantasia.value=data.nome_fantasia||cFantasia.value;
+    cUf.value=data.uf||cUf.value;
+    cCidade.value=data.cidade||cCidade.value;
+    cCep.value=formatCep(data.cep)||cCep.value;
+    cLogradouro.value=data.logradouro||cLogradouro.value;
+    cNumero.value=data.numero||cNumero.value;
+    cComplemento.value=data.complemento||cComplemento.value;
+    cBairro.value=data.bairro||cBairro.value;
+    cSituacao.value=data.situacao_cadastral||"";
+    cCnae.value=data.cnae_principal||"";
+    cCnaeDesc.value=data.cnae_principal_descricao||"";
+    if(data.email)cEmail.value=data.email;
+    if(data.telefone)cTelefone.value=data.telefone;
+    cCnpjSource.value=source;
+    cCnpjDate.value=new Date().toISOString();
 
     clientFormChip.textContent="CNPJ consultado";
   }catch(err){
@@ -1533,6 +1551,53 @@ async function lookupCnpj(){
     btn.disabled=false;
     btn.textContent=original;
   }
+}
+
+function normalizeBrasilApiCnpj(j,cnpj){
+  const f=String(j.cnpj||cnpj).replace(/\D/g,"");
+  return {
+    cnpj:f.length===14?f.slice(0,2)+"."+f.slice(2,5)+"."+f.slice(5,8)+"/"+f.slice(8,12)+"-"+f.slice(12):f,
+    razao_social:j.razao_social||"",
+    nome_fantasia:j.nome_fantasia||"",
+    uf:j.uf||"",
+    cidade:j.municipio||"",
+    cep:j.cep||"",
+    logradouro:[j.descricao_tipo_de_logradouro,j.logradouro].filter(Boolean).join(" ").trim(),
+    numero:j.numero||"",
+    complemento:j.complemento||"",
+    bairro:j.bairro||"",
+    situacao_cadastral:j.descricao_situacao_cadastral||j.situacao_cadastral||"",
+    cnae_principal:j.cnae_fiscal||"",
+    cnae_principal_descricao:j.cnae_fiscal_descricao||"",
+    email:j.email||"",
+    telefone:j.ddd_telefone_1||j.ddd_telefone_2||""
+  };
+}
+
+function normalizeCnpjWs(j,cnpj){
+  const e=j.estabelecimento||{};
+  const atividade=e.atividade_principal||{};
+  const estado=e.estado||{};
+  const cidade=e.cidade||{};
+  const f=String(e.cnpj||cnpj).replace(/\D/g,"");
+  const tel=(e.ddd1||e.telefone1)?((e.ddd1?"("+e.ddd1+") ":"")+(e.telefone1||"")):((e.ddd2?"("+e.ddd2+") ":"")+(e.telefone2||""));
+  return {
+    cnpj:f.length===14?f.slice(0,2)+"."+f.slice(2,5)+"."+f.slice(5,8)+"/"+f.slice(8,12)+"-"+f.slice(12):f,
+    razao_social:j.razao_social||"",
+    nome_fantasia:e.nome_fantasia||"",
+    uf:estado.sigla||"",
+    cidade:cidade.nome||"",
+    cep:e.cep||"",
+    logradouro:[e.tipo_logradouro,e.logradouro].filter(Boolean).join(" ").trim(),
+    numero:e.numero||"",
+    complemento:e.complemento||"",
+    bairro:e.bairro||"",
+    situacao_cadastral:e.situacao_cadastral||"",
+    cnae_principal:atividade.id||atividade.subclasse||"",
+    cnae_principal_descricao:atividade.descricao||"",
+    email:e.email||"",
+    telefone:tel||""
+  };
 }
 
 function formatCep(v){
