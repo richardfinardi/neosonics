@@ -1124,6 +1124,131 @@ body.theme-light .origin-chip.quote{background:#edf8f3!important;color:#2f7c5f!i
   .state-split-grid{grid-template-columns:1fr!important}
 }
 
+
+/* ===== Indicadores focados nos requisitos do cliente ===== */
+.indicator-main-kpis{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:12px;
+}
+.indicator-main-card{
+  min-width:0;
+  display:grid;
+  gap:7px;
+  padding:18px 20px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:linear-gradient(180deg,#101f32,#0d1929);
+  box-shadow:0 10px 28px rgba(0,0,0,.10);
+}
+.indicator-main-card>span{font-size:10px;color:var(--muted);font-weight:700}
+.indicator-main-card>strong{
+  font-size:clamp(20px,1.7vw,30px);
+  line-height:1.05;
+  letter-spacing:-.035em;
+  white-space:nowrap;
+}
+.indicator-main-card>small{font-size:9.5px;color:var(--muted)}
+.indicator-cost-strip{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:14px;
+}
+.indicator-cost-strip>div{
+  display:grid;
+  grid-template-columns:1fr auto;
+  grid-template-areas:"label value" "small small";
+  align-items:center;
+  gap:5px 14px;
+  padding:12px 16px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:rgba(118,170,255,.035);
+}
+.indicator-cost-strip span{grid-area:label;font-size:10px;color:var(--muted);font-weight:700}
+.indicator-cost-strip strong{grid-area:value;font-size:14px;white-space:nowrap}
+.indicator-cost-strip small{grid-area:small;font-size:9px;color:var(--muted)}
+.indicator-section{margin-bottom:14px}
+.segment-view-switch{
+  display:inline-flex;
+  gap:4px;
+  padding:4px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:rgba(118,170,255,.04);
+}
+.segment-view-switch button{
+  min-width:74px;
+  height:32px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+}
+.segment-view-switch button.active{
+  background:var(--accent);
+  color:#111827;
+}
+.indicator-table th{font-size:9.5px}
+.indicator-table td{font-size:11px}
+.indicator-click-row{cursor:pointer}
+.indicator-click-row:hover td{background:rgba(118,170,255,.055)!important}
+.indicator-open-btn{height:29px!important;font-size:10px!important;white-space:nowrap}
+.inside-outside-summary{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.inside-outside-card{
+  display:grid;
+  grid-template-columns:1fr auto;
+  grid-template-areas:"label pct" "count pct" "small pct";
+  gap:3px 14px;
+  align-items:center;
+  padding:16px 18px;
+  border:1px solid var(--line);
+  border-radius:13px;
+}
+.inside-outside-card span{grid-area:label;font-size:10px;color:var(--muted);font-weight:700}
+.inside-outside-card strong{grid-area:count;font-size:18px}
+.inside-outside-card b{grid-area:pct;font-size:28px}
+.inside-outside-card small{grid-area:small;font-size:9px;color:var(--muted)}
+.inside-outside-card.inside b{color:#53c79b}
+.inside-outside-card.outside b{color:#ef9650}
+.inside-outside-bar{
+  display:flex;
+  width:100%;
+  height:12px;
+  margin-top:12px;
+  border-radius:999px;
+  overflow:hidden;
+  background:#15263b;
+  border:1px solid var(--line);
+}
+.inside-part{height:100%;background:#53c79b}
+.outside-part{height:100%;background:#ef9650}
+body.theme-light .indicator-main-card,
+body.theme-light .indicator-cost-strip>div,
+body.theme-light .inside-outside-card{
+  background:#fff!important;
+  border-color:#dce2e9!important;
+  box-shadow:0 3px 10px rgba(31,42,55,.035)!important;
+}
+body.theme-light .segment-view-switch{background:#f5f7f9!important}
+body.theme-light .inside-outside-bar{background:#edf0f4!important;border-color:#dce2e9!important}
+body.theme-light .indicator-click-row:hover td{background:#fff8f2!important}
+@media(max-width:1100px){.indicator-main-kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){
+  .indicator-main-kpis,.indicator-cost-strip,.inside-outside-summary{grid-template-columns:1fr}
+  .segment-view-switch{width:100%}
+  .segment-view-switch button{flex:1}
+}
+
 </style>
 </head>
 <body>
@@ -1199,14 +1324,14 @@ body.theme-light .origin-chip.quote{background:#edf8f3!important;color:#2f7c5f!i
         <div class="hero executive-hero">
           <div>
             <h2>Indicadores</h2>
-            <p>Faturamento, custos e lucratividade calculados a partir das vendas consolidadas.</p>
+            <p>Participação e lucratividade por segmento, cliente, produto e região.</p>
           </div>
           <div class="badge" id="dashPeriodBadge">Carregando...</div>
         </div>
 
         <div class="panel dashboard-filters">
           <div class="panel-head">
-            <div><div class="panel-title">Filtros</div><div class="panel-sub">Combine os filtros para analisar o resultado.</div></div>
+            <div><div class="panel-title">Filtros</div><div class="panel-sub">Defina o período e, se quiser, refine por cliente, modalidade ou UF.</div></div>
             <div class="panel-head-actions">
               <button class="secondary" onclick="clearDashboardFilters()">Limpar</button>
               <button class="primary" onclick="loadDashboard()">Aplicar</button>
@@ -1216,97 +1341,150 @@ body.theme-light .origin-chip.quote{background:#edf8f3!important;color:#2f7c5f!i
             <div class="dashboard-filter-grid">
               <div class="field"><label>Data inicial</label><input type="date" id="dStart"></div>
               <div class="field"><label>Data final</label><input type="date" id="dEnd"></div>
-              <div class="field"><label>Segmentação FINAL</label><select id="dFinal" onchange="DASHBOARD_SELECTED_CLIENT='';loadDashboard()"><option value="">Todos</option></select></div>
-              <div class="field"><label>Segmentação NEO</label><select id="dNeo" onchange="DASHBOARD_SELECTED_CLIENT='';loadDashboard()"><option value="">Todos</option></select></div>
               <div class="field"><label>Cliente</label><select id="dClient"><option value="">Todos</option></select></div>
               <div class="field"><label>Modalidade</label><select id="dModality"><option value="">Todas</option></select></div>
               <div class="field"><label>UF</label><select id="dUf"><option value="">Todas</option></select></div>
+              <input type="hidden" id="dFinal">
+              <input type="hidden" id="dNeo">
             </div>
           </div>
         </div>
 
-        <div class="dashboard-kpis">
-          <div class="kpi"><div class="label">Faturamento</div><div class="value" id="dKpiRevenue">R$ 0,00</div><div class="delta" id="dKpiRows">0 vendas</div></div>
-          <div class="kpi"><div class="label">Custo total</div><div class="value" id="dKpiCost">R$ 0,00</div><div class="delta">custo dos itens vendidos</div></div>
-          <div class="kpi"><div class="label">Despesa variável</div><div class="value" id="dKpiDv">R$ 0,00</div><div class="delta" id="dKpiDvPct">0,00% do faturamento</div></div>
-          <div class="kpi"><div class="label">Despesa fixa</div><div class="value" id="dKpiDf">R$ 0,00</div><div class="delta" id="dKpiDfPct">0,00% do faturamento</div></div>
-          <div class="kpi"><div class="label">Lucro</div><div class="value" id="dKpiProfit">R$ 0,00</div><div class="delta">após despesas variável e fixa</div></div>
-          <div class="kpi"><div class="label">Lucratividade</div><div class="value" id="dKpiMargin">0,00%</div><div class="delta">lucro sobre faturamento</div></div>
+        <div class="indicator-main-kpis">
+          <div class="indicator-main-card">
+            <span>Faturamento</span>
+            <strong id="dKpiRevenue">R$ 0,00</strong>
+            <small id="dKpiRows">0 vendas</small>
+          </div>
+          <div class="indicator-main-card">
+            <span>Lucro</span>
+            <strong id="dKpiProfit">R$ 0,00</strong>
+            <small>após todas as despesas</small>
+          </div>
+          <div class="indicator-main-card">
+            <span>Lucratividade</span>
+            <strong id="dKpiMargin">0,00%</strong>
+            <small>lucro sobre faturamento</small>
+          </div>
+          <div class="indicator-main-card">
+            <span>Custo total</span>
+            <strong id="dKpiCost">R$ 0,00</strong>
+            <small>custo dos itens vendidos</small>
+          </div>
         </div>
 
-        <div class="panel dashboard-grid state-split-panel">
+        <div class="indicator-cost-strip">
+          <div><span>Despesa variável</span><strong id="dKpiDv">R$ 0,00</strong><small id="dKpiDvPct">0,00% do faturamento</small></div>
+          <div><span>Despesa fixa</span><strong id="dKpiDf">R$ 0,00</strong><small id="dKpiDfPct">0,00% do faturamento</small></div>
+        </div>
+
+        <div class="panel indicator-section">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Participação e lucratividade por segmento</div>
+              <div class="panel-sub">Selecione FINAL ou NEO e clique em um segmento para abrir os clientes dentro dele.</div>
+            </div>
+            <div class="segment-view-switch">
+              <button class="active" id="segmentViewFinalBtn" onclick="setSegmentView('FINAL')">FINAL</button>
+              <button id="segmentViewNeoBtn" onclick="setSegmentView('NEO')">NEO</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="indicator-table">
+              <thead>
+                <tr>
+                  <th>Segmento</th>
+                  <th>Faturamento</th>
+                  <th>Participação</th>
+                  <th>Lucro</th>
+                  <th>Lucratividade</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="dashboardSegmentsBody"><tr class="empty-row"><td colspan="6">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel indicator-section" id="dashboardClientsPanel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title" id="dashboardClientsTitle">Lucratividade por cliente</div>
+              <div class="panel-sub" id="dashboardClientsSub">Participação de cada cliente no faturamento total.</div>
+            </div>
+            <div class="panel-head-actions">
+              <button class="secondary" id="clearSegmentSelectionBtn" style="display:none" onclick="clearDashboardSegment()">Limpar segmento</button>
+              <input id="dashboardClientSearch" class="compact-search" placeholder="Pesquisar cliente..." oninput="renderDashboardClients()">
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="indicator-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th id="dashboardClientParticipationHeader">Participação</th>
+                  <th>Faturamento</th>
+                  <th>Lucro</th>
+                  <th>Lucratividade</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="6">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel indicator-section dashboard-products-panel" id="dashboardProductsPanel" style="display:none">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title" id="dashboardProductsTitle">Lucratividade por produto</div>
+              <div class="panel-sub">Produtos vendidos para o cliente selecionado.</div>
+            </div>
+            <button class="secondary" onclick="closeDashboardProducts()">Fechar</button>
+          </div>
+          <div class="table-wrap">
+            <table class="indicator-table">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>SKU</th>
+                  <th>Quantidade</th>
+                  <th>Faturamento</th>
+                  <th>Lucro</th>
+                  <th>Lucratividade</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardProductsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel indicator-section">
           <div class="panel-head">
             <div>
               <div class="panel-title">Vendas dentro e fora do estado</div>
-              <div class="panel-sub">Quantidade e percentual de vendas. Estado base: São Paulo.</div>
+              <div class="panel-sub">Quantidade e percentual de vendas em São Paulo e nos demais estados.</div>
             </div>
           </div>
           <div class="panel-body">
-            <div class="state-split-grid">
-              <div class="state-split-card inside">
+            <div class="inside-outside-summary">
+              <div class="inside-outside-card inside">
                 <span>Dentro do estado</span>
                 <strong id="dInsideCount">0 vendas</strong>
                 <b id="dInsidePct">0,00%</b>
                 <small>São Paulo</small>
               </div>
-              <div class="state-split-card outside">
+              <div class="inside-outside-card outside">
                 <span>Fora do estado</span>
                 <strong id="dOutsideCount">0 vendas</strong>
                 <b id="dOutsidePct">0,00%</b>
                 <small>Demais estados</small>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div class="panel dashboard-grid monthly-panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Evolução mensal</div>
-              <div class="panel-sub">Faturamento e lucro usam a mesma escala. Assim a comparação visual não distorce o resultado.</div>
+            <div class="inside-outside-bar" title="Distribuição das vendas">
+              <div class="inside-part" id="insideStateBar"></div>
+              <div class="outside-part" id="outsideStateBar"></div>
             </div>
-            <span class="chip">Mesma escala</span>
-          </div>
-          <div class="panel-body"><div id="dashboardMonthly" class="month-chart"><div class="history-loading">Carregando...</div></div></div>
-        </div>
-
-        <div class="dashboard-rank-grid dashboard-grid">
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Vendas por estado</div><div class="panel-sub">Participação no faturamento, lucro e lucratividade por estado.</div></div></div>
-            <div class="panel-body"><div id="dashboardStates" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação e lucratividade por segmento. Clique em um segmento para ver os clientes dentro dele.</div></div></div>
-            <div class="panel-body"><div id="dashboardFinal" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação e lucratividade por segmento. Clique em um segmento para ver os clientes dentro dele.</div></div></div>
-            <div class="panel-body"><div id="dashboardNeo" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-head">
-            <div><div class="panel-title" id="dashboardClientsTitle">Lucratividade por cliente</div><div class="panel-sub" id="dashboardClientsSub">Clique em um cliente para ver os produtos vendidos para ele.</div></div>
-            <input id="dashboardClientSearch" class="compact-search" placeholder="Pesquisar cliente..." oninput="renderDashboardClients()">
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Cliente</th><th id="dashboardClientParticipationHeader">Participação no faturamento</th><th>Faturamento</th><th>Custo</th><th>Despesa variável</th><th>Despesa fixa</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
-              <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="8">Carregando...</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel dashboard-products-panel">
-          <div class="panel-head">
-            <div><div class="panel-title" id="dashboardProductsTitle">Produtos por cliente</div><div class="panel-sub">Selecione um cliente acima para detalhar os produtos.</div></div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Produto</th><th>SKU</th><th>Quantidade</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
-              <tbody id="dashboardProductsBody"><tr class="empty-row"><td colspan="7">Selecione um cliente.</td></tr></tbody>
-            </table>
           </div>
         </div>
       </section>
@@ -1873,6 +2051,7 @@ let TAX_RULES={
 let DASHBOARD_DATA=null;
 let DASHBOARD_FILTERS_LOADED=false;
 let DASHBOARD_SELECTED_CLIENT="";
+let DASHBOARD_SEGMENT_VIEW="FINAL";
 
 let quoteState={id:null,number:null,status:"RASCUNHO",items:[]};
 let editingItemIndex=null;
@@ -2011,9 +2190,10 @@ async function loadDashboard(){
   }catch(err){
     console.error("Dashboard:",err);
     const msg='<div class="history-loading">Não foi possível carregar a análise.</div>';
-    ["dashboardMonthly","dashboardStates","dashboardFinal","dashboardNeo"].forEach(id=>{
-      const el=document.getElementById(id);if(el)el.innerHTML=msg;
-    });
+    const seg=document.getElementById("dashboardSegmentsBody");
+    if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
+    const cli=document.getElementById("dashboardClientsBody");
+    if(cli)cli.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
   }finally{
     setDashboardLoading(false);
   }
@@ -2060,26 +2240,67 @@ function renderDashboard(j){
   dKpiMargin.textContent=formatPct(k.margem_lucro);
   dKpiDvPct.textContent=formatPct(k.dv_pct)+" do faturamento";
   dKpiDfPct.textContent=formatPct(k.df_pct)+" do faturamento";
+
   const salesCount=Number(k.vendas||k.registros||0);
   dKpiRows.textContent=salesCount+" venda"+(salesCount===1?"":"s");
 
   const split=j.dentro_fora||{};
-  if(document.getElementById("dInsideCount"))dInsideCount.textContent=Number(split.dentro||0)+" venda"+(Number(split.dentro||0)===1?"":"s");
-  if(document.getElementById("dOutsideCount"))dOutsideCount.textContent=Number(split.fora||0)+" venda"+(Number(split.fora||0)===1?"":"s");
-  if(document.getElementById("dInsidePct"))dInsidePct.textContent=formatPct(split.dentro_pct);
-  if(document.getElementById("dOutsidePct"))dOutsidePct.textContent=formatPct(split.fora_pct);
+  dInsideCount.textContent=Number(split.dentro||0)+" venda"+(Number(split.dentro||0)===1?"":"s");
+  dOutsideCount.textContent=Number(split.fora||0)+" venda"+(Number(split.fora||0)===1?"":"s");
+  dInsidePct.textContent=formatPct(split.dentro_pct);
+  dOutsidePct.textContent=formatPct(split.fora_pct);
+  if(document.getElementById("insideStateBar"))insideStateBar.style.width=(Number(split.dentro_pct||0)*100)+"%";
+  if(document.getElementById("outsideStateBar"))outsideStateBar.style.width=(Number(split.fora_pct||0)*100)+"%";
 
   const start=document.getElementById("dStart")?.value||j.filtros?.datas?.min||"";
   const end=document.getElementById("dEnd")?.value||j.filtros?.datas?.max||"";
   dashPeriodBadge.textContent=(start?formatDateBR(start):"Início")+" → "+(end?formatDateBR(end):"Hoje");
 
-  renderMonthChart(j.mensal||[]);
-  renderRankList("dashboardStates",j.estados||[],8);
-  renderRankList("dashboardFinal",j.segmentos_final||[],8);
-  renderRankList("dashboardNeo",j.segmentos_neo||[],8);
+  renderSegmentTable();
   renderDashboardClients();
   if(DASHBOARD_SELECTED_CLIENT)showClientProducts(DASHBOARD_SELECTED_CLIENT);
 }
+
+function setSegmentView(type){
+  DASHBOARD_SEGMENT_VIEW=String(type||"FINAL").toUpperCase()==="NEO"?"NEO":"FINAL";
+  segmentViewFinalBtn.classList.toggle("active",DASHBOARD_SEGMENT_VIEW==="FINAL");
+  segmentViewNeoBtn.classList.toggle("active",DASHBOARD_SEGMENT_VIEW==="NEO");
+  renderSegmentTable();
+}
+
+function renderSegmentTable(){
+  const body=document.getElementById("dashboardSegmentsBody");if(!body||!DASHBOARD_DATA)return;
+  const rows=DASHBOARD_SEGMENT_VIEW==="NEO"
+    ? (DASHBOARD_DATA.segmentos_neo||[])
+    : (DASHBOARD_DATA.segmentos_final||[]);
+  const total=Number(DASHBOARD_DATA.kpis?.faturamento||0)||1;
+
+  if(!rows.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum segmento encontrado.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=rows.map(x=>{
+    const participation=Number(x.faturamento||0)/total;
+    return '<tr class="indicator-click-row" onclick="selectDashboardSegment(\''+DASHBOARD_SEGMENT_VIEW+'\',\''+escapeJs(x.id||"")+'\')">'+
+      '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
+      '<td>'+formatBRL(x.faturamento)+'</td>'+
+      '<td><b>'+formatPct(participation)+'</b></td>'+
+      '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
+      '<td><b>'+formatPct(x.margem)+'</b></td>'+
+      '<td><button class="secondary indicator-open-btn" onclick="event.stopPropagation();selectDashboardSegment(\''+DASHBOARD_SEGMENT_VIEW+'\',\''+escapeJs(x.id||"")+'\')">Ver clientes</button></td>'+
+    '</tr>';
+  }).join("");
+}
+
+function clearDashboardSegment(){
+  dFinal.value="";
+  dNeo.value="";
+  DASHBOARD_SELECTED_CLIENT="";
+  document.getElementById("dashboardProductsPanel").style.display="none";
+  loadDashboard();
+}
+
 
 function renderMonthChart(items){
   const el=document.getElementById("dashboardMonthly");if(!el)return;
@@ -2172,12 +2393,15 @@ function selectDashboardSegment(type,id){
   if(type==="FINAL"){
     dFinal.value=String(id||"");
     dNeo.value="";
-  }else if(type==="NEO"){
+  }else{
     dNeo.value=String(id||"");
     dFinal.value="";
   }
   DASHBOARD_SELECTED_CLIENT="";
-  loadDashboard();
+  dashboardProductsPanel.style.display="none";
+  loadDashboard().then(()=>{
+    document.getElementById("dashboardClientsPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
+  });
 }
 
 function dashboardSelectedSegmentLabel(){
@@ -2199,63 +2423,68 @@ function renderDashboardClients(){
   const totalRevenue=Number(DASHBOARD_DATA.kpis?.faturamento||0)||1;
   const selectedSegment=dashboardSelectedSegmentLabel();
 
-  if(document.getElementById("dashboardClientsTitle")){
-    dashboardClientsTitle.textContent=selectedSegment
-      ? "Clientes dentro do segmento • "+selectedSegment.label
-      : "Lucratividade por cliente";
-  }
-  if(document.getElementById("dashboardClientsSub")){
-    dashboardClientsSub.textContent=selectedSegment
-      ? "Participação de cada cliente dentro deste segmento e sua lucratividade."
-      : "Participação no faturamento total. Clique em um cliente para ver os produtos vendidos para ele.";
-  }
-  if(document.getElementById("dashboardClientParticipationHeader")){
-    dashboardClientParticipationHeader.textContent=selectedSegment
-      ? "Participação no segmento"
-      : "Participação no faturamento";
-  }
+  dashboardClientsTitle.textContent=selectedSegment
+    ? "Clientes do segmento • "+selectedSegment.label
+    : "Lucratividade por cliente";
+  dashboardClientsSub.textContent=selectedSegment
+    ? "Participação de cada cliente dentro do segmento selecionado."
+    : "Participação de cada cliente no faturamento total.";
+  dashboardClientParticipationHeader.textContent=selectedSegment
+    ? "Participação no segmento"
+    : "Participação";
+  clearSegmentSelectionBtn.style.display=selectedSegment?"":"none";
 
   if(!rows.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum cliente encontrado.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum cliente encontrado.</td></tr>';
     return;
   }
 
   body.innerHTML=rows.map(x=>{
     const participation=Number(x.faturamento||0)/totalRevenue;
-    return '<tr class="dashboard-client-row" onclick="showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">'+
+    return '<tr class="indicator-click-row" onclick="showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">'+
       '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
       '<td><b>'+formatPct(participation)+'</b></td>'+
       '<td>'+formatBRL(x.faturamento)+'</td>'+
-      '<td>'+formatBRL(x.custo)+'</td>'+
-      '<td>'+formatBRL(x.dv)+'</td>'+
-      '<td>'+formatBRL(x.df)+'</td>'+
       '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
-      '<td>'+formatPct(x.margem)+'</td>'+
+      '<td><b>'+formatPct(x.margem)+'</b></td>'+
+      '<td><button class="secondary indicator-open-btn" onclick="event.stopPropagation();showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">Ver produtos</button></td>'+
     '</tr>';
   }).join("");
 }
 
 function showClientProducts(clientId,label){
   DASHBOARD_SELECTED_CLIENT=String(clientId||"");
-  const title=document.getElementById("dashboardProductsTitle");
-  if(title)title.textContent="Produtos • "+(label||dashboardClientLabel(clientId));
+  dashboardProductsPanel.style.display="";
+  dashboardProductsTitle.textContent="Produtos do cliente • "+(label||dashboardClientLabel(clientId));
 
   const body=document.getElementById("dashboardProductsBody");if(!body||!DASHBOARD_DATA)return;
   const rows=(DASHBOARD_DATA.produtos||[]).filter(x=>String(x.cliente_id||"")===String(clientId||""));
 
   if(!rows.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum produto encontrado para este cliente.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum produto encontrado para este cliente.</td></tr>';
     return;
   }
 
   body.innerHTML=rows.map(x=>
-    '<tr><td><b>'+escapeHtml(x.label||"N/I")+'</b></td><td>'+escapeHtml(x.sku||"—")+'</td><td>'+Number(x.qtde||0).toLocaleString("pt-BR")+'</td>'+
-    '<td>'+formatBRL(x.faturamento)+'</td><td>'+formatBRL(x.custo)+'</td>'+
-    '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td><td>'+formatPct(x.margem)+'</td></tr>'
+    '<tr>'+
+      '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
+      '<td>'+escapeHtml(x.sku||"—")+'</td>'+
+      '<td>'+Number(x.qtde||0).toLocaleString("pt-BR")+'</td>'+
+      '<td>'+formatBRL(x.faturamento)+'</td>'+
+      '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
+      '<td><b>'+formatPct(x.margem)+'</b></td>'+
+    '</tr>'
   ).join("");
 
-  document.querySelector(".dashboard-products-panel")?.scrollIntoView({behavior:"smooth",block:"start"});
+  dashboardProductsPanel.scrollIntoView({behavior:"smooth",block:"start"});
 }
+
+function closeDashboardProducts(){
+  DASHBOARD_SELECTED_CLIENT="";
+  dashboardProductsPanel.style.display="none";
+  dashboardProductsBody.innerHTML="";
+}
+
 
 function dashboardClientLabel(id){
   const x=(DASHBOARD_DATA?.clientes||[]).find(x=>String(x.id||x.chave)===String(id));
