@@ -910,34 +910,22 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
           <div class="panel-body">
             <div class="form-grid quote-head-grid">
               <div class="field"><label>Cliente cadastrado *</label><input id="qClient" list="quoteClientOptions" placeholder="Digite para pesquisar" oninput="syncQuoteClient()"><input type="hidden" id="qClientId"><datalist id="quoteClientOptions"></datalist></div>
-              <div class="field"><label>Cidade / UF</label><input id="qCity" placeholder="Cidade / UF"></div>
+              <div class="field"><label>Cidade / UF</label><input id="qCity" placeholder="Cidade / UF" readonly></div>
               <div class="field"><label>Contato</label><input id="qContact" placeholder="Contato"></div>
               <div class="field"><label>Vendedor</label><input id="qSeller" placeholder="Vendedor"></div>
               <div class="field"><label>Condição pagamento</label><input id="qPayment" placeholder="Ex.: 28 dias"></div>
               <div class="field"><label>Prazo entrega</label><input id="qDelivery" placeholder="Ex.: 10 dias úteis"></div>
-              <div class="field"><label>Enquadramento</label>
-                <select id="qFramework" onchange="syncTaxRule()">
-                  <option>NORMAL</option>
-                  <option>SN SUB</option>
-                </select>
-              </div>
+              <input type="hidden" id="qFramework" value="NORMAL">
+              <input type="hidden" id="qDestination">
               <div class="field"><label>Tipo de venda</label>
                 <select id="qSaleType" onchange="syncTaxRule()">
-                  <option>VENDA</option>
-                  <option>REVENDA</option>
-                  <option>SERVICO_8_02</option>
-                  <option>SERVICO_14_01</option>
+                  <option value="VENDA">Venda</option>
+                  <option value="SERVICO">Serviço</option>
+                  <option value="REVENDA">Revenda</option>
                 </select>
               </div>
-              <div class="field"><label>Destino</label>
-                <select id="qDestination" onchange="syncTaxRule()">
-                  <option>INTERNA</option>
-                  <option>SUL/SUDESTE</option>
-                  <option>NORTE/NORDESTE/CENTRO OESTE</option>
-                  <option>OUTROS</option>
-                </select>
-              </div>
-              <div class="field"><label>Impostos</label><input id="qTaxes" value="24,73%" oninput="recalculateItem()"></div>
+              <div class="field"><label>Destino fiscal</label><input id="qDestinationDisplay" readonly placeholder="Definido pelo estado do cliente"></div>
+              <div class="field"><label>Impostos</label><input id="qTaxes" readonly></div>
               <div class="field"><label>Despesa fixa</label><input id="qFixedExpense" value="12,7416%" readonly></div>
               <div class="field"><label>Margem de referência</label><input id="qDesiredMargin" value="30%" oninput="recalculateItem()"></div>
             </div>
@@ -1040,6 +1028,8 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
 
               <div class="final-kpis">
                 <div><span>Preço unitário</span><b id="rFinalUnit">R$ 0,00</b></div>
+                <div><span>DV / impostos</span><b id="rFinalDV">R$ 0,00</b></div>
+                <div><span>DF</span><b id="rFinalDF">R$ 0,00</b></div>
                 <div><span>Margem contribuição</span><b id="rFinalMC">R$ 0,00</b></div>
                 <div><span>Lucro</span><b id="rFinalProfit">R$ 0,00</b></div>
                 <div><span>Lucro %</span><b id="rFinalMargin">0,00%</b></div>
@@ -1529,6 +1519,11 @@ function syncQuoteClient(){
     qContact.value=client.CONTATO||"";
     qSeller.value=client.VENDEDOR||"";
     applyClientSegmentDefaults(client);
+    syncTaxRule();
+  } else {
+    qDestination.value="";
+    qDestinationDisplay.value="";
+    qTaxes.value="";
   }
 }
 
@@ -1816,12 +1811,40 @@ function syncProcessCost(sel){
   row.querySelector(".p-cost").value=(found?found[1]:0).toFixed(6);
 }
 
+function destinationByUf(uf){
+  const state=String(uf||"").trim().toUpperCase();
+  if(!state)return "";
+  if(state==="SP")return "INTERNA";
+  if(["MG","RJ","ES","PR","SC","RS"].includes(state))return "SUL/SUDESTE";
+  return "NORTE/NORDESTE/CENTRO OESTE";
+}
+
+function taxTypeFromSaleType(type){
+  const t=String(type||"").toUpperCase();
+  return t==="SERVICO"?"SERVICO_14_01":t;
+}
+
 function syncTaxRule(){
-  const f=document.getElementById("qFramework")?.value;
-  const d=document.getElementById("qDestination")?.value;
-  const t=document.getElementById("qSaleType")?.value;
-  const key=f+"|"+d+"|"+t;
-  if(TAX_RULES[key]!==undefined) document.getElementById("qTaxes").value=formatPctInput(TAX_RULES[key]);
+  const clientId=String(document.getElementById("qClientId")?.value||"");
+  const client=APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===clientId);
+  const type=String(document.getElementById("qSaleType")?.value||"VENDA");
+  const destination=client?destinationByUf(client.UF):"";
+
+  qFramework.value="NORMAL";
+  qDestination.value=destination;
+  qDestinationDisplay.value=destination||"";
+  
+  if(!destination){
+    qTaxes.value="";
+    recalculateItem();
+    return;
+  }
+
+  const taxType=taxTypeFromSaleType(type);
+  const key="NORMAL|"+destination+"|"+taxType;
+  const rate=TAX_RULES[key];
+
+  qTaxes.value=rate!==undefined?formatPctInput(rate):"";
   recalculateItem();
 }
 
@@ -1877,11 +1900,15 @@ function calculatePriceSnapshot(){
   const objective=objectiveDen>0?costTotal/objectiveDen:0;
   const minimum=minDen>0?costTotal/minDen:0;
 
-  const mc=finalPrice?finalPrice-t.mp-t.third-t.ferr-(taxes*finalPrice):0;
-  const profit=finalPrice?mc-t.process-(fixed*finalPrice):0;
+  const dv=finalPrice?taxes*finalPrice:0;
+  const df=finalPrice?fixed*finalPrice:0;
+  const grossProfit=finalPrice?finalPrice-costTotal:0;
+  const grossMargin=finalPrice?grossProfit/finalPrice:0;
+  const mc=finalPrice?finalPrice-t.mp-t.third-t.ferr-dv:0;
+  const profit=finalPrice?grossProfit-dv-df:0;
   const margin=finalPrice?profit/finalPrice:0;
 
-  return {costs,taxes,fixed,desired,costTotal,objective,minimum,finalPrice,qty,mc,profit,margin};
+  return {costs,taxes,fixed,desired,costTotal,objective,minimum,finalPrice,qty,dv,df,grossProfit,grossMargin,mc,profit,margin};
 }
 
 function recalculateItem(){
@@ -1893,7 +1920,11 @@ function recalculateItem(){
   rCostTotal.textContent=formatBRL(r.costTotal);rMinPrice.textContent=formatBRL(r.minimum);rObjectivePrice.textContent=formatBRL(r.objective);
   objectiveLabel.textContent="Referência de "+formatPct(r.desired);
   rFinalUnit.textContent=formatBRL(r.qty?r.finalPrice/r.qty:r.finalPrice);
-  rFinalMC.textContent=formatBRL(r.mc);rFinalProfit.textContent=formatBRL(r.profit);rFinalMargin.textContent=formatPct(r.margin);
+  rFinalDV.textContent=formatBRL(r.dv);
+  rFinalDF.textContent=formatBRL(r.df);
+  rFinalMC.textContent=formatBRL(r.mc);
+  rFinalProfit.textContent=formatBRL(r.profit);
+  rFinalMargin.textContent=formatPct(r.margin);
 
   document.querySelectorAll(".cost-row.third").forEach(row=>{
     const total=parseNum(row.querySelector(".c-qty").value)*parseNum(row.querySelector(".c-unit").value)*r.qty;
@@ -1956,6 +1987,12 @@ function collectCurrentItem(){
     PRECO_MINIMO_TOTAL:r.minimum,
     PRECO_FINAL_TOTAL:r.finalPrice,
     PRECO_FINAL_UNIT:r.qty?r.finalPrice/r.qty:r.finalPrice,
+    DV_PCT:r.taxes,
+    DV_VALOR:r.dv,
+    DF_PCT:r.fixed,
+    DF_VALOR:r.df,
+    LUCRO_BRUTO:r.grossProfit,
+    MARGEM_BRUTA_PCT:r.grossMargin,
     MC_FINAL:r.mc,
     LUCRO_FINAL:r.profit,
     MARGEM_FINAL_PCT:r.margin,
@@ -2190,7 +2227,7 @@ async function renderQuoteHistory(){
     <td><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button></td>
   </tr>`).join("");
 
-  document.getElementById("quoteParamBadge").textContent=" • "+PARAM_VERSION;
+  document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
 }
 
 async function openQuote(id){
@@ -2218,9 +2255,10 @@ function applyQuoteToForm(q){
   qSeller.value=q.VENDEDOR||"";
   qPayment.value=q.COND_PAGAMENTO||"";
   qDelivery.value=q.PRAZO_ENTREGA||"";
-  qFramework.value=q.ENQUADRAMENTO||"NORMAL";
-  qSaleType.value=q.TIPO_VENDA||"VENDA";
-  qDestination.value=q.DESTINO||"INTERNA";
+  qFramework.value="NORMAL";
+  qSaleType.value=String(q.TIPO_VENDA||"VENDA").toUpperCase().startsWith("SERVICO")?"SERVICO":String(q.TIPO_VENDA||"VENDA").toUpperCase();
+  qDestination.value=q.DESTINO||"";
+  qDestinationDisplay.value=q.DESTINO||"";
   qTaxes.value=formatPctInput(Number(q.IMPOSTOS_PCT||0));
   qFixedExpense.value=formatPctInput(Number(q.DESPESA_FIXA_PCT||FIXED_EXPENSE));
   qDesiredMargin.value=formatPctInput(Number(q.LUCRO_DESEJADO_PCT||.30));
@@ -2262,7 +2300,7 @@ function formatDateBR(v){
 function newQuote(){
   quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
   ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery"].forEach(id=>document.getElementById(id).value="");
-  qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="INTERNA";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
+  qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxes.value="";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
   quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
