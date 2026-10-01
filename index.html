@@ -920,8 +920,9 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
               <div class="field"><label>Tipo de venda</label>
                 <select id="qSaleType" onchange="syncTaxRule()">
                   <option value="VENDA">Venda</option>
-                  <option value="SERVICO">Serviço</option>
                   <option value="REVENDA">Revenda</option>
+                  <option value="SERVICO_8_02">Serviço 8.02</option>
+                  <option value="SERVICO_14_01">Serviço 14.01</option>
                 </select>
               </div>
               <div class="field"><label>Destino fiscal</label><input id="qDestinationDisplay" readonly placeholder="Definido pelo estado do cliente"></div>
@@ -1820,8 +1821,7 @@ function destinationByUf(uf){
 }
 
 function taxTypeFromSaleType(type){
-  const t=String(type||"").toUpperCase();
-  return t==="SERVICO"?"SERVICO_14_01":t;
+  return String(type||"").toUpperCase();
 }
 
 function syncTaxRule(){
@@ -2256,7 +2256,7 @@ function applyQuoteToForm(q){
   qPayment.value=q.COND_PAGAMENTO||"";
   qDelivery.value=q.PRAZO_ENTREGA||"";
   qFramework.value="NORMAL";
-  qSaleType.value=String(q.TIPO_VENDA||"VENDA").toUpperCase().startsWith("SERVICO")?"SERVICO":String(q.TIPO_VENDA||"VENDA").toUpperCase();
+  qSaleType.value=String(q.TIPO_VENDA||"VENDA").toUpperCase();
   qDestination.value=q.DESTINO||"";
   qDestinationDisplay.value=q.DESTINO||"";
   qTaxes.value=formatPctInput(Number(q.IMPOSTOS_PCT||0));
