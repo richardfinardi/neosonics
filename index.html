@@ -527,11 +527,122 @@ body.sidebar-collapsed #sidebarToggle .sidebar-tool-icon{transform:rotate(180deg
 }
 
 .history-map-panel{margin-top:14px}
-.history-help{margin:12px 15px 0}
-.history-map-table{min-width:860px}
-.map-select{min-width:260px}
-.map-actions{display:flex;gap:7px}
-@media(max-width:560px){.map-actions{flex-direction:column}.map-select{min-width:220px}}
+.history-explain{
+  margin:14px 15px 0;
+  padding:14px 16px;
+  border:1px solid rgba(118,170,255,.20);
+  border-radius:13px;
+  background:rgba(118,170,255,.06);
+  display:flex;
+  align-items:flex-start;
+  gap:11px
+}
+.history-explain-icon{
+  width:30px;height:30px;flex:0 0 30px;border-radius:9px;
+  display:grid;place-items:center;background:rgba(118,170,255,.13);
+  color:#87b7ff;font-weight:900;font-size:14px
+}
+.history-explain div:last-child{display:grid;gap:4px}
+.history-explain b{font-size:13px}.history-explain span{font-size:12px;color:var(--muted);line-height:1.5}
+.history-groups{display:grid;gap:12px;padding:15px}
+.history-loading,.history-done{
+  padding:26px;border:1px dashed var(--line);border-radius:13px;
+  text-align:center;color:var(--muted)
+}
+.history-done{display:grid;gap:5px}.history-done b{color:var(--text);font-size:14px}
+
+.history-group-card{
+  border:1px solid #263d5a;border-radius:14px;background:#0c1829;overflow:hidden;
+  transition:.2s ease
+}
+.history-group-card.history-saving{opacity:.55;pointer-events:none}
+.history-group-head{
+  padding:14px 16px;border-bottom:1px solid #213650;
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  background:linear-gradient(90deg,rgba(118,170,255,.06),transparent)
+}
+.history-code-label{
+  display:block;font-size:9px;color:#7087a5;text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:2px
+}
+.history-code{font-size:18px;color:#dce9f8}
+.history-question{font-size:13px;font-weight:800;color:#aebfd2}
+
+.history-variants{padding:12px 16px;display:grid;gap:7px}
+.history-variant{
+  display:grid;grid-template-columns:minmax(220px,1fr) 70px 90px;
+  gap:10px;align-items:center;padding:9px 11px;border:1px solid #213750;
+  border-radius:10px;background:#0e1c2f
+}
+.history-variant>div{display:grid;gap:2px}
+.history-variant strong{font-size:13px;color:#d9e7f6}
+.history-variant>div span{font-size:9px;color:#6f86a2}
+.history-uf{
+  justify-self:start;padding:5px 8px;border-radius:7px;background:#162941;
+  color:#9eb6d2;font-size:11px;font-weight:800
+}
+.history-count{justify-self:end;font-size:10px;color:#758da8}
+
+.history-decision{
+  padding:0 16px 15px;display:grid;grid-template-columns:1fr 1fr;gap:9px
+}
+.decision-btn{
+  min-height:62px;border:1px solid #29445f;border-radius:12px;background:#102039;
+  color:#d7e5f5;padding:10px 12px;display:flex;align-items:center;gap:10px;
+  text-align:left;cursor:pointer;transition:.18s ease
+}
+.decision-btn:hover{transform:translateY(-1px);border-color:#4f6f92;background:#142743}
+.decision-btn.separate{background:#171e2c;border-color:#3b4658}
+.decision-btn.separate:hover{border-color:#7d6958;background:#202635}
+.decision-icon{
+  width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;
+  place-items:center;background:rgba(118,170,255,.12);color:#8dbbff;
+  font-size:13px;font-weight:900
+}
+.decision-btn.separate .decision-icon{background:rgba(243,155,82,.11);color:#f0aa6b}
+.decision-btn span:last-child{display:grid;gap:2px}
+.decision-btn b{font-size:12px}.decision-btn small{font-size:10px;color:#7790ad;line-height:1.35}
+
+.history-unify-box{
+  display:none;border-top:1px solid #273c55;background:#0b1626;padding:14px 16px 16px
+}
+.history-unify-box.open{display:block}
+.history-unify-title{display:grid;gap:3px;margin-bottom:10px}
+.history-unify-title b{font-size:12px}.history-unify-title span{font-size:10px;color:#748ba7}
+.history-unify-fields{
+  display:grid;grid-template-columns:minmax(220px,1fr) 34px minmax(220px,1fr) auto;
+  gap:9px;align-items:end
+}
+.history-or{height:43px;display:grid;place-items:center;color:#6f85a0;font-size:10px;font-weight:800}
+.history-confirm{height:43px;white-space:nowrap}
+
+body.theme-light .history-group-card{background:#f8fafc;border-color:#c6d3df}
+body.theme-light .history-group-head{
+  background:linear-gradient(90deg,#edf3f8,#f8fafc);border-color:#d4dee8
+}
+body.theme-light .history-code{color:#20364d}
+body.theme-light .history-question{color:#536980}
+body.theme-light .history-variant{background:#fff;border-color:#d4dee8}
+body.theme-light .history-variant strong{color:#263b51}
+body.theme-light .history-uf{background:#e8eef5;color:#536a82}
+body.theme-light .decision-btn{background:#eef4fa;border-color:#cad7e4;color:#263b51}
+body.theme-light .decision-btn:hover{background:#e5edf5;border-color:#9eb2c7}
+body.theme-light .decision-btn.separate{background:#f7f3ef;border-color:#ded3c9}
+body.theme-light .decision-btn.separate:hover{background:#f1e9e2;border-color:#c9b5a3}
+body.theme-light .history-unify-box{background:#f1f5f9;border-color:#d3dde7}
+body.theme-light .history-explain{background:#edf4fa;border-color:#cddbea}
+
+@media(max-width:900px){
+  .history-unify-fields{grid-template-columns:1fr}
+  .history-or{height:auto;padding:1px}
+  .history-confirm{width:100%}
+}
+@media(max-width:650px){
+  .history-group-head{align-items:flex-start;flex-direction:column;gap:7px}
+  .history-decision{grid-template-columns:1fr}
+  .history-variant{grid-template-columns:1fr auto}
+  .history-count{grid-column:1/-1;justify-self:start}
+}
 </style>
 </head>
 <body>
@@ -668,20 +779,22 @@ body.sidebar-collapsed #sidebarToggle .sidebar-tool-icon{transform:rotate(180deg
         <div class="panel history-map-panel">
           <div class="panel-head">
             <div>
-              <div class="panel-title">Revisão do histórico da planilha</div>
-              <div class="panel-sub">Só aparecem aqui os códigos que ficaram ambíguos e precisam de decisão humana.</div>
+              <div class="panel-title">Resolver clientes ambíguos do histórico</div>
+              <div class="panel-sub">A planilha antiga reutilizou alguns códigos para nomes ou unidades diferentes. Resolva uma decisão por código.</div>
             </div>
-            <span class="chip" id="mapPendingChip">0 pendências</span>
+            <span class="chip" id="mapPendingChip">0 decisões</span>
           </div>
-          <div class="simple-help history-help">
-            <b>O que fazer?</b>
-            <span>Se duas linhas são o mesmo cliente, vincule as duas ao mesmo cadastro oficial. Se forem clientes/unidades diferentes, use “Criar separado”.</span>
+
+          <div class="history-explain">
+            <div class="history-explain-icon">?</div>
+            <div>
+              <b>É simples:</b>
+              <span>para cada código, diga se as variações abaixo representam <strong>o mesmo cliente</strong> ou <strong>clientes diferentes</strong>. Só isso.</span>
+            </div>
           </div>
-          <div class="table-wrap">
-            <table class="history-map-table">
-              <thead><tr><th>Código antigo</th><th>Nome na planilha</th><th>UF</th><th>Cliente oficial</th><th>Ação</th></tr></thead>
-              <tbody id="clientMapBody"><tr class="empty-row"><td colspan="5">Carregando pendências...</td></tr></tbody>
-            </table>
+
+          <div id="clientMapBody" class="history-groups">
+            <div class="history-loading">Carregando decisões pendentes...</div>
           </div>
         </div>
 </section>
@@ -1130,60 +1243,148 @@ function updateClientKpis(){
   const all=APP_DATA.clients;
   const active=all.filter(c=>truthy(c.ATIVO));
   const pending=APP_DATA.clientMap.filter(m=>String(m.STATUS_MAPEAMENTO||"").toUpperCase()==="PENDENTE");
+  const pendingGroups=new Set(pending.map(m=>String(m.COD_CLIENTE_ORIGEM||"").trim()).filter(Boolean));
   const states=new Set(all.map(c=>String(c.UF||"").trim()).filter(Boolean));
   if(document.getElementById("clientKpiTotal"))clientKpiTotal.textContent=all.length;
   if(document.getElementById("clientKpiActive"))clientKpiActive.textContent=active.length;
-  if(document.getElementById("clientKpiPending"))clientKpiPending.textContent=pending.length;
+  if(document.getElementById("clientKpiPending"))clientKpiPending.textContent=pendingGroups.size;
   if(document.getElementById("clientKpiStates"))clientKpiStates.textContent=states.size;
-  if(document.getElementById("mapPendingChip"))mapPendingChip.textContent=pending.length+" pendência"+(pending.length===1?"":"s");
+  if(document.getElementById("mapPendingChip"))mapPendingChip.textContent=pendingGroups.size+" decis"+(pendingGroups.size===1?"ão":"ões");
 }
 
 function renderClientMappings(){
   const body=document.getElementById("clientMapBody");if(!body)return;
   const pending=APP_DATA.clientMap.filter(m=>String(m.STATUS_MAPEAMENTO||"").toUpperCase()==="PENDENTE");
 
-  if(!pending.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="5">Tudo revisado. Não há pendências no histórico.</td></tr>';
+  const groups={};
+  pending.forEach(m=>{
+    const code=String(m.COD_CLIENTE_ORIGEM||"").trim();
+    if(!code)return;
+    if(!groups[code])groups[code]=[];
+    groups[code].push(m);
+  });
+
+  const codes=Object.keys(groups).sort((a,b)=>Number(a)-Number(b));
+
+  if(!codes.length){
+    body.innerHTML='<div class="history-done"><b>Histórico revisado</b><span>Não há mais códigos ambíguos para resolver.</span></div>';
     return;
   }
 
-  const options=APP_DATA.clients
+  const clientOptions=APP_DATA.clients
     .filter(c=>truthy(c.ATIVO))
+    .slice()
+    .sort((a,b)=>clientName(a).localeCompare(clientName(b),"pt-BR"))
     .map(c=>'<option value="'+escapeHtml(c.ID_CLIENTE)+'">'+escapeHtml(clientName(c))+(c.UF?' • '+escapeHtml(c.UF):'')+'</option>')
     .join("");
 
-  body.innerHTML=pending.map((m,i)=>{
-    const sid='mapSel'+i;
-    return '<tr>'+
-      '<td><b>'+escapeHtml(m.COD_CLIENTE_ORIGEM||"")+'</b></td>'+
-      '<td>'+escapeHtml(String(m.CLIENTE_ORIGEM||"").trim())+'</td>'+
-      '<td>'+escapeHtml(m.UF_ORIGEM||"")+'</td>'+
-      '<td><select id="'+sid+'" class="map-select"><option value="">Selecione o cliente...</option>'+options+'</select></td>'+
-      '<td><div class="map-actions">'+
-        '<button class="secondary" onclick="linkHistoryClient(\''+escapeJs(m.CHAVE_ORIGEM)+'\',\''+sid+'\')">Vincular</button>'+
-        '<button class="primary" onclick="createHistoryClient(\''+escapeJs(m.CHAVE_ORIGEM)+'\')">Criar separado</button>'+
-      '</div></td>'+
-    '</tr>';
+  body.innerHTML=codes.map(code=>{
+    const rows=groups[code];
+    const variants={};
+
+    rows.forEach(m=>{
+      const name=String(m.CLIENTE_ORIGEM||"").trim().replace(/\s+/g," ");
+      const uf=String(m.UF_ORIGEM||"").trim().toUpperCase();
+      const key=name.toUpperCase()+"|"+uf;
+      if(!variants[key])variants[key]={name,uf,count:0};
+      variants[key].count++;
+    });
+
+    const variantList=Object.values(variants);
+    const listHtml=variantList.map(v=>
+      '<div class="history-variant">'+
+        '<div><strong>'+escapeHtml(v.name)+'</strong><span>Como aparece na planilha</span></div>'+
+        '<span class="history-uf">'+escapeHtml(v.uf||"—")+'</span>'+
+        (v.count>1?'<span class="history-count">'+v.count+' registros</span>':'')+
+      '</div>'
+    ).join("");
+
+    const safeCode=escapeHtml(code);
+    return '<div class="history-group-card" id="historyGroup'+safeCode+'">'+
+      '<div class="history-group-head">'+
+        '<div><span class="history-code-label">Código antigo</span><b class="history-code">'+safeCode+'</b></div>'+
+        '<div class="history-question">Essas variações são o mesmo cliente?</div>'+
+      '</div>'+
+      '<div class="history-variants">'+listHtml+'</div>'+
+      '<div class="history-decision">'+
+        '<button class="decision-btn same" onclick="showUnifyOptions(\''+escapeJs(code)+'\')">'+
+          '<span class="decision-icon">1</span><span><b>É o mesmo cliente</b><small>Juntar tudo em um único cadastro oficial</small></span>'+
+        '</button>'+
+        '<button class="decision-btn separate" onclick="resolveHistoryGroup(\''+escapeJs(code)+'\',\'SEPARAR\','+variantList.length+')">'+
+          '<span class="decision-icon">'+variantList.length+'</span><span><b>São clientes diferentes</b><small>Criar um cadastro para cada variação acima</small></span>'+
+        '</button>'+
+      '</div>'+
+      '<div class="history-unify-box" id="unifyBox'+safeCode+'">'+
+        '<div class="history-unify-title"><b>Qual será o cliente oficial?</b><span>Escolha um cadastro existente ou crie um novo nome.</span></div>'+
+        '<div class="history-unify-fields">'+
+          '<div class="field"><label>Usar cliente já cadastrado</label><select id="unifyClient'+safeCode+'"><option value="">Selecione...</option>'+clientOptions+'</select></div>'+
+          '<div class="history-or">ou</div>'+
+          '<div class="field"><label>Criar cliente oficial com este nome</label><input id="unifyName'+safeCode+'" placeholder="Ex.: 3M"></div>'+
+          '<button class="primary history-confirm" onclick="confirmUnifyHistory(\''+escapeJs(code)+'\')">Confirmar unificação</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
   }).join("");
 }
 
-async function linkHistoryClient(key,selectId){
-  const sel=document.getElementById(selectId);
-  if(!sel||!sel.value){alert("Selecione o cliente oficial.");return}
-  try{
-    const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"salvar_mapeamento_cliente",chave_origem:key,id_cliente_oficial:sel.value})});
-    const j=await r.json();if(!j.ok)throw new Error(j.erro||"Erro ao vincular");
-    await initClientsPage();
-  }catch(e){alert("Não foi possível vincular: "+e.message)}
+function showUnifyOptions(code){
+  document.querySelectorAll(".history-unify-box.open").forEach(x=>{
+    if(x.id!=="unifyBox"+code)x.classList.remove("open");
+  });
+  const box=document.getElementById("unifyBox"+code);
+  if(box)box.classList.toggle("open");
 }
 
-async function createHistoryClient(key){
-  if(!confirm("Criar este registro histórico como um cliente separado?"))return;
+async function confirmUnifyHistory(code){
+  const select=document.getElementById("unifyClient"+code);
+  const name=document.getElementById("unifyName"+code);
+  const idCliente=String(select?.value||"").trim();
+  const nome=String(name?.value||"").trim();
+
+  if(!idCliente&&!nome){
+    alert("Escolha um cliente já cadastrado ou informe o nome do cliente oficial.");
+    return;
+  }
+
+  const label=idCliente
+    ? String(select.options[select.selectedIndex]?.text||"cliente selecionado")
+    : nome;
+
+  if(!confirm('Todas as variações do código '+code+' serão tratadas como o mesmo cliente: "'+label+'". Confirmar?'))return;
+
+  await resolveHistoryGroup(code,"UNIFICAR",0,{id_cliente_oficial:idCliente,nome_oficial:nome});
+}
+
+async function resolveHistoryGroup(code,mode,variantCount,extra={}){
+  if(mode==="SEPARAR"){
+    const msg='O código '+code+' será dividido em '+variantCount+' cadastro'+(variantCount===1?'':'s')+' separado'+(variantCount===1?'':'s')+', um para cada nome/UF mostrado. Confirmar?';
+    if(!confirm(msg))return;
+  }
+
+  const card=document.getElementById("historyGroup"+code);
+  if(card)card.classList.add("history-saving");
+
   try{
-    const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"criar_cliente_mapeamento",chave_origem:key})});
-    const j=await r.json();if(!j.ok)throw new Error(j.erro||"Erro ao criar");
+    const payload=Object.assign({
+      acao:"resolver_grupo_cliente",
+      cod_cliente_origem:code,
+      modo:mode
+    },extra);
+
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify(payload)
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Erro ao resolver");
+
     await initClientsPage();
-  }catch(e){alert("Não foi possível criar o cliente: "+e.message)}
+  }catch(e){
+    if(card)card.classList.remove("history-saving");
+    alert("Não foi possível resolver este código: "+e.message);
+  }
 }
 
 function escapeJs(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}
