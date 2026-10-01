@@ -659,6 +659,10 @@ body.theme-light .segment-pair b{color:#253a51}
 body.theme-light .segment-type.final{background:#e5eef8;color:#436788;border-color:#c6d7e7}
 body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color:#ead1bc}
 @media(max-width:720px){.segment-list-head{align-items:stretch;flex-direction:column}.segment-list-head .panel-head-actions{width:100%}}
+.input-action{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+.lookup-btn{height:43px;white-space:nowrap;padding:0 14px}
+.field-help{display:block;margin-top:5px;font-size:10px;color:var(--muted);line-height:1.35}
+@media(max-width:560px){.input-action{grid-template-columns:1fr}.lookup-btn{width:100%}}
 </style>
 </head>
 <body>
@@ -725,9 +729,9 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
 
         <div class="guide-strip">
           <b>Como funciona:</b>
-          <span>1. Cadastre ou edite</span>
-          <span>2. Salve</span>
-          <span>3. Use o cliente no orçamento</span>
+          <span>1. Informe o CNPJ e clique em Buscar</span>
+          <span>2. Complete os dados comerciais</span>
+          <span>3. Salve e use no orçamento</span>
           <button type="button" onclick="openGuide('clients')">Ver guia</button>
         </div>
 
@@ -742,11 +746,27 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
               <div class="form-grid">
                 <div class="field"><label>Razão social *</label><input id="cRazao" placeholder="Razão social"></div>
                 <div class="field"><label>Nome fantasia</label><input id="cFantasia" placeholder="Nome fantasia"></div>
-                <div class="field"><label>CNPJ / CPF</label><input id="cDocumento" placeholder="00.000.000/0000-00"></div>
+                <div class="field"><label>CNPJ / CPF</label>
+                  <div class="input-action">
+                    <input id="cDocumento" placeholder="00.000.000/0000-00" onblur="formatClientDocument()">
+                    <button class="secondary lookup-btn" id="cnpjLookupBtn" type="button" onclick="lookupCnpj()">Buscar CNPJ</button>
+                  </div>
+                  <small class="field-help">Para CNPJ, a busca preenche automaticamente os dados cadastrais.</small>
+                </div>
+                <input type="hidden" id="cCnpjSource">
+                <input type="hidden" id="cCnpjDate">
                 <div class="field"><label>Segmentação FINAL padrão</label><select id="cSegmentFinal"><option value="">Sem padrão</option></select></div>
                 <div class="field"><label>Segmentação NEO padrão</label><select id="cSegmentNeo"><option value="">Sem padrão</option></select></div>
                 <div class="field"><label>UF</label><select id="cUf"><option value="">Selecione</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
                 <div class="field"><label>Cidade</label><input id="cCidade" placeholder="Cidade"></div>
+                <div class="field"><label>CEP</label><input id="cCep" placeholder="00000-000"></div>
+                <div class="field full"><label>Logradouro</label><input id="cLogradouro" placeholder="Rua / Avenida"></div>
+                <div class="field"><label>Número</label><input id="cNumero" placeholder="Número"></div>
+                <div class="field"><label>Complemento</label><input id="cComplemento" placeholder="Complemento"></div>
+                <div class="field"><label>Bairro</label><input id="cBairro" placeholder="Bairro"></div>
+                <div class="field"><label>Situação cadastral</label><input id="cSituacao" readonly placeholder="Preenchido pela consulta"></div>
+                <div class="field"><label>CNAE principal</label><input id="cCnae" readonly placeholder="Código CNAE"></div>
+                <div class="field full"><label>Atividade principal</label><input id="cCnaeDesc" readonly placeholder="Descrição do CNAE principal"></div>
                 <div class="field"><label>Contato principal</label><input id="cContato" placeholder="Nome / área"></div>
                 <div class="field"><label>Vendedor</label><input id="cVendedor" placeholder="Responsável comercial"></div>
                 <div class="field"><label>E-mail</label><input id="cEmail" type="email" placeholder="email@empresa.com"></div>
@@ -1461,24 +1481,106 @@ async function resolveHistoryGroup(code,mode,variantCount,extra={}){
 
 function escapeJs(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}
 
+function formatClientDocument(){
+  const el=document.getElementById("cDocumento");
+  if(!el)return;
+  const d=String(el.value||"").replace(/\D/g,"");
+  if(d.length===14)el.value=d.slice(0,2)+"."+d.slice(2,5)+"."+d.slice(5,8)+"/"+d.slice(8,12)+"-"+d.slice(12);
+  else if(d.length===11)el.value=d.slice(0,3)+"."+d.slice(3,6)+"."+d.slice(6,9)+"-"+d.slice(9);
+}
+
+async function lookupCnpj(){
+  const btn=document.getElementById("cnpjLookupBtn");
+  const cnpj=String(document.getElementById("cDocumento")?.value||"").replace(/\D/g,"");
+  if(cnpj.length!==14){alert("Informe um CNPJ com 14 dígitos.");cDocumento.focus();return}
+
+  btn.disabled=true;
+  const original=btn.textContent;
+  btn.textContent="Buscando...";
+
+  try{
+    const j=await apiGet("consultar_cnpj",{cnpj});
+    const d=j.dados||{};
+
+    if(d.ja_cadastrado && String(d.ja_cadastrado.ID_CLIENTE)!==String(cId.value||"")){
+      const abrir=confirm('Este CNPJ já está cadastrado para "'+(d.ja_cadastrado.NOME||"cliente existente")+'".\n\nDeseja abrir esse cadastro?');
+      if(abrir)editClient(d.ja_cadastrado.ID_CLIENTE);
+      return;
+    }
+
+    cDocumento.value=d.cnpj||cDocumento.value;
+    cRazao.value=d.razao_social||cRazao.value;
+    cFantasia.value=d.nome_fantasia||cFantasia.value;
+    cUf.value=d.uf||cUf.value;
+    cCidade.value=d.cidade||cCidade.value;
+    cCep.value=formatCep(d.cep)||cCep.value;
+    cLogradouro.value=d.logradouro||cLogradouro.value;
+    cNumero.value=d.numero||cNumero.value;
+    cComplemento.value=d.complemento||cComplemento.value;
+    cBairro.value=d.bairro||cBairro.value;
+    cSituacao.value=d.situacao_cadastral||"";
+    cCnae.value=d.cnae_principal||"";
+    cCnaeDesc.value=d.cnae_principal_descricao||"";
+    if(d.email)cEmail.value=d.email;
+    if(d.telefone)cTelefone.value=d.telefone;
+    cCnpjSource.value=d.fonte||"";
+    cCnpjDate.value=d.dt_consulta||"";
+
+    clientFormChip.textContent="CNPJ consultado";
+  }catch(err){
+    alert("Não foi possível consultar o CNPJ: "+err.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=original;
+  }
+}
+
+function formatCep(v){
+  const d=String(v||"").replace(/\D/g,"");
+  return d.length===8?d.slice(0,5)+"-"+d.slice(5):String(v||"");
+}
+
 function clearClientForm(){
-  ["cId","cRazao","cFantasia","cDocumento","cCidade","cContato","cVendedor","cEmail","cTelefone","cObs"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
+  ["cId","cRazao","cFantasia","cDocumento","cCidade","cCep","cLogradouro","cNumero","cComplemento","cBairro","cSituacao","cCnae","cCnaeDesc","cCnpjSource","cCnpjDate","cContato","cVendedor","cEmail","cTelefone","cObs"].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value="";
+  });
   if(document.getElementById("cUf"))cUf.value="";
   if(document.getElementById("cSegmentFinal"))cSegmentFinal.value="";
   if(document.getElementById("cSegmentNeo"))cSegmentNeo.value="";
   if(document.getElementById("cAtivo"))cAtivo.value="true";
   if(document.getElementById("clientFormTitle"))clientFormTitle.textContent="Novo cliente";
   if(document.getElementById("clientFormChip"))clientFormChip.textContent="Cadastro";
-  document.getElementById("cRazao")?.focus();
+  document.getElementById("cDocumento")?.focus();
 }
 
 function editClient(id){
   const c=APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===String(id));if(!c)return;
-  cId.value=c.ID_CLIENTE||"";cRazao.value=c.RAZAO_SOCIAL||"";cFantasia.value=c.NOME_FANTASIA||"";
-  cDocumento.value=c.CNPJ_CPF||"";cSegmentFinal.value=c.SEGMENTO_FINAL_ID||"";cSegmentNeo.value=c.SEGMENTO_NEO_ID||"";cUf.value=c.UF||"";cCidade.value=c.CIDADE||"";
-  cContato.value=c.CONTATO||"";cVendedor.value=c.VENDEDOR||"";cEmail.value=c.EMAIL||"";cTelefone.value=c.TELEFONE||"";
-  cAtivo.value=truthy(c.ATIVO)?"true":"false";cObs.value=c.OBS||"";
-  clientFormTitle.textContent="Editar cliente";clientFormChip.textContent="Edição";
+  cId.value=c.ID_CLIENTE||"";
+  cRazao.value=c.RAZAO_SOCIAL||"";
+  cFantasia.value=c.NOME_FANTASIA||"";
+  cDocumento.value=c.CNPJ_CPF||"";
+  cSegmentFinal.value=c.SEGMENTO_FINAL_ID||"";
+  cSegmentNeo.value=c.SEGMENTO_NEO_ID||"";
+  cUf.value=c.UF||"";
+  cCidade.value=c.CIDADE||"";
+  cCep.value=formatCep(c.CEP||"");
+  cLogradouro.value=c.LOGRADOURO||"";
+  cNumero.value=c.NUMERO||"";
+  cComplemento.value=c.COMPLEMENTO||"";
+  cBairro.value=c.BAIRRO||"";
+  cSituacao.value=c.SITUACAO_CADASTRAL||"";
+  cCnae.value=c.CNAE_PRINCIPAL||"";
+  cCnaeDesc.value=c.CNAE_PRINCIPAL_DESCRICAO||"";
+  cCnpjSource.value=c.FONTE_CNPJ||"";
+  cCnpjDate.value=c.DT_CONSULTA_CNPJ||"";
+  cContato.value=c.CONTATO||"";
+  cVendedor.value=c.VENDEDOR||"";
+  cEmail.value=c.EMAIL||"";
+  cTelefone.value=c.TELEFONE||"";
+  cAtivo.value=truthy(c.ATIVO)?"true":"false";
+  cObs.value=c.OBS||"";
+  clientFormTitle.textContent="Editar cliente";
+  clientFormChip.textContent="Edição";
   window.scrollTo({top:document.getElementById("clients").offsetTop,behavior:"smooth"});
 }
 
@@ -1492,6 +1594,16 @@ async function saveClient(){
     SEGMENTO_NEO_ID:cSegmentNeo.value,
     UF:cUf.value,
     CIDADE:cCidade.value.trim(),
+    CEP:cCep.value.trim(),
+    LOGRADOURO:cLogradouro.value.trim(),
+    NUMERO:cNumero.value.trim(),
+    COMPLEMENTO:cComplemento.value.trim(),
+    BAIRRO:cBairro.value.trim(),
+    SITUACAO_CADASTRAL:cSituacao.value.trim(),
+    CNAE_PRINCIPAL:cCnae.value.trim(),
+    CNAE_PRINCIPAL_DESCRICAO:cCnaeDesc.value.trim(),
+    FONTE_CNPJ:cCnpjSource.value.trim(),
+    DT_CONSULTA_CNPJ:cCnpjDate.value.trim(),
     CONTATO:cContato.value.trim(),
     EMAIL:cEmail.value.trim(),
     TELEFONE:cTelefone.value.trim(),
@@ -1499,17 +1611,33 @@ async function saveClient(){
     ATIVO:cAtivo.value==="true",
     OBS:cObs.value.trim()
   };
-  if(!cliente.RAZAO_SOCIAL&&!cliente.NOME_FANTASIA){alert("Informe a razão social ou nome fantasia.");return}
-  clientSaveBtn.disabled=true;clientSaveBtn.textContent="Salvando...";
+
+  if(!cliente.RAZAO_SOCIAL&&!cliente.NOME_FANTASIA){
+    alert("Informe a razão social ou nome fantasia.");
+    return;
+  }
+
+  clientSaveBtn.disabled=true;
+  clientSaveBtn.textContent="Salvando...";
   try{
-    const r=await fetch(NEOSONICS_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({acao:"salvar_cliente",cliente})});
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"salvar_cliente",cliente})
+    });
     if(!r.ok)throw new Error("HTTP "+r.status);
-    const j=await r.json();if(!j.ok)throw new Error(j.erro||"Erro ao salvar");
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Erro ao salvar");
     await initClientsPage();
     clearClientForm();
-  }catch(e){alert("Não foi possível salvar o cliente: "+e.message)}
-  finally{clientSaveBtn.disabled=false;clientSaveBtn.textContent="Salvar cliente"}
+  }catch(err){
+    alert("Não foi possível salvar o cliente: "+err.message);
+  }finally{
+    clientSaveBtn.disabled=false;
+    clientSaveBtn.textContent="Salvar cliente";
+  }
 }
+
 
 function syncQuoteClient(){
   const name=String(qClient.value||"").trim().toUpperCase();
