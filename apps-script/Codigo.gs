@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.0.2' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.1.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -57,7 +57,7 @@ function doGet(e) {
         return json_({ ok: true, dados: listarObjetos_(ABAS.PEDIDOS) });
 
       case 'dashboard':
-        return json_(getDashboardHistorico_());
+        return json_(getDashboardVendas_((e && e.parameter) || {}));
 
       default:
         return json_({ ok: false, erro: 'Ação GET inválida: ' + acao });
@@ -1293,53 +1293,217 @@ function normalizarTexto_(v) {
     .toUpperCase();
 }
 
-function getDashboardHistorico_() {
-  const sh = aba_(ABAS.RAW);
-  const dados = sh.getDataRange().getValues();
-  if (dados.length < 2) return { ok: true, registros: 0 };
+function getDashboardVendas_(params) {
+  const vendas = listarObjetos_(ABAS.VENDAS);
+  const p = params || {};
 
-  const h = indiceCabecalhos_(dados[0]);
-  let faturamento = 0;
-  let custo = 0;
-  let qtde = 0;
-  const porAno = {};
-  const porEstado = {};
+  const dtInicio = normalizarDataFiltro_(p.dt_inicio);
+  const dtFim = normalizarDataFiltro_(p.dt_fim);
+  const filtroFinal = String(p.segmento_final_id || '').trim();
+  const filtroNeo = String(p.segmento_neo_id || '').trim();
+  const filtroCliente = String(p.cliente_id || '').trim();
+  const filtroModalidade = String(p.modalidade || '').trim();
+  const filtroUf = String(p.uf || '').trim().toUpperCase();
 
-  dados.slice(1).forEach(function(r) {
-    const valor = numero_(r[h['VALOR DO PEDIDO']]);
-    const q = numero_(r[h['QTDE.']]);
-    const cUnit = numero_(r[h['UNIT CUSTO']]);
-    const ano = String(r[h['ANO']] || '');
-    const uf = String(r[h['ESTADO']] || 'N/I');
-
-    faturamento += valor;
-    custo += q * cUnit;
-    qtde += q;
-
-    if (!porAno[ano]) porAno[ano] = { faturamento: 0, custo: 0, registros: 0 };
-    porAno[ano].faturamento += valor;
-    porAno[ano].custo += q * cUnit;
-    porAno[ano].registros++;
-
-    if (!porEstado[uf]) porEstado[uf] = { faturamento: 0, registros: 0 };
-    porEstado[uf].faturamento += valor;
-    porEstado[uf].registros++;
+  const filtradas = vendas.filter(function(v) {
+    const dt = normalizarDataFiltro_(v.DATA_VENDA);
+    if (dtInicio && dt && dt < dtInicio) return false;
+    if (dtFim && dt && dt > dtFim) return false;
+    if (filtroFinal && String(v.SEGMENTO_FINAL_ID || '') !== filtroFinal) return false;
+    if (filtroNeo && String(v.SEGMENTO_NEO_ID || '') !== filtroNeo) return false;
+    if (filtroCliente && String(v.CLIENTE_ID || '') !== filtroCliente) return false;
+    if (filtroModalidade && String(v.MODALIDADE || '') !== filtroModalidade) return false;
+    if (filtroUf && String(v.UF_DESTINO || '').toUpperCase() !== filtroUf) return false;
+    return true;
   });
 
-  const lucro = faturamento - custo;
+  const kpis = { faturamento:0, custo:0, dv:0, df:0, lucro:0, qtde:0, registros:0 };
+  const porMes = {};
+  const porFinal = {};
+  const porNeo = {};
+  const porCliente = {};
+  const porProduto = {};
+  const porEstado = {};
+
+  filtradas.forEach(function(v) {
+    const fat = numero_(v.VALOR_TOTAL);
+    const custo = numero_(v.CUSTO_TOTAL);
+    const dv = numero_(v.DV_VALOR);
+    const df = numero_(v.DF_VALOR);
+    const lucro = numero_(v.LUCRO);
+    const qtde = numero_(v.QTDE);
+
+    kpis.faturamento += fat;
+    kpis.custo += custo;
+    kpis.dv += dv;
+    kpis.df += df;
+    kpis.lucro += lucro;
+    kpis.qtde += qtde;
+    kpis.registros++;
+
+    const dt = normalizarDataFiltro_(v.DATA_VENDA);
+    const mesKey = dt ? dt.substring(0,7) : ((v.ANO || '') + '-' + String(v.MES || ''));
+    agregarDashboard_(porMes, mesKey, fat, custo, dv, df, lucro, qtde, {
+      label: mesKey
+    });
+
+    const finalKey = String(v.SEGMENTO_FINAL_ID || v.SEGMENTO_FINAL_SNAPSHOT || 'N/I');
+    agregarDashboard_(porFinal, finalKey, fat, custo, dv, df, lucro, qtde, {
+      label: String(v.SEGMENTO_FINAL_SNAPSHOT || 'N/I'),
+      id: String(v.SEGMENTO_FINAL_ID || '')
+    });
+
+    const neoKey = String(v.SEGMENTO_NEO_ID || v.SEGMENTO_NEO_SNAPSHOT || 'N/I');
+    agregarDashboard_(porNeo, neoKey, fat, custo, dv, df, lucro, qtde, {
+      label: String(v.SEGMENTO_NEO_SNAPSHOT || 'N/I'),
+      id: String(v.SEGMENTO_NEO_ID || '')
+    });
+
+    const cliKey = String(v.CLIENTE_ID || v.CLIENTE_NOME_SNAPSHOT || 'N/I');
+    agregarDashboard_(porCliente, cliKey, fat, custo, dv, df, lucro, qtde, {
+      label: String(v.CLIENTE_NOME_SNAPSHOT || 'N/I'),
+      id: String(v.CLIENTE_ID || '')
+    });
+
+    const produtoKey = [String(v.CLIENTE_ID || ''), String(v.SKU || ''), String(v.DESCRICAO || '')].join('|');
+    agregarDashboard_(porProduto, produtoKey, fat, custo, dv, df, lucro, qtde, {
+      label: String(v.DESCRICAO || v.SKU || 'N/I'),
+      sku: String(v.SKU || ''),
+      cliente_id: String(v.CLIENTE_ID || ''),
+      cliente: String(v.CLIENTE_NOME_SNAPSHOT || '')
+    });
+
+    const uf = String(v.UF_DESTINO || 'N/I').toUpperCase();
+    agregarDashboard_(porEstado, uf, fat, custo, dv, df, lucro, qtde, {
+      label: uf
+    });
+  });
+
+  kpis.margem_lucro = kpis.faturamento ? kpis.lucro / kpis.faturamento : 0;
+  kpis.margem_bruta = kpis.faturamento ? (kpis.faturamento - kpis.custo) / kpis.faturamento : 0;
+  kpis.dv_pct = kpis.faturamento ? kpis.dv / kpis.faturamento : 0;
+  kpis.df_pct = kpis.faturamento ? kpis.df / kpis.faturamento : 0;
+
+  const todas = vendas;
+  const filtros = {
+    datas: {
+      min: menorDataVendas_(todas),
+      max: maiorDataVendas_(todas)
+    },
+    segmentos_final: opcoesFiltro_(todas, 'SEGMENTO_FINAL_ID', 'SEGMENTO_FINAL_SNAPSHOT'),
+    segmentos_neo: opcoesFiltro_(todas, 'SEGMENTO_NEO_ID', 'SEGMENTO_NEO_SNAPSHOT'),
+    clientes: opcoesFiltro_(todas, 'CLIENTE_ID', 'CLIENTE_NOME_SNAPSHOT'),
+    modalidades: valoresUnicos_(todas, 'MODALIDADE'),
+    ufs: valoresUnicos_(todas, 'UF_DESTINO')
+  };
 
   return {
     ok: true,
-    origem: 'RAW_VENDAS_HISTORICO',
-    registros: dados.length - 1,
-    qtde_total: qtde,
-    faturamento: faturamento,
-    custo: custo,
-    lucro_bruto: lucro,
-    margem_bruta: faturamento ? lucro / faturamento : 0,
-    por_ano: porAno,
-    por_estado: porEstado
+    origem: 'VENDAS',
+    kpis: kpis,
+    filtros: filtros,
+    mensal: ordenarAgregados_(porMes, 'label', false),
+    segmentos_final: ordenarAgregados_(porFinal, 'faturamento', true),
+    segmentos_neo: ordenarAgregados_(porNeo, 'faturamento', true),
+    clientes: ordenarAgregados_(porCliente, 'faturamento', true),
+    produtos: ordenarAgregados_(porProduto, 'faturamento', true),
+    estados: ordenarAgregados_(porEstado, 'faturamento', true)
   };
+}
+
+function agregarDashboard_(mapa, chave, faturamento, custo, dv, df, lucro, qtde, meta) {
+  const k = String(chave || 'N/I');
+  if (!mapa[k]) {
+    mapa[k] = Object.assign({
+      chave:k, faturamento:0, custo:0, dv:0, df:0, lucro:0, qtde:0, registros:0
+    }, meta || {});
+  }
+
+  mapa[k].faturamento += faturamento;
+  mapa[k].custo += custo;
+  mapa[k].dv += dv;
+  mapa[k].df += df;
+  mapa[k].lucro += lucro;
+  mapa[k].qtde += qtde;
+  mapa[k].registros++;
+}
+
+function ordenarAgregados_(mapa, campo, desc) {
+  return Object.keys(mapa).map(function(k) {
+    const x = mapa[k];
+    x.margem = x.faturamento ? x.lucro / x.faturamento : 0;
+    x.participacao = 0;
+    return x;
+  }).sort(function(a,b) {
+    const av = a[campo];
+    const bv = b[campo];
+
+    if (typeof av === 'string' || typeof bv === 'string') {
+      const cmp = String(av || '').localeCompare(String(bv || ''), 'pt-BR');
+      return desc ? -cmp : cmp;
+    }
+    return desc ? numero_(bv) - numero_(av) : numero_(av) - numero_(bv);
+  });
+}
+
+function opcoesFiltro_(dados, campoId, campoLabel) {
+  const mapa = {};
+  dados.forEach(function(v) {
+    const id = String(v[campoId] || '').trim();
+    const label = String(v[campoLabel] || '').trim();
+    if (id && label) mapa[id] = label;
+  });
+
+  return Object.keys(mapa).map(function(id) {
+    return { id:id, label:mapa[id] };
+  }).sort(function(a,b) {
+    return a.label.localeCompare(b.label, 'pt-BR');
+  });
+}
+
+function valoresUnicos_(dados, campo) {
+  const mapa = {};
+  dados.forEach(function(v) {
+    const x = String(v[campo] || '').trim();
+    if (x) mapa[x] = true;
+  });
+  return Object.keys(mapa).sort(function(a,b) {
+    return a.localeCompare(b, 'pt-BR');
+  });
+}
+
+function normalizarDataFiltro_(v) {
+  if (!v) return '';
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    return Utilities.formatDate(v, 'America/Sao_Paulo', 'yyyy-MM-dd');
+  }
+
+  const s = String(v).trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return br[3] + '-' + br[2] + '-' + br[1];
+
+  return '';
+}
+
+function menorDataVendas_(dados) {
+  let min = '';
+  dados.forEach(function(v) {
+    const d = normalizarDataFiltro_(v.DATA_VENDA);
+    if (d && (!min || d < min)) min = d;
+  });
+  return min;
+}
+
+function maiorDataVendas_(dados) {
+  let max = '';
+  dados.forEach(function(v) {
+    const d = normalizarDataFiltro_(v.DATA_VENDA);
+    if (d && (!max || d > max)) max = d;
+  });
+  return max;
 }
 
 function listarObjetos_(nomeAba) {
