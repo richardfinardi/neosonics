@@ -1249,6 +1249,66 @@ body.theme-light .indicator-click-row:hover td{background:#fff8f2!important}
   .segment-view-switch button{flex:1}
 }
 
+
+/* Produtos do cliente em modal */
+.product-modal-bg{
+  position:fixed!important;
+  inset:0!important;
+  z-index:10020!important;
+  width:100vw!important;
+  height:100vh!important;
+  padding:24px!important;
+  margin:0!important;
+  background:rgba(3,9,18,.74)!important;
+  backdrop-filter:blur(5px);
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:auto!important;
+}
+.product-modal-card{
+  width:min(1120px,96vw)!important;
+  max-height:90vh!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  border:1px solid #2b4260!important;
+  border-radius:18px!important;
+  background:#0d1a2b!important;
+  box-shadow:0 28px 90px rgba(0,0,0,.46)!important;
+}
+.product-modal-head{
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:flex-start!important;
+  gap:18px!important;
+  padding:18px 20px!important;
+  border-bottom:1px solid var(--line)!important;
+  flex:0 0 auto!important;
+}
+.product-modal-kicker{
+  font-size:9px!important;
+  text-transform:uppercase!important;
+  letter-spacing:.12em!important;
+  color:var(--accent)!important;
+}
+.product-modal-title{font-size:19px!important;font-weight:900!important;margin-top:4px!important}
+.product-modal-sub{font-size:10px!important;color:var(--muted)!important;margin-top:4px!important}
+.product-modal-close{width:38px!important;height:38px!important;min-width:38px!important}
+.product-modal-body{padding:16px 20px 20px!important;overflow:auto!important;min-height:0!important}
+.product-modal-table{max-height:66vh!important;overflow:auto!important;border:1px solid var(--line)!important;border-radius:12px!important}
+body.theme-light .product-modal-card{
+  background:#fff!important;
+  border-color:#d7dee7!important;
+  box-shadow:0 28px 90px rgba(17,24,39,.28)!important;
+}
+body.theme-light .product-modal-head,
+body.theme-light .product-modal-body{background:#fff!important}
+body.theme-light .product-modal-table{border-color:#dce2e9!important}
+@media(max-width:760px){
+  .product-modal-bg{padding:8px!important}
+  .product-modal-card{width:100%!important;max-height:96vh!important}
+}
+
 </style>
 </head>
 <body>
@@ -1434,28 +1494,33 @@ body.theme-light .indicator-click-row:hover td{background:#fff8f2!important}
           </div>
         </div>
 
-        <div class="panel indicator-section dashboard-products-panel" id="dashboardProductsPanel" style="display:none">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title" id="dashboardProductsTitle">Lucratividade por produto</div>
-              <div class="panel-sub">Produtos vendidos para o cliente selecionado.</div>
+        <div class="product-modal-bg" id="dashboardProductsPanel" style="display:none" onclick="closeDashboardProducts(event)">
+          <div class="product-modal-card" onclick="event.stopPropagation()">
+            <div class="product-modal-head">
+              <div>
+                <div class="product-modal-kicker">Detalhamento do cliente</div>
+                <div class="product-modal-title" id="dashboardProductsTitle">Lucratividade por produto</div>
+                <div class="product-modal-sub">Produtos vendidos para o cliente selecionado.</div>
+              </div>
+              <button class="close product-modal-close" onclick="closeDashboardProducts()">×</button>
             </div>
-            <button class="secondary" onclick="closeDashboardProducts()">Fechar</button>
-          </div>
-          <div class="table-wrap">
-            <table class="indicator-table">
-              <thead>
-                <tr>
-                  <th>Produto</th>
-                  <th>SKU</th>
-                  <th>Quantidade</th>
-                  <th>Faturamento</th>
-                  <th>Lucro</th>
-                  <th>Lucratividade</th>
-                </tr>
-              </thead>
-              <tbody id="dashboardProductsBody"></tbody>
-            </table>
+            <div class="product-modal-body">
+              <div class="table-wrap product-modal-table">
+                <table class="indicator-table">
+                  <thead>
+                    <tr>
+                      <th>Produto</th>
+                      <th>SKU</th>
+                      <th>Quantidade</th>
+                      <th>Faturamento</th>
+                      <th>Lucro</th>
+                      <th>Lucratividade</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboardProductsBody"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2454,35 +2519,40 @@ function renderDashboardClients(){
 
 function showClientProducts(clientId,label){
   DASHBOARD_SELECTED_CLIENT=String(clientId||"");
-  dashboardProductsPanel.style.display="";
-  dashboardProductsTitle.textContent="Produtos do cliente • "+(label||dashboardClientLabel(clientId));
+  const modal=document.getElementById("dashboardProductsPanel");
+  if(!modal||!DASHBOARD_DATA)return;
 
-  const body=document.getElementById("dashboardProductsBody");if(!body||!DASHBOARD_DATA)return;
+  dashboardProductsTitle.textContent="Produtos do cliente • "+(label||dashboardClientLabel(clientId));
+  const body=document.getElementById("dashboardProductsBody");
   const rows=(DASHBOARD_DATA.produtos||[]).filter(x=>String(x.cliente_id||"")===String(clientId||""));
 
   if(!rows.length){
     body.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum produto encontrado para este cliente.</td></tr>';
-    return;
+  }else{
+    body.innerHTML=rows.map(x=>
+      '<tr>'+
+        '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
+        '<td>'+escapeHtml(x.sku||"—")+'</td>'+
+        '<td>'+Number(x.qtde||0).toLocaleString("pt-BR")+'</td>'+
+        '<td>'+formatBRL(x.faturamento)+'</td>'+
+        '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
+        '<td><b>'+formatPct(x.margem)+'</b></td>'+
+      '</tr>'
+    ).join("");
   }
 
-  body.innerHTML=rows.map(x=>
-    '<tr>'+
-      '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
-      '<td>'+escapeHtml(x.sku||"—")+'</td>'+
-      '<td>'+Number(x.qtde||0).toLocaleString("pt-BR")+'</td>'+
-      '<td>'+formatBRL(x.faturamento)+'</td>'+
-      '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
-      '<td><b>'+formatPct(x.margem)+'</b></td>'+
-    '</tr>'
-  ).join("");
-
-  dashboardProductsPanel.scrollIntoView({behavior:"smooth",block:"start"});
+  modal.style.display="flex";
+  document.body.classList.add("modal-open");
 }
 
-function closeDashboardProducts(){
+function closeDashboardProducts(event){
+  if(event && event.target!==event.currentTarget)return;
   DASHBOARD_SELECTED_CLIENT="";
-  dashboardProductsPanel.style.display="none";
-  dashboardProductsBody.innerHTML="";
+  const modal=document.getElementById("dashboardProductsPanel");
+  if(modal)modal.style.display="none";
+  document.body.classList.remove("modal-open");
+  const body=document.getElementById("dashboardProductsBody");
+  if(body)body.innerHTML="";
 }
 
 
