@@ -1509,21 +1509,13 @@ async function lookupCnpj(){
   btn.textContent="Buscando...";
 
   try{
-    let data=null;
-    let source="";
+    const j=await apiGet("consultar_cnpj",{cnpj});
+    const data=j.dados||{};
 
-    try{
-      const r=await fetch("https://brasilapi.com.br/api/cnpj/v1/"+encodeURIComponent(cnpj),{cache:"no-store"});
-      if(!r.ok)throw new Error("HTTP "+r.status);
-      const j=await r.json();
-      data=normalizeBrasilApiCnpj(j,cnpj);
-      source="BrasilAPI";
-    }catch(primaryError){
-      const r=await fetch("https://publica.cnpj.ws/cnpj/"+encodeURIComponent(cnpj),{cache:"no-store"});
-      if(!r.ok)throw new Error("Falha na consulta de CNPJ.");
-      const j=await r.json();
-      data=normalizeCnpjWs(j,cnpj);
-      source="CNPJ.ws";
+    if(data.ja_cadastrado && String(data.ja_cadastrado.ID_CLIENTE||"")!==String(cId.value||"")){
+      const abrir=confirm('Este CNPJ já está cadastrado para "'+(data.ja_cadastrado.NOME||"cliente existente")+'".\n\nDeseja abrir esse cadastro?');
+      if(abrir)editClient(data.ja_cadastrado.ID_CLIENTE);
+      return;
     }
 
     cDocumento.value=data.cnpj||cDocumento.value;
@@ -1541,8 +1533,8 @@ async function lookupCnpj(){
     cCnaeDesc.value=data.cnae_principal_descricao||"";
     if(data.email)cEmail.value=data.email;
     if(data.telefone)cTelefone.value=data.telefone;
-    cCnpjSource.value=source;
-    cCnpjDate.value=new Date().toISOString();
+    cCnpjSource.value=data.fonte||"";
+    cCnpjDate.value=data.dt_consulta||new Date().toISOString();
 
     clientFormChip.textContent="CNPJ consultado";
   }catch(err){
@@ -1551,53 +1543,6 @@ async function lookupCnpj(){
     btn.disabled=false;
     btn.textContent=original;
   }
-}
-
-function normalizeBrasilApiCnpj(j,cnpj){
-  const f=String(j.cnpj||cnpj).replace(/\D/g,"");
-  return {
-    cnpj:f.length===14?f.slice(0,2)+"."+f.slice(2,5)+"."+f.slice(5,8)+"/"+f.slice(8,12)+"-"+f.slice(12):f,
-    razao_social:j.razao_social||"",
-    nome_fantasia:j.nome_fantasia||"",
-    uf:j.uf||"",
-    cidade:j.municipio||"",
-    cep:j.cep||"",
-    logradouro:[j.descricao_tipo_de_logradouro,j.logradouro].filter(Boolean).join(" ").trim(),
-    numero:j.numero||"",
-    complemento:j.complemento||"",
-    bairro:j.bairro||"",
-    situacao_cadastral:j.descricao_situacao_cadastral||j.situacao_cadastral||"",
-    cnae_principal:j.cnae_fiscal||"",
-    cnae_principal_descricao:j.cnae_fiscal_descricao||"",
-    email:j.email||"",
-    telefone:j.ddd_telefone_1||j.ddd_telefone_2||""
-  };
-}
-
-function normalizeCnpjWs(j,cnpj){
-  const e=j.estabelecimento||{};
-  const atividade=e.atividade_principal||{};
-  const estado=e.estado||{};
-  const cidade=e.cidade||{};
-  const f=String(e.cnpj||cnpj).replace(/\D/g,"");
-  const tel=(e.ddd1||e.telefone1)?((e.ddd1?"("+e.ddd1+") ":"")+(e.telefone1||"")):((e.ddd2?"("+e.ddd2+") ":"")+(e.telefone2||""));
-  return {
-    cnpj:f.length===14?f.slice(0,2)+"."+f.slice(2,5)+"."+f.slice(5,8)+"/"+f.slice(8,12)+"-"+f.slice(12):f,
-    razao_social:j.razao_social||"",
-    nome_fantasia:e.nome_fantasia||"",
-    uf:estado.sigla||"",
-    cidade:cidade.nome||"",
-    cep:e.cep||"",
-    logradouro:[e.tipo_logradouro,e.logradouro].filter(Boolean).join(" ").trim(),
-    numero:e.numero||"",
-    complemento:e.complemento||"",
-    bairro:e.bairro||"",
-    situacao_cadastral:e.situacao_cadastral||"",
-    cnae_principal:atividade.id||atividade.subclasse||"",
-    cnae_principal_descricao:atividade.descricao||"",
-    email:e.email||"",
-    telefone:tel||""
-  };
 }
 
 function formatCep(v){
