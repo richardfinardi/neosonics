@@ -30,16 +30,13 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.0.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.0.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
 
       case 'clientes':
         return json_({ ok: true, dados: listarClientes_() });
-
-      case 'consultar_cnpj':
-        return json_(consultarCnpj_((e && e.parameter && e.parameter.cnpj) || ''));
 
       case 'map_clientes':
         return json_({ ok: true, dados: listarMapClientes_() });
@@ -445,154 +442,6 @@ function resolverGrupoCliente_(codClienteOrigem, modo, nomeOficial, idClienteOfi
     clientes: clientesCriados,
     registros_resolvidos: mapas.length
   };
-}
-
-function consultarCnpj_(cnpjInformado) {
-  const cnpj = somenteDigitos_(cnpjInformado);
-  if (cnpj.length !== 14) throw new Error('Informe um CNPJ com 14 dígitos.');
-  if (!validarCnpj_(cnpj)) throw new Error('CNPJ inválido.');
-
-  const existente = listarObjetos_(ABAS.CLIENTES).find(function(c) {
-    return somenteDigitos_(c.CNPJ_CPF) === cnpj;
-  });
-
-  const erros = [];
-
-  try {
-    const r = consultarCnpjBrasilApi_(cnpj);
-    r.ja_cadastrado = existente ? {
-      ID_CLIENTE: existente.ID_CLIENTE,
-      NOME: existente.NOME_FANTASIA || existente.RAZAO_SOCIAL || ''
-    } : null;
-    return { ok: true, dados: r };
-  } catch (err) {
-    erros.push('BrasilAPI: ' + err.message);
-  }
-
-  try {
-    const r = consultarCnpjWs_(cnpj);
-    r.ja_cadastrado = existente ? {
-      ID_CLIENTE: existente.ID_CLIENTE,
-      NOME: existente.NOME_FANTASIA || existente.RAZAO_SOCIAL || ''
-    } : null;
-    return { ok: true, dados: r };
-  } catch (err) {
-    erros.push('CNPJ.ws: ' + err.message);
-  }
-
-  throw new Error('Não foi possível consultar o CNPJ. ' + erros.join(' | '));
-}
-
-function consultarCnpjBrasilApi_(cnpj) {
-  const url = 'https://brasilapi.com.br/api/cnpj/v1/' + encodeURIComponent(cnpj);
-  const resp = UrlFetchApp.fetch(url, {
-    method: 'get',
-    muteHttpExceptions: true,
-    followRedirects: true,
-    headers: { 'Accept': 'application/json', 'User-Agent': 'NEOSONICS/1.0' }
-  });
-
-  const code = resp.getResponseCode();
-  if (code !== 200) throw new Error('HTTP ' + code);
-
-  const j = JSON.parse(resp.getContentText() || '{}');
-  return {
-    cnpj: formatarCnpj_(somenteDigitos_(j.cnpj || cnpj)),
-    razao_social: j.razao_social || '',
-    nome_fantasia: j.nome_fantasia || '',
-    uf: j.uf || '',
-    cidade: j.municipio || '',
-    cep: somenteDigitos_(j.cep || ''),
-    logradouro: [j.descricao_tipo_de_logradouro, j.logradouro].filter(String).join(' ').trim(),
-    numero: j.numero || '',
-    complemento: j.complemento || '',
-    bairro: j.bairro || '',
-    situacao_cadastral: j.descricao_situacao_cadastral || j.situacao_cadastral || '',
-    cnae_principal: j.cnae_fiscal || '',
-    cnae_principal_descricao: j.cnae_fiscal_descricao || '',
-    email: j.email || '',
-    telefone: j.ddd_telefone_1 || j.ddd_telefone_2 || '',
-    fonte: 'BrasilAPI',
-    dt_consulta: isoAgora_()
-  };
-}
-
-function consultarCnpjWs_(cnpj) {
-  const url = 'https://publica.cnpj.ws/cnpj/' + encodeURIComponent(cnpj);
-  const resp = UrlFetchApp.fetch(url, {
-    method: 'get',
-    muteHttpExceptions: true,
-    followRedirects: true,
-    headers: { 'Accept': 'application/json', 'User-Agent': 'NEOSONICS/1.0' }
-  });
-
-  const code = resp.getResponseCode();
-  if (code !== 200) throw new Error('HTTP ' + code);
-
-  const j = JSON.parse(resp.getContentText() || '{}');
-  const e = j.estabelecimento || {};
-  const atividade = e.atividade_principal || {};
-  const estado = e.estado || {};
-  const cidade = e.cidade || {};
-
-  return {
-    cnpj: formatarCnpj_(somenteDigitos_(e.cnpj || cnpj)),
-    razao_social: j.razao_social || '',
-    nome_fantasia: e.nome_fantasia || '',
-    uf: estado.sigla || '',
-    cidade: cidade.nome || '',
-    cep: somenteDigitos_(e.cep || ''),
-    logradouro: [e.tipo_logradouro, e.logradouro].filter(String).join(' ').trim(),
-    numero: e.numero || '',
-    complemento: e.complemento || '',
-    bairro: e.bairro || '',
-    situacao_cadastral: e.situacao_cadastral || '',
-    cnae_principal: atividade.id || atividade.subclasse || '',
-    cnae_principal_descricao: atividade.descricao || '',
-    email: e.email || '',
-    telefone: formatarTelefoneCnpjWs_(e),
-    fonte: 'CNPJ.ws',
-    dt_consulta: isoAgora_()
-  };
-}
-
-function formatarTelefoneCnpjWs_(e) {
-  if (!e) return '';
-  const ddd = String(e.ddd1 || '').trim();
-  const fone = String(e.telefone1 || '').trim();
-  if (ddd || fone) return (ddd ? '(' + ddd + ') ' : '') + fone;
-
-  const ddd2 = String(e.ddd2 || '').trim();
-  const fone2 = String(e.telefone2 || '').trim();
-  return (ddd2 ? '(' + ddd2 + ') ' : '') + fone2;
-}
-
-function somenteDigitos_(valor) {
-  return String(valor || '').replace(/\D/g, '');
-}
-
-function formatarCnpj_(cnpj) {
-  const d = somenteDigitos_(cnpj);
-  if (d.length !== 14) return d;
-  return d.substring(0,2) + '.' + d.substring(2,5) + '.' + d.substring(5,8) + '/' + d.substring(8,12) + '-' + d.substring(12);
-}
-
-function validarCnpj_(cnpj) {
-  const d = somenteDigitos_(cnpj);
-  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
-
-  function digito(base, pesos) {
-    let soma = 0;
-    for (let i = 0; i < pesos.length; i++) soma += Number(base.charAt(i)) * pesos[i];
-    const resto = soma % 11;
-    return resto < 2 ? 0 : 11 - resto;
-  }
-
-  const d1 = digito(d.substring(0,12), [5,4,3,2,9,8,7,6,5,4,3,2]);
-  if (d1 !== Number(d.charAt(12))) return false;
-
-  const d2 = digito(d.substring(0,13), [6,5,4,3,2,9,8,7,6,5,4,3,2]);
-  return d2 === Number(d.charAt(13));
 }
 
 function salvarCliente_(cliente) {
