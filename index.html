@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Neosonic | Plataforma Comercial</title>
+<title>NEOSONICS</title>
 <style>
 :root{
   --bg:#08111e; --bg2:#0b1626; --panel:#101d30; --panel2:#13243a;
@@ -649,6 +649,16 @@ body.theme-light .history-explain{background:#edf4fa;border-color:#cddbea}
 .segment-pair b{font-size:11px;color:var(--text)}
 .segment-pair span{font-size:10px;color:var(--muted)}
 body.theme-light .segment-pair b{color:#253a51}
+.compact-select{height:36px;min-width:110px;font-size:12px}
+.inline-check{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);white-space:nowrap}
+.inline-check input{width:16px;height:16px}
+.segment-type{display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:5px 8px;border-radius:8px;font-size:10px;font-weight:900}
+.segment-type.final{background:rgba(118,170,255,.12);color:#8dbbff;border:1px solid rgba(118,170,255,.22)}
+.segment-type.neo{background:rgba(243,155,82,.12);color:#f1ac70;border:1px solid rgba(243,155,82,.22)}
+.row-inactive{opacity:.58}
+body.theme-light .segment-type.final{background:#e5eef8;color:#436788;border-color:#c6d7e7}
+body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color:#ead1bc}
+@media(max-width:720px){.segment-list-head{align-items:stretch;flex-direction:column}.segment-list-head .panel-head-actions{width:100%}}
 </style>
 </head>
 <body>
@@ -657,12 +667,17 @@ body.theme-light .segment-pair b{color:#253a51}
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">N</div>
-      <div class="brand-copy"><b>NEOSONICS</b><small>Plataforma Comercial</small></div>
+      <div class="brand-copy"><b>NEOSONICS</b></div>
+    </div>
+
+    <div class="group-title">Cadastros</div>
+    <div class="nav">
+      <button class="active" data-page="clients"><span class="ico">◎</span><span class="nav-text">Clientes</span></button>
+      <button data-page="segments"><span class="ico">≡</span><span class="nav-text">Segmentações</span></button>
     </div>
 
     <div class="group-title">Comercial</div>
     <div class="nav">
-      <button class="active" data-page="clients"><span class="ico">◎</span><span class="nav-text">Clientes</span></button>
       <button data-page="quotes"><span class="ico">R$</span><span class="nav-text">Orçamentos</span></button>
     </div>
 
@@ -678,8 +693,6 @@ body.theme-light .segment-pair b{color:#253a51}
         <span class="sidebar-tool-text">Recolher menu</span>
       </button>
     </div>
-
-    <div class="sidebar-foot"><b>Plataforma Comercial</b>Cadastro de clientes e formação de orçamentos conectados ao banco real.</div>
   </aside>
 
   <main class="main">
@@ -705,17 +718,16 @@ body.theme-light .segment-pair b{color:#253a51}
       <section id="clients" class="page active">
         <div class="hero">
           <div>
-            <h2>Cadastro e gestão de clientes</h2>
-            <p>A base histórica da planilha do cliente já está aqui. Cadastre novos clientes e revise somente os casos que ficaram ambíguos.</p>
+            <h2>Cadastro de clientes</h2>
+            <p>Cadastre e mantenha os clientes usados nos orçamentos.</p>
           </div>
-          <div class="badge" id="clientApiBadge">Banco online</div>
         </div>
 
         <div class="guide-strip">
           <b>Como funciona:</b>
-          <span>1. Cadastre o cliente</span>
+          <span>1. Cadastre ou edite</span>
           <span>2. Salve</span>
-          <span>3. Depois selecione esse cliente no orçamento</span>
+          <span>3. Use o cliente no orçamento</span>
           <button type="button" onclick="openGuide('clients')">Ver guia</button>
         </div>
 
@@ -750,12 +762,12 @@ body.theme-light .segment-pair b{color:#253a51}
           </div>
 
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Resumo da carteira</div><div class="panel-sub">Cadastro atual do banco</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Resumo da carteira</div><div class="panel-sub">Visão geral dos clientes</div></div></div>
             <div class="panel-body">
               <div class="grid4 client-summary-grid" style="margin-bottom:0">
                 <div class="summary"><span>Clientes</span><strong id="clientKpiTotal">0</strong><small>cadastrados</small></div>
                 <div class="summary"><span>Ativos</span><strong id="clientKpiActive">0</strong><small>disponíveis</small></div>
-                <div class="summary"><span>Pendências histórico</span><strong id="clientKpiPending">0</strong><small>DE/PARA para revisar</small></div>
+                <div class="summary"><span>Com CNPJ/CPF</span><strong id="clientKpiDocs">0</strong><small>documentados</small></div>
                 <div class="summary"><span>Estados</span><strong id="clientKpiStates">0</strong><small>UFs diferentes</small></div>
               </div>
               <div class="simple-help">
@@ -783,28 +795,80 @@ body.theme-light .segment-pair b{color:#253a51}
         </div>
       
 
-        <div class="panel history-map-panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Resolver clientes ambíguos do histórico</div>
-              <div class="panel-sub">A planilha antiga reutilizou alguns códigos para nomes ou unidades diferentes. Resolva uma decisão por código.</div>
-            </div>
-            <span class="chip" id="mapPendingChip">0 decisões</span>
-          </div>
+        
+</section>
 
-          <div class="history-explain">
-            <div class="history-explain-icon">?</div>
-            <div>
-              <b>É simples:</b>
-              <span>para cada código, diga se as variações abaixo representam <strong>o mesmo cliente</strong> ou <strong>clientes diferentes</strong>. Só isso.</span>
-            </div>
-          </div>
-
-          <div id="clientMapBody" class="history-groups">
-            <div class="history-loading">Carregando decisões pendentes...</div>
+      <section id="segments" class="page">
+        <div class="hero">
+          <div>
+            <h2>Cadastro de segmentações</h2>
+            <p>Mantenha as listas FINAL e NEO usadas nos clientes e nos itens dos orçamentos.</p>
           </div>
         </div>
-</section>
+
+        <div class="guide-strip">
+          <b>Como funciona:</b>
+          <span>1. Escolha FINAL ou NEO</span>
+          <span>2. Cadastre ou edite o nome</span>
+          <span>3. Salve</span>
+          <button type="button" onclick="openGuide('segments')">Ver guia</button>
+        </div>
+
+        <div class="grid2eq">
+          <div class="panel">
+            <div class="panel-head">
+              <div><div class="panel-title" id="segmentFormTitle">Nova segmentação</div><div class="panel-sub">Cadastro oficial</div></div>
+              <span class="chip" id="segmentFormChip">Cadastro</span>
+            </div>
+            <div class="panel-body">
+              <input type="hidden" id="sId">
+              <div class="form-grid">
+                <div class="field"><label>Tipo *</label><select id="sType"><option value="FINAL">FINAL</option><option value="NEO">NEO</option></select></div>
+                <div class="field"><label>Status</label><select id="sActive"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+                <div class="field full"><label>Nome *</label><input id="sName" placeholder="Nome da segmentação"></div>
+                <div class="field full"><label>Descrição</label><input id="sDescription" placeholder="Opcional"></div>
+              </div>
+              <div class="form-actions">
+                <button class="secondary" onclick="clearSegmentForm()">Limpar</button>
+                <button class="primary" id="segmentSaveBtn" onclick="saveSegment()">Salvar segmentação</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Resumo</div><div class="panel-sub">Segmentações ativas</div></div></div>
+            <div class="panel-body">
+              <div class="grid4 client-summary-grid" style="margin-bottom:0">
+                <div class="summary"><span>FINAL</span><strong id="segKpiFinal">0</strong><small>ativas</small></div>
+                <div class="summary"><span>NEO</span><strong id="segKpiNeo">0</strong><small>ativas</small></div>
+                <div class="summary"><span>Total</span><strong id="segKpiTotal">0</strong><small>ativas</small></div>
+                <div class="summary"><span>Inativas</span><strong id="segKpiInactive">0</strong><small>ocultas nas listas</small></div>
+              </div>
+              <div class="simple-help">
+                <b>Dica</b>
+                <span>Ao corrigir o nome de uma segmentação, o ID permanece o mesmo. Assim, as referências continuam válidas.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head segment-list-head">
+            <div><div class="panel-title">Segmentações cadastradas</div><div class="panel-sub">Edite erros de digitação ou inative opções que não devem mais ser usadas.</div></div>
+            <div class="panel-head-actions">
+              <select id="segmentTypeFilter" class="compact-select" onchange="renderSegmentsTable()"><option value="TODOS">Todos</option><option value="FINAL">FINAL</option><option value="NEO">NEO</option></select>
+              <input id="segmentSearch" class="compact-search" placeholder="Pesquisar..." oninput="renderSegmentsTable()">
+              <label class="inline-check"><input type="checkbox" id="segmentShowInactive" onchange="renderSegmentsTable()"> Mostrar inativas</label>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Tipo</th><th>Segmentação</th><th>Descrição</th><th>Status</th><th></th></tr></thead>
+              <tbody id="segmentsTableBody"><tr class="empty-row"><td colspan="5">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
       <section id="quotes" class="page">
         <div class="hero quote-hero">
@@ -1053,7 +1117,7 @@ body.theme-light .segment-pair b{color:#253a51}
 </div>
 
 <script>
-const names={clients:"Clientes",quotes:"Orçamentos"};
+const names={clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos"};
 
 const NEOSONICS_API_URL="https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec";
 let PARAM_VERSION="PV-20260924-001";
@@ -1119,22 +1183,27 @@ document.querySelectorAll(".nav button").forEach(btn=>{
     window.scrollTo({top:0,behavior:"smooth"});
     if(id==="quotes") initQuotesPage();
     if(id==="clients") initClientsPage();
+    if(id==="segments") initSegmentsPage();
   }
 });
 
 const GUIDES={
   clients:{title:"Clientes",steps:[
-    ["Base histórica","Os clientes sem conflito já vieram automaticamente da planilha para o cadastro oficial."],
-    ["Revise exceções","Na tabela de revisão aparecem somente os códigos ambíguos. Vincule ao cliente certo ou crie separado."],
-    ["Cadastre novos","Clientes novos são cadastrados normalmente e ficam disponíveis para orçamento."]
+    ["Cadastre","Preencha os dados principais do cliente."],
+    ["Defina padrões se quiser","FINAL e NEO no cliente são apenas padrões para facilitar novos orçamentos."],
+    ["Salve","Depois o cliente fica disponível na tela de Orçamentos."]
+  ]},
+  segments:{title:"Segmentações",steps:[
+    ["Escolha o tipo","FINAL e NEO são cadastros separados."],
+    ["Corrija ou crie","Edite nomes digitados errado ou crie novas opções."],
+    ["Inative em vez de apagar","Uma opção inativa deixa de aparecer para novos lançamentos, sem quebrar o histórico."]
   ]},
   quotes:{title:"Orçamentos",steps:[
     ["Escolha o cliente","O cliente precisa estar cadastrado antes."],
     ["Monte o custo","Informe matéria-prima, ferramental, terceiros e processos."],
-    ["Escolha o preço","Mínimo, objetivo e cenários ajudam; quem define o preço final é o usuário."],
-    ["Salve ou envie","Rascunho pode ser retomado. Ao enviar, o preço final fica registrado."]
+    ["Classifique o item","Escolha FINAL e NEO nas listas cadastradas."],
+    ["Defina o preço","As sugestões ajudam; o preço final é definido pelo usuário."]
   ]}
-};
 
 function initUiPreferences(){
   const theme=localStorage.getItem("neosonics_theme")||"dark";
@@ -1177,6 +1246,7 @@ function forceCloseGuide(){guideBg.classList.remove("open")}
 function refreshCurrentPage(btn){
   refreshBtn(btn);
   if(currentPage==="clients")initClientsPage();
+  else if(currentPage==="segments")initSegmentsPage();
   else if(currentPage==="quotes")initQuotesPage();
 }
 
@@ -1222,24 +1292,10 @@ function populateClientSelectors(){
 }
 
 async function initClientsPage(){
-  const badge=document.getElementById("clientApiBadge");
-  if(badge)badge.textContent="Carregando...";
   await loadBootstrap();
-
-  try{
-    const [cj,mj]=await Promise.all([apiGet("clientes"),apiGet("map_clientes")]);
-    APP_DATA.clients=Array.isArray(cj.dados)?cj.dados:APP_DATA.clients;
-    APP_DATA.clientMap=Array.isArray(mj.dados)?mj.dados:[];
-    apiOnline=true;
-  }catch(e){
-    console.warn("Clientes/DE-PARA:",e);
-  }
-
   populateClientSelectors();
   renderClientsTable();
-  renderClientMappings();
   updateClientKpis();
-  if(badge)badge.textContent=apiOnline?"Banco online":"API indisponível";
 }
 
 function renderClientsTable(){
@@ -1268,14 +1324,12 @@ function renderClientsTable(){
 function updateClientKpis(){
   const all=APP_DATA.clients;
   const active=all.filter(c=>truthy(c.ATIVO));
-  const pending=APP_DATA.clientMap.filter(m=>String(m.STATUS_MAPEAMENTO||"").toUpperCase()==="PENDENTE");
-  const pendingGroups=new Set(pending.map(m=>String(m.COD_CLIENTE_ORIGEM||"").trim()).filter(Boolean));
+  const docs=all.filter(c=>String(c.CNPJ_CPF||"").trim()).length;
   const states=new Set(all.map(c=>String(c.UF||"").trim()).filter(Boolean));
   if(document.getElementById("clientKpiTotal"))clientKpiTotal.textContent=all.length;
   if(document.getElementById("clientKpiActive"))clientKpiActive.textContent=active.length;
-  if(document.getElementById("clientKpiPending"))clientKpiPending.textContent=pendingGroups.size;
+  if(document.getElementById("clientKpiDocs"))clientKpiDocs.textContent=docs;
   if(document.getElementById("clientKpiStates"))clientKpiStates.textContent=states.size;
-  if(document.getElementById("mapPendingChip"))mapPendingChip.textContent=pendingGroups.size+" decis"+(pendingGroups.size===1?"ão":"ões");
 }
 
 function renderClientMappings(){
@@ -1516,8 +1570,117 @@ function syncItemNeoFromFinal(clearWhenAmbiguous=true){
   }
 }
 
+async function initSegmentsPage(){
+  await loadBootstrap();
+  renderSegmentsTable();
+  updateSegmentKpis();
+}
+
+function updateSegmentKpis(){
+  const all=APP_DATA.segments;
+  const active=all.filter(s=>s.ATIVO!==false);
+  const finalCount=active.filter(s=>String(s.TIPO||"").toUpperCase()==="FINAL").length;
+  const neoCount=active.filter(s=>String(s.TIPO||"").toUpperCase()==="NEO").length;
+  if(document.getElementById("segKpiFinal"))segKpiFinal.textContent=finalCount;
+  if(document.getElementById("segKpiNeo"))segKpiNeo.textContent=neoCount;
+  if(document.getElementById("segKpiTotal"))segKpiTotal.textContent=active.length;
+  if(document.getElementById("segKpiInactive"))segKpiInactive.textContent=all.length-active.length;
+}
+
+function renderSegmentsTable(){
+  const body=document.getElementById("segmentsTableBody");if(!body)return;
+  const type=String(document.getElementById("segmentTypeFilter")?.value||"TODOS");
+  const term=String(document.getElementById("segmentSearch")?.value||"").trim().toUpperCase();
+  const showInactive=!!document.getElementById("segmentShowInactive")?.checked;
+
+  const list=APP_DATA.segments
+    .filter(s=>type==="TODOS"||String(s.TIPO||"").toUpperCase()===type)
+    .filter(s=>showInactive||s.ATIVO!==false)
+    .filter(s=>!term||[s.SEGMENTO,s.DESCRICAO,s.TIPO].join(" ").toUpperCase().includes(term))
+    .slice()
+    .sort((a,b)=>{
+      const ta=String(a.TIPO||""),tb=String(b.TIPO||"");
+      if(ta!==tb)return ta.localeCompare(tb);
+      return String(a.SEGMENTO||"").localeCompare(String(b.SEGMENTO||""),"pt-BR");
+    });
+
+  if(!list.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="5">Nenhuma segmentação encontrada.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=list.map(s=>
+    '<tr class="'+(s.ATIVO===false?'row-inactive':'')+'">'+
+      '<td><span class="segment-type '+String(s.TIPO||"").toLowerCase()+'">'+escapeHtml(s.TIPO||"")+'</span></td>'+
+      '<td><b>'+escapeHtml(s.SEGMENTO||"")+'</b></td>'+
+      '<td>'+escapeHtml(s.DESCRICAO||"—")+'</td>'+
+      '<td><span class="status '+(s.ATIVO===false?'low':'good')+'">'+(s.ATIVO===false?'Inativa':'Ativa')+'</span></td>'+
+      '<td><button class="secondary" style="height:31px" onclick="editSegment(\''+escapeJs(s.ID_SEGMENTO)+'\')">Editar</button></td>'+
+    '</tr>'
+  ).join("");
+}
+
+function clearSegmentForm(){
+  sId.value="";
+  sType.value="FINAL";
+  sType.disabled=false;
+  sName.value="";
+  sDescription.value="";
+  sActive.value="true";
+  segmentFormTitle.textContent="Nova segmentação";
+  segmentFormChip.textContent="Cadastro";
+  sName.focus();
+}
+
+function editSegment(id){
+  const s=APP_DATA.segments.find(x=>String(x.ID_SEGMENTO)===String(id));if(!s)return;
+  sId.value=s.ID_SEGMENTO||"";
+  sType.value=String(s.TIPO||"FINAL").toUpperCase();
+  sType.disabled=true;
+  sName.value=s.SEGMENTO||"";
+  sDescription.value=s.DESCRICAO||"";
+  sActive.value=s.ATIVO===false?"false":"true";
+  segmentFormTitle.textContent="Editar segmentação";
+  segmentFormChip.textContent="Edição";
+  window.scrollTo({top:document.getElementById("segments").offsetTop,behavior:"smooth"});
+}
+
+async function saveSegment(){
+  const segmento={
+    ID_SEGMENTO:sId.value.trim(),
+    TIPO:sType.value,
+    SEGMENTO:sName.value.trim(),
+    DESCRICAO:sDescription.value.trim(),
+    ATIVO:sActive.value==="true"
+  };
+  if(!segmento.SEGMENTO){alert("Informe o nome da segmentação.");sName.focus();return}
+
+  segmentSaveBtn.disabled=true;
+  segmentSaveBtn.textContent="Salvando...";
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"salvar_segmento",segmento})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Erro ao salvar");
+
+    await loadBootstrap();
+    renderSegmentsTable();
+    updateSegmentKpis();
+    clearSegmentForm();
+  }catch(e){
+    alert("Não foi possível salvar a segmentação: "+e.message);
+  }finally{
+    segmentSaveBtn.disabled=false;
+    segmentSaveBtn.textContent="Salvar segmentação";
+  }
+}
+
 async function initQuotesPage(){
-  document.getElementById("quoteParamBadge").textContent="Conectando ao banco...";
+  document.getElementById("quoteParamBadge").textContent="Custos vigentes";
   await loadBootstrap();
 
   if(document.getElementById("mpRows")?.children.length===0) addCostRow("mp");
@@ -1526,7 +1689,7 @@ async function initQuotesPage(){
   if(document.getElementById("processRows")?.children.length===0) addProcessRow();
 
   document.getElementById("qFixedExpense").value=formatPctInput(FIXED_EXPENSE);
-  document.getElementById("quoteParamBadge").textContent=(apiOnline?"Banco online • ":"API indisponível • ")+PARAM_VERSION;
+  document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
   syncTaxRule();
   await renderQuoteHistory();
   recalculateItem();
@@ -1940,7 +2103,7 @@ async function saveQuoteDraft(){
   setQuoteSaving(true,"Salvando...");
   try{
     const saved=await persistQuote(payload);
-    if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo no banco";}
+    if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo";}
   }finally{
     setQuoteSaving(false);
   }
@@ -1990,8 +2153,8 @@ async function persistQuote(payload){
     return j;
   }catch(e){
     apiOnline=false;
-    document.getElementById("quoteParamBadge").textContent="API indisponível • "+PARAM_VERSION;
-    alert("Não foi possível salvar no banco: "+e.message);
+    document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
+    alert("Não foi possível salvar o orçamento: "+e.message);
     return null;
   }
 }
@@ -2007,12 +2170,12 @@ async function renderQuoteHistory(){
   }catch(e){
     apiOnline=false;
     quoteHistoryCache=[];
-    body.innerHTML='<tr class="empty-row"><td colspan="7">API ainda não liberada para acesso. O cálculo funciona, mas o banco não está disponível.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="7">Não foi possível carregar os orçamentos.</td></tr>';
     return;
   }
 
   if(!quoteHistoryCache.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum orçamento salvo no banco ainda.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum orçamento salvo ainda.</td></tr>';
     return;
   }
 
@@ -2026,7 +2189,7 @@ async function renderQuoteHistory(){
     <td><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button></td>
   </tr>`).join("");
 
-  document.getElementById("quoteParamBadge").textContent="Banco online • "+PARAM_VERSION;
+  document.getElementById("quoteParamBadge").textContent=" • "+PARAM_VERSION;
 }
 
 async function openQuote(id){
@@ -2062,7 +2225,7 @@ function applyQuoteToForm(q){
   qDesiredMargin.value=formatPctInput(Number(q.LUCRO_DESEJADO_PCT||.30));
 
   quoteNumberChip.textContent="Orçamento #"+q.NUMERO_ORCAMENTO;
-  quoteStatusNote.textContent=(q.STATUS||"RASCUNHO")+" • carregado do banco";
+  quoteStatusNote.textContent=(q.STATUS||"RASCUNHO")+" • Orçamento carregado";
   renderQuoteItems();
   clearItemForm();
 }
@@ -2075,7 +2238,7 @@ function searchQuote(){
     String(x.CLIENTE_NOME_SNAPSHOT||"").toUpperCase().includes(term)
   );
   if(q)openQuote(q.ID_ORCAMENTO);
-  else alert("Orçamento não encontrado no banco.");
+  else alert("Orçamento não encontrado.");
 }
 
 function statusClass(s){
