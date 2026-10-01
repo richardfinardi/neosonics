@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.8.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.9.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -501,22 +501,42 @@ function salvarOrcamento_(orcamento) {
     throw new Error('Nenhuma versão de parâmetros de custo está ativa.');
   }
 
+  const cliente = getClientePorId_(orcamento.CLIENTE_ID);
+  if (!cliente) throw new Error('Cliente não encontrado.');
+  if (!String(cliente.UF || '').trim()) {
+    throw new Error('O cliente precisa ter UF cadastrada para calcular os impostos.');
+  }
+
+  const tipoVenda = normalizarTipoVendaComercial_(orcamento.TIPO_VENDA || 'VENDA');
+  const enquadramento = 'NORMAL';
+  const destino = destinoPorUf_(cliente.UF);
+  const tipoTributario = tipoVenda === 'SERVICO' ? 'SERVICO_14_01' : tipoVenda;
+  const impostosPct = getImpostoPct_(enquadramento, destino, tipoTributario);
+
   const shOrc = aba_(ABAS.ORCAMENTOS);
   const hOrc = cabecalhos_(shOrc);
   const rowExistente = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
   const existente = rowExistente ? objetoDaLinha_(shOrc, rowExistente) : null;
+
+  const despesaFixaPct = existente && existente.DESPESA_FIXA_PCT !== ''
+    ? numero_(existente.DESPESA_FIXA_PCT)
+    : numero_(versaoParametros.DESPESA_FIXA_PCT);
 
   const cab = Object.assign({}, orcamento, {
     ID_ORCAMENTO: idOrcamento,
     NUMERO_ORCAMENTO: numero,
     VERSAO: orcamento.VERSAO || 1,
     DATA_ORCAMENTO: orcamento.DATA_ORCAMENTO || agora.substring(0, 10),
+    CLIENTE_NOME_SNAPSHOT: cliente.NOME_FANTASIA || cliente.RAZAO_SOCIAL || orcamento.CLIENTE_NOME_SNAPSHOT || '',
+    CIDADE_UF: [cliente.CIDADE, cliente.UF].filter(String).join(' / '),
+    ENQUADRAMENTO: enquadramento,
+    TIPO_VENDA: tipoVenda,
+    DESTINO: destino,
+    IMPOSTOS_PCT: impostosPct,
     STATUS: statusSolicitado,
     VALOR_TOTAL: valorFinalOrcamento || numero_(orcamento.VALOR_TOTAL),
     PARAMETRO_VERSAO_ID: versaoParametros.ID_VERSAO,
-    DESPESA_FIXA_PCT: orcamento.DESPESA_FIXA_PCT !== undefined && orcamento.DESPESA_FIXA_PCT !== ''
-      ? orcamento.DESPESA_FIXA_PCT
-      : versaoParametros.DESPESA_FIXA_PCT,
+    DESPESA_FIXA_PCT: despesaFixaPct,
     FONTE_PARAMETROS: orcamento.FONTE_PARAMETROS || versaoParametros.ORIGEM_TITULO || CUSTOS_ORIGEM_TITULO,
     DT_CRIACAO: orcamento.DT_CRIACAO || (existente ? existente.DT_CRIACAO : agora),
     DT_ATUALIZACAO: agora,
@@ -555,12 +575,17 @@ function salvarOrcamento_(orcamento) {
     const custoHoras = numero_(item.CUSTO_HORAS);
     const impostos = numero_(cab.IMPOSTOS_PCT);
     const despesaFixa = numero_(cab.DESPESA_FIXA_PCT);
+    const custoTotal = custoMP + custoTerceiros + custoFerramental + custoHoras;
+    const dvValor = precoFinalTotal * impostos;
+    const dfValor = precoFinalTotal * despesaFixa;
+    const lucroBruto = precoFinalTotal - custoTotal;
+    const margemBruta = precoFinalTotal ? lucroBruto / precoFinalTotal : 0;
 
     const mcFinal = precoFinalTotal
-      ? precoFinalTotal - custoMP - custoTerceiros - custoFerramental - (impostos * precoFinalTotal)
+      ? precoFinalTotal - custoMP - custoTerceiros - custoFerramental - dvValor
       : 0;
     const lucroFinal = precoFinalTotal
-      ? mcFinal - custoHoras - (precoFinalTotal * despesaFixa)
+      ? precoFinalTotal - custoTotal - dvValor - dfValor
       : 0;
 
     const linhaItem = Object.assign({}, item, {
@@ -573,6 +598,12 @@ function salvarOrcamento_(orcamento) {
       SEGMENTO_NEO_SNAPSHOT: segNeo ? segNeo.SEGMENTO : '',
       PRECO_FINAL_TOTAL: precoFinalTotal,
       PRECO_FINAL_UNIT: qtdeItem ? precoFinalTotal / qtdeItem : precoFinalTotal,
+      DV_PCT: impostos,
+      DV_VALOR: dvValor,
+      DF_PCT: despesaFixa,
+      DF_VALOR: dfValor,
+      LUCRO_BRUTO: lucroBruto,
+      MARGEM_BRUTA_PCT: margemBruta,
       MC_FINAL: mcFinal,
       LUCRO_FINAL: lucroFinal,
       MARGEM_FINAL_PCT: precoFinalTotal ? lucroFinal / precoFinalTotal : 0,
@@ -782,8 +813,14 @@ function converterOrcamentoEmPedido_(idOrcamento) {
         VALOR_TOTAL: valorTotal,
         CUSTO_UNIT_SNAPSHOT: qtd ? custoTotal / qtd : custoTotal,
         CUSTO_TOTAL_SNAPSHOT: custoTotal,
-        LUCRO_SNAPSHOT: valorTotal - custoTotal,
-        MARGEM_PCT_SNAPSHOT: valorTotal ? (valorTotal - custoTotal) / valorTotal : 0,
+        DV_PCT_SNAPSHOT: numero_(item.DV_PCT),
+        DV_VALOR_SNAPSHOT: numero_(item.DV_VALOR),
+        DF_PCT_SNAPSHOT: numero_(item.DF_PCT),
+        DF_VALOR_SNAPSHOT: numero_(item.DF_VALOR),
+        LUCRO_BRUTO_SNAPSHOT: numero_(item.LUCRO_BRUTO),
+        MARGEM_BRUTA_PCT_SNAPSHOT: numero_(item.MARGEM_BRUTA_PCT),
+        LUCRO_SNAPSHOT: numero_(item.LUCRO_FINAL),
+        MARGEM_PCT_SNAPSHOT: numero_(item.MARGEM_FINAL_PCT),
         STATUS: 'ABERTO',
         OBS: ''
       });
@@ -804,6 +841,53 @@ function converterOrcamentoEmPedido_(idOrcamento) {
   }
 }
 
+
+function getClientePorId_(idCliente) {
+  if (!idCliente) return null;
+  const clientes = listarObjetos_(ABAS.CLIENTES);
+  return clientes.find(function(c) {
+    return String(c.ID_CLIENTE) === String(idCliente);
+  }) || null;
+}
+
+function normalizarTipoVendaComercial_(tipo) {
+  const t = normalizarTexto_(tipo);
+  if (t === 'VENDA' || t === 'VENDA DE PRODUTO' || t === 'LOC - EQUIP_MAQ') return 'VENDA';
+  if (t === 'REVENDA' || t === 'REVENDA DE PRODUTO') return 'REVENDA';
+  if (t === 'SERVICO' || t === 'SERVIÇO' || t === 'SERVICO_14_01' || t === 'SERVICO_8_02' || t.indexOf('PSERV -') === 0) return 'SERVICO';
+  throw new Error('Tipo de venda inválido: ' + tipo);
+}
+
+function destinoPorUf_(uf) {
+  const estado = String(uf || '').trim().toUpperCase();
+  if (!estado) throw new Error('UF não informada.');
+  if (estado === 'SP') return 'INTERNA';
+
+  const sulSudeste = ['MG','RJ','ES','PR','SC','RS'];
+  if (sulSudeste.indexOf(estado) >= 0) return 'SUL/SUDESTE';
+
+  return 'NORTE/NORDESTE/CENTRO OESTE';
+}
+
+function getImpostoPct_(enquadramento, destino, tipoTributario) {
+  const regras = listarObjetos_(ABAS.TABELA_IMPOSTOS);
+  const e = normalizarTexto_(enquadramento);
+  const d = normalizarTexto_(destino);
+  const t = normalizarTexto_(tipoTributario);
+
+  const regra = regras.find(function(r) {
+    return r.ATIVO !== false &&
+           normalizarTexto_(r.ENQUADRAMENTO) === e &&
+           normalizarTexto_(r.DESTINO) === d &&
+           normalizarTexto_(r.TIPO_VENDA) === t;
+  });
+
+  if (!regra) {
+    throw new Error('Regra de imposto não encontrada para ' + enquadramento + ' / ' + destino + ' / ' + tipoTributario);
+  }
+
+  return numero_(regra.IMPOSTOS_PCT);
+}
 
 function validarSegmentoTipo_(idSegmento, tipoEsperado) {
   const segmentos = listarObjetos_(ABAS.SEGMENTOS);
