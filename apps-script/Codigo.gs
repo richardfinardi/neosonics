@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.2.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.2.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -105,6 +105,9 @@ function doPost(e) {
 
       case 'converter_orcamento_pedido':
         return json_(converterOrcamentoEmPedido_(body.id_orcamento));
+
+      case 'alterar_status_pedido':
+        return json_(alterarStatusPedido_(body.id_pedido, body.status));
 
       case 'sincronizar_parametros_custos':
         return json_(sincronizarParametrosCustos_());
@@ -949,6 +952,48 @@ function getPedidoDetalhe_(idPedido) {
   resumo.lucratividade = resumo.faturamento ? resumo.lucro / resumo.faturamento : 0;
 
   return { ok:true, pedido:pedido, itens:itens, resumo:resumo };
+}
+
+function alterarStatusPedido_(idPedido, novoStatus) {
+  if (!idPedido) throw new Error('ID do pedido não informado.');
+
+  const status = String(novoStatus || '').trim().toUpperCase();
+  const permitidos = ['ABERTO','CONFIRMADO','FATURADO','CANCELADO'];
+  if (permitidos.indexOf(status) < 0) {
+    throw new Error('Status de pedido inválido: ' + status);
+  }
+
+  const sh = aba_(ABAS.PEDIDOS);
+  const headers = cabecalhos_(sh);
+  const row = localizarLinha_(sh, headers.ID_PEDIDO, idPedido);
+  if (!row) throw new Error('Pedido não encontrado.');
+
+  const atual = objetoDaLinha_(sh, row);
+  const agora = isoAgora_();
+
+  setCelulaPorHeader_(sh, headers, row, 'STATUS', status);
+  setCelulaPorHeader_(sh, headers, row, 'DT_ATUALIZACAO', agora);
+
+  const shItens = aba_(ABAS.PEDIDO_ITENS);
+  if (shItens.getLastRow() >= 2) {
+    const hi = cabecalhos_(shItens);
+    const ids = shItens.getRange(2, hi.PEDIDO_ID, shItens.getLastRow() - 1, 1).getValues();
+    ids.forEach(function(r, i) {
+      if (String(r[0]) === String(idPedido)) {
+        setCelulaPorHeader_(shItens, hi, i + 2, 'STATUS', status);
+      }
+    });
+  }
+
+  SpreadsheetApp.flush();
+
+  return {
+    ok:true,
+    id_pedido:idPedido,
+    status_anterior:String(atual.STATUS || ''),
+    status:status,
+    atualizado_em:agora
+  };
 }
 
 function aprovarOrcamentoEGerarPedido_(idOrcamento) {
