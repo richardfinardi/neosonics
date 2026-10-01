@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.6.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.6.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -74,6 +74,9 @@ function doPost(e) {
 
       case 'criar_cliente_mapeamento':
         return json_(criarClienteDoMapeamento_(body.chave_origem));
+
+      case 'resolver_grupo_cliente':
+        return json_(resolverGrupoCliente_(body.cod_cliente_origem, body.modo, body.nome_oficial));
 
       case 'salvar_orcamento':
         return json_(salvarOrcamento_(body.orcamento || {}));
@@ -195,6 +198,131 @@ function criarClienteDoMapeamento_(chaveOrigem) {
   salvarMapeamentoCliente_(chaveOrigem, cliente.ID_CLIENTE);
 
   return { ok: true, cliente: cliente, chave_origem: chaveOrigem };
+}
+
+function resolverGrupoCliente_(codClienteOrigem, modo, nomeOficial) {
+  const codigo = String(codClienteOrigem || '').trim();
+  const acao = String(modo || '').trim().toUpperCase();
+
+  if (!codigo) throw new Error('Código antigo não informado.');
+  if (acao !== 'UNIFICAR' && acao !== 'SEPARAR') {
+    throw new Error('Modo inválido. Use UNIFICAR ou SEPARAR.');
+  }
+
+  const mapas = listarObjetos_(ABAS.MAP_CLIENTES).filter(function(m) {
+    return String(m.COD_CLIENTE_ORIGEM || '').trim() === codigo &&
+           String(m.STATUS_MAPEAMENTO || '').toUpperCase() === 'PENDENTE';
+  });
+
+  if (!mapas.length) {
+    return { ok: true, mensagem: 'Este grupo já foi resolvido.', codigo: codigo };
+  }
+
+  if (acao === 'UNIFICAR') {
+    const nome = String(nomeOficial || '').trim().replace(/\s+/g, ' ');
+    if (!nome) throw new Error('Informe o nome oficial do cliente.');
+
+    const ufs = {};
+    mapas.forEach(function(m) {
+      const uf = String(m.UF_ORIGEM || '').trim().toUpperCase();
+      if (uf) ufs[uf] = true;
+    });
+    const ufUnica = Object.keys(ufs).length === 1 ? Object.keys(ufs)[0] : '';
+
+    const clientes = listarObjetos_(ABAS.CLIENTES);
+    let cliente = clientes.find(function(c) {
+      return String(c.COD_CLIENTE_ORIGEM || '').trim() === codigo &&
+             normalizarTexto_(c.NOME_FANTASIA || c.RAZAO_SOCIAL) === normalizarTexto_(nome);
+    });
+
+    if (!cliente) {
+      cliente = {
+        ID_CLIENTE: novoId_('CLI'),
+        COD_CLIENTE_ORIGEM: codigo,
+        RAZAO_SOCIAL: nome,
+        NOME_FANTASIA: nome,
+        CNPJ_CPF: '',
+        SEGMENTO_ID: '',
+        UF: ufUnica,
+        CIDADE: '',
+        CONTATO: '',
+        EMAIL: '',
+        TELEFONE: '',
+        VENDEDOR: '',
+        ATIVO: true,
+        DT_CADASTRO: isoAgora_(),
+        OBS: 'Cliente unificado a partir do histórico da planilha.'
+      };
+      appendObjeto_(ABAS.CLIENTES, cliente);
+    }
+
+    mapas.forEach(function(m) {
+      salvarMapeamentoCliente_(m.CHAVE_ORIGEM, cliente.ID_CLIENTE);
+    });
+
+    return {
+      ok: true,
+      modo: 'UNIFICAR',
+      codigo: codigo,
+      cliente: cliente,
+      registros_resolvidos: mapas.length
+    };
+  }
+
+  // SEPARAR: cria um cliente por variação única de nome + UF.
+  const grupos = {};
+  mapas.forEach(function(m) {
+    const nome = String(m.CLIENTE_ORIGEM || '').trim().replace(/\s+/g, ' ');
+    const uf = String(m.UF_ORIGEM || '').trim().toUpperCase();
+    const chave = normalizarTexto_(nome) + '|' + uf;
+    if (!grupos[chave]) grupos[chave] = { nome: nome, uf: uf, mapas: [] };
+    grupos[chave].mapas.push(m);
+  });
+
+  const clientesCriados = [];
+  Object.keys(grupos).forEach(function(chave) {
+    const g = grupos[chave];
+    const clientes = listarObjetos_(ABAS.CLIENTES);
+    let cliente = clientes.find(function(c) {
+      return String(c.COD_CLIENTE_ORIGEM || '').trim() === codigo &&
+             normalizarTexto_(c.NOME_FANTASIA || c.RAZAO_SOCIAL) === normalizarTexto_(g.nome) &&
+             String(c.UF || '').trim().toUpperCase() === g.uf;
+    });
+
+    if (!cliente) {
+      cliente = {
+        ID_CLIENTE: novoId_('CLI'),
+        COD_CLIENTE_ORIGEM: codigo,
+        RAZAO_SOCIAL: g.nome,
+        NOME_FANTASIA: g.nome,
+        CNPJ_CPF: '',
+        SEGMENTO_ID: '',
+        UF: g.uf,
+        CIDADE: '',
+        CONTATO: '',
+        EMAIL: '',
+        TELEFONE: '',
+        VENDEDOR: '',
+        ATIVO: true,
+        DT_CADASTRO: isoAgora_(),
+        OBS: 'Cliente separado a partir de variação encontrada no histórico.'
+      };
+      appendObjeto_(ABAS.CLIENTES, cliente);
+    }
+
+    g.mapas.forEach(function(m) {
+      salvarMapeamentoCliente_(m.CHAVE_ORIGEM, cliente.ID_CLIENTE);
+    });
+    clientesCriados.push(cliente);
+  });
+
+  return {
+    ok: true,
+    modo: 'SEPARAR',
+    codigo: codigo,
+    clientes: clientesCriados,
+    registros_resolvidos: mapas.length
+  };
 }
 
 function salvarCliente_(cliente) {
