@@ -663,6 +663,34 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
 .lookup-btn{height:43px;white-space:nowrap;padding:0 14px}
 .field-help{display:block;margin-top:5px;font-size:10px;color:var(--muted);line-height:1.35}
 @media(max-width:560px){.input-action{grid-template-columns:1fr}.lookup-btn{width:100%}}
+.dashboard-filters{margin-bottom:14px}
+.dashboard-filter-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.dashboard-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.dashboard-grid{margin-bottom:14px}
+.month-chart{height:270px;display:flex;align-items:stretch;gap:7px;overflow-x:auto;padding:8px 2px 0}
+.month-col{min-width:54px;flex:1;display:grid;grid-template-rows:26px 1fr 22px 22px;align-items:end;text-align:center}
+.month-value{font-size:9px;color:var(--muted);white-space:nowrap}
+.month-bar-zone{height:170px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid var(--line)}
+.month-bar{width:58%;min-height:5px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#f3a15b,#dc7a34);box-shadow:0 5px 14px rgba(220,122,52,.18)}
+.month-label{font-size:10px;font-weight:800;color:var(--text);padding-top:5px}
+.month-profit{font-size:9px;font-weight:800}
+.month-profit.pos,.profit-positive{color:#53c79b}
+.month-profit.neg,.profit-negative{color:#ed7b7b}
+.rank-list{display:grid;gap:12px}
+.rank-row{display:grid;gap:5px}
+.rank-top,.rank-foot{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.rank-top span{font-size:11px;color:var(--text)}.rank-top strong{font-size:11px}
+.rank-foot{font-size:9px;color:var(--muted)}
+.rank-track{height:7px;background:#14263d;border:1px solid #213953;border-radius:999px;overflow:hidden}
+.rank-fill{height:100%;background:linear-gradient(90deg,#517eac,#ef9650);border-radius:999px}
+.dashboard-client-row{cursor:pointer}.dashboard-client-row:hover td{background:rgba(118,170,255,.07)!important}
+.dashboard-products-panel{margin-top:14px}
+body.theme-light .rank-track{background:#e6edf4;border-color:#cdd8e3}
+body.theme-light .rank-fill{background:linear-gradient(90deg,#6f96bc,#e68b45)}
+body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
+@media(max-width:1180px){.dashboard-kpis{grid-template-columns:repeat(3,1fr)}.dashboard-filter-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.dashboard-kpis{grid-template-columns:repeat(2,1fr)}.dashboard-filter-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.dashboard-kpis,.dashboard-filter-grid{grid-template-columns:1fr}.month-col{min-width:62px}}
 </style>
 </head>
 <body>
@@ -674,9 +702,14 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
       <div class="brand-copy"><b>NEOSONICS</b></div>
     </div>
 
+    <div class="group-title">Análises</div>
+    <div class="nav">
+      <button class="active" data-page="overview"><span class="ico">▦</span><span class="nav-text">Visão Executiva</span></button>
+    </div>
+
     <div class="group-title">Cadastros</div>
     <div class="nav">
-      <button class="active" data-page="clients"><span class="ico">◎</span><span class="nav-text">Clientes</span></button>
+      <button data-page="clients"><span class="ico">◎</span><span class="nav-text">Clientes</span></button>
       <button data-page="segments"><span class="ico">≡</span><span class="nav-text">Segmentações</span></button>
     </div>
 
@@ -704,8 +737,8 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
       <div style="display:flex;align-items:center;gap:10px">
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Abrir menu">☰</button>
         <div>
-        <div class="breadcrumb">Neosonics › <b id="crumb">Clientes</b></div>
-        <div class="title" id="pageTitle">Clientes</div>
+        <div class="breadcrumb">Neosonics › <b id="crumb">Visão Executiva</b></div>
+        <div class="title" id="pageTitle">Visão Executiva</div>
         </div>
       </div>
       <div class="actions">
@@ -719,7 +752,94 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
 
       
 
-      <section id="clients" class="page active">
+      <section id="overview" class="page active">
+        <div class="hero executive-hero">
+          <div>
+            <h2>Visão Executiva</h2>
+            <p>Faturamento, custos e rentabilidade calculados a partir das vendas consolidadas.</p>
+          </div>
+          <div class="badge" id="dashPeriodBadge">Carregando...</div>
+        </div>
+
+        <div class="panel dashboard-filters">
+          <div class="panel-head">
+            <div><div class="panel-title">Filtros</div><div class="panel-sub">Combine os filtros para analisar o resultado.</div></div>
+            <div class="panel-head-actions">
+              <button class="secondary" onclick="clearDashboardFilters()">Limpar</button>
+              <button class="primary" onclick="loadDashboard()">Aplicar</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="dashboard-filter-grid">
+              <div class="field"><label>Data inicial</label><input type="date" id="dStart"></div>
+              <div class="field"><label>Data final</label><input type="date" id="dEnd"></div>
+              <div class="field"><label>Segmentação FINAL</label><select id="dFinal"><option value="">Todos</option></select></div>
+              <div class="field"><label>Segmentação NEO</label><select id="dNeo"><option value="">Todos</option></select></div>
+              <div class="field"><label>Cliente</label><select id="dClient"><option value="">Todos</option></select></div>
+              <div class="field"><label>Modalidade</label><select id="dModality"><option value="">Todas</option></select></div>
+              <div class="field"><label>UF</label><select id="dUf"><option value="">Todas</option></select></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-kpis">
+          <div class="kpi"><div class="label">Faturamento</div><div class="value" id="dKpiRevenue">R$ 0,00</div><div class="delta" id="dKpiRows">0 vendas</div></div>
+          <div class="kpi"><div class="label">Custo</div><div class="value" id="dKpiCost">R$ 0,00</div><div class="delta">custo dos itens</div></div>
+          <div class="kpi"><div class="label">DV</div><div class="value" id="dKpiDv">R$ 0,00</div><div class="delta" id="dKpiDvPct">0,00%</div></div>
+          <div class="kpi"><div class="label">DF</div><div class="value" id="dKpiDf">R$ 0,00</div><div class="delta" id="dKpiDfPct">0,00%</div></div>
+          <div class="kpi"><div class="label">Lucro</div><div class="value" id="dKpiProfit">R$ 0,00</div><div class="delta">após DV e DF</div></div>
+          <div class="kpi"><div class="label">Lucro %</div><div class="value" id="dKpiMargin">0,00%</div><div class="delta">sobre faturamento</div></div>
+        </div>
+
+        <div class="grid2eq dashboard-grid">
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Evolução mensal</div><div class="panel-sub">Faturamento e lucro por mês</div></div></div>
+            <div class="panel-body"><div id="dashboardMonthly" class="month-chart"><div class="history-loading">Carregando...</div></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Vendas por estado</div><div class="panel-sub">Participação por UF</div></div></div>
+            <div class="panel-body"><div id="dashboardStates" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
+          </div>
+        </div>
+
+        <div class="grid2eq dashboard-grid">
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação e rentabilidade</div></div></div>
+            <div class="panel-body"><div id="dashboardFinal" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação e rentabilidade</div></div></div>
+            <div class="panel-body"><div id="dashboardNeo" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Rentabilidade por cliente</div><div class="panel-sub">Clique em um cliente para ver os produtos vendidos para ele.</div></div>
+            <input id="dashboardClientSearch" class="compact-search" placeholder="Pesquisar cliente..." oninput="renderDashboardClients()">
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Cliente</th><th>Faturamento</th><th>Custo</th><th>DV</th><th>DF</th><th>Lucro</th><th>Lucro %</th></tr></thead>
+              <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="7">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel dashboard-products-panel">
+          <div class="panel-head">
+            <div><div class="panel-title" id="dashboardProductsTitle">Produtos por cliente</div><div class="panel-sub">Selecione um cliente acima para detalhar os produtos.</div></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Produto</th><th>SKU</th><th>Qtde</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Lucro %</th></tr></thead>
+              <tbody id="dashboardProductsBody"><tr class="empty-row"><td colspan="7">Selecione um cliente.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="clients" class="page">
         <div class="hero">
           <div>
             <h2>Cadastro de clientes</h2>
@@ -1128,7 +1248,7 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
 </div>
 
 <script>
-const names={clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos"};
+const names={overview:"Visão Executiva",clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos"};
 
 const NEOSONICS_API_URL="https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec";
 let PARAM_VERSION="PV-20260924-001";
@@ -1136,7 +1256,7 @@ let FIXED_EXPENSE=0.12741625391756686;
 let apiOnline=false;
 let quoteHistoryCache=[];
 let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[]};
-let currentPage="clients";
+let currentPage="overview";
 
 let PROCESS_COSTS=[
   ["ENGENHARIA DE APLICAÇÃO",174.9593757254843],
@@ -1176,6 +1296,10 @@ let TAX_RULES={
   "SN SUB|OUTROS|REVENDA":0.07
 };
 
+let DASHBOARD_DATA=null;
+let DASHBOARD_FILTERS_LOADED=false;
+let DASHBOARD_SELECTED_CLIENT="";
+
 let quoteState={id:null,number:null,status:"RASCUNHO",items:[]};
 let editingItemIndex=null;
 let quoteSaving=false;
@@ -1192,6 +1316,7 @@ document.querySelectorAll(".nav button").forEach(btn=>{
     document.getElementById("crumb").textContent=names[id];
     closeMobileMenu();
     window.scrollTo({top:0,behavior:"smooth"});
+    if(id==="overview") initOverviewPage();
     if(id==="quotes") initQuotesPage();
     if(id==="clients") initClientsPage();
     if(id==="segments") initSegmentsPage();
@@ -1199,6 +1324,11 @@ document.querySelectorAll(".nav button").forEach(btn=>{
 });
 
 const GUIDES={
+  overview:{title:"Visão Executiva",steps:[
+    ["Filtre","Use período, segmentações, cliente, modalidade e UF."],
+    ["Compare","Os indicadores mostram faturamento, custo, DV, DF, lucro e margem."],
+    ["Aprofunde","Clique em um cliente para abrir os produtos vendidos para ele."]
+  ]},
   clients:{title:"Clientes",steps:[
     ["Cadastre","Preencha os dados principais do cliente."],
     ["Defina padrões se quiser","FINAL e NEO no cliente são apenas padrões para facilitar novos orçamentos."],
@@ -1257,7 +1387,8 @@ function closeGuide(e){if(e.target.id==="guideBg")forceCloseGuide()}
 function forceCloseGuide(){guideBg.classList.remove("open")}
 function refreshCurrentPage(btn){
   refreshBtn(btn);
-  if(currentPage==="clients")initClientsPage();
+  if(currentPage==="overview")initOverviewPage();
+  else if(currentPage==="clients")initClientsPage();
   else if(currentPage==="segments")initSegmentsPage();
   else if(currentPage==="quotes")initQuotesPage();
 }
@@ -1271,6 +1402,191 @@ function closeMobileMenu(){
   document.getElementById("menuOverlay").classList.remove("open");
 }
 function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transition=".6s";setTimeout(()=>btn.style.transform="",650)}
+
+async function initOverviewPage(){
+  await loadDashboard();
+}
+
+async function loadDashboard(){
+  const params={};
+  const pairs=[
+    ["dt_inicio","dStart"],["dt_fim","dEnd"],["segmento_final_id","dFinal"],
+    ["segmento_neo_id","dNeo"],["cliente_id","dClient"],["modalidade","dModality"],["uf","dUf"]
+  ];
+  pairs.forEach(([key,id])=>{
+    const el=document.getElementById(id);
+    if(el&&el.value)params[key]=el.value;
+  });
+
+  setDashboardLoading(true);
+  try{
+    const j=await apiGet("dashboard",params);
+    DASHBOARD_DATA=j;
+    if(!DASHBOARD_FILTERS_LOADED){
+      populateDashboardFilters(j.filtros||{});
+      DASHBOARD_FILTERS_LOADED=true;
+    }
+    renderDashboard(j);
+  }catch(err){
+    console.error("Dashboard:",err);
+    const msg='<div class="history-loading">Não foi possível carregar a análise.</div>';
+    ["dashboardMonthly","dashboardStates","dashboardFinal","dashboardNeo"].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.innerHTML=msg;
+    });
+  }finally{
+    setDashboardLoading(false);
+  }
+}
+
+function setDashboardLoading(active){
+  const badge=document.getElementById("dashPeriodBadge");
+  if(active&&badge)badge.textContent="Atualizando...";
+}
+
+function populateDashboardFilters(f){
+  const fill=(id,items,placeholder,getValue,getLabel)=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.innerHTML='<option value="">'+placeholder+'</option>'+
+      (items||[]).map(x=>'<option value="'+escapeHtml(getValue(x))+'">'+escapeHtml(getLabel(x))+'</option>').join("");
+  };
+
+  fill("dFinal",f.segmentos_final,"Todos",x=>x.id,x=>x.label);
+  fill("dNeo",f.segmentos_neo,"Todos",x=>x.id,x=>x.label);
+  fill("dClient",f.clientes,"Todos",x=>x.id,x=>x.label);
+  fill("dModality",f.modalidades,"Todas",x=>x,x=>x);
+  fill("dUf",f.ufs,"Todas",x=>x,x=>x);
+
+  if(document.getElementById("dStart")&&!dStart.value)dStart.value=f.datas?.min||"";
+  if(document.getElementById("dEnd")&&!dEnd.value)dEnd.value=f.datas?.max||"";
+}
+
+function clearDashboardFilters(){
+  ["dStart","dEnd","dFinal","dNeo","dClient","dModality","dUf"].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value="";
+  });
+  DASHBOARD_FILTERS_LOADED=false;
+  DASHBOARD_SELECTED_CLIENT="";
+  loadDashboard();
+}
+
+function renderDashboard(j){
+  const k=j.kpis||{};
+  dKpiRevenue.textContent=formatBRL(k.faturamento);
+  dKpiCost.textContent=formatBRL(k.custo);
+  dKpiDv.textContent=formatBRL(k.dv);
+  dKpiDf.textContent=formatBRL(k.df);
+  dKpiProfit.textContent=formatBRL(k.lucro);
+  dKpiMargin.textContent=formatPct(k.margem_lucro);
+  dKpiDvPct.textContent=formatPct(k.dv_pct);
+  dKpiDfPct.textContent=formatPct(k.df_pct);
+  dKpiRows.textContent=(k.registros||0)+" venda"+((k.registros||0)===1?"":"s");
+
+  const start=document.getElementById("dStart")?.value||j.filtros?.datas?.min||"";
+  const end=document.getElementById("dEnd")?.value||j.filtros?.datas?.max||"";
+  dashPeriodBadge.textContent=(start?formatDateBR(start):"Início")+" → "+(end?formatDateBR(end):"Hoje");
+
+  renderMonthChart(j.mensal||[]);
+  renderRankList("dashboardStates",j.estados||[],8);
+  renderRankList("dashboardFinal",j.segmentos_final||[],8);
+  renderRankList("dashboardNeo",j.segmentos_neo||[],8);
+  renderDashboardClients();
+  if(DASHBOARD_SELECTED_CLIENT)showClientProducts(DASHBOARD_SELECTED_CLIENT);
+}
+
+function renderMonthChart(items){
+  const el=document.getElementById("dashboardMonthly");if(!el)return;
+  if(!items.length){el.innerHTML='<div class="history-loading">Sem dados para o período.</div>';return}
+  const max=Math.max(...items.map(x=>Number(x.faturamento||0)),1);
+  el.innerHTML=items.map(x=>{
+    const h=Math.max(5,Math.round(Number(x.faturamento||0)/max*100));
+    const month=formatMonthLabel(x.label);
+    return '<div class="month-col" title="'+escapeHtml(month)+' • '+escapeHtml(formatBRL(x.faturamento))+'">'+
+      '<div class="month-value">'+formatCompactBRL(x.faturamento)+'</div>'+
+      '<div class="month-bar-zone"><div class="month-bar" style="height:'+h+'%"></div></div>'+
+      '<div class="month-label">'+escapeHtml(month)+'</div>'+
+      '<div class="month-profit '+(Number(x.lucro||0)>=0?'pos':'neg')+'">'+formatCompactBRL(x.lucro)+'</div>'+
+    '</div>';
+  }).join("");
+}
+
+function formatMonthLabel(v){
+  const m=String(v||"").match(/^(\d{4})-(\d{2})/);
+  if(!m)return String(v||"");
+  const names=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  return names[Number(m[2])-1]+"/"+m[1].slice(-2);
+}
+
+function formatCompactBRL(v){
+  const n=Number(v||0),a=Math.abs(n);
+  if(a>=1000000)return "R$ "+(n/1000000).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mi";
+  if(a>=1000)return "R$ "+(n/1000).toLocaleString("pt-BR",{maximumFractionDigits:0})+" mil";
+  return formatBRL(n);
+}
+
+function renderRankList(id,items,limit){
+  const el=document.getElementById(id);if(!el)return;
+  const list=(items||[]).slice(0,limit||10);
+  if(!list.length){el.innerHTML='<div class="history-loading">Sem dados.</div>';return}
+  const max=Math.max(...list.map(x=>Number(x.faturamento||0)),1);
+  el.innerHTML=list.map((x,i)=>{
+    const width=Math.max(2,Math.round(Number(x.faturamento||0)/max*100));
+    return '<div class="rank-row">'+
+      '<div class="rank-top"><span><b>'+(i+1)+'.</b> '+escapeHtml(x.label||x.chave||"N/I")+'</span><strong>'+formatBRL(x.faturamento)+'</strong></div>'+
+      '<div class="rank-track"><div class="rank-fill" style="width:'+width+'%"></div></div>'+
+      '<div class="rank-foot"><span>Lucro '+formatBRL(x.lucro)+'</span><span>'+formatPct(x.margem)+'</span></div>'+
+    '</div>';
+  }).join("");
+}
+
+function renderDashboardClients(){
+  const body=document.getElementById("dashboardClientsBody");if(!body||!DASHBOARD_DATA)return;
+  const term=String(document.getElementById("dashboardClientSearch")?.value||"").trim().toUpperCase();
+  const rows=(DASHBOARD_DATA.clientes||[]).filter(x=>!term||String(x.label||"").toUpperCase().includes(term));
+
+  if(!rows.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum cliente encontrado.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=rows.map(x=>
+    '<tr class="dashboard-client-row" onclick="showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">'+
+      '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
+      '<td>'+formatBRL(x.faturamento)+'</td>'+
+      '<td>'+formatBRL(x.custo)+'</td>'+
+      '<td>'+formatBRL(x.dv)+'</td>'+
+      '<td>'+formatBRL(x.df)+'</td>'+
+      '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
+      '<td>'+formatPct(x.margem)+'</td>'+
+    '</tr>'
+  ).join("");
+}
+
+function showClientProducts(clientId,label){
+  DASHBOARD_SELECTED_CLIENT=String(clientId||"");
+  const title=document.getElementById("dashboardProductsTitle");
+  if(title)title.textContent="Produtos • "+(label||dashboardClientLabel(clientId));
+
+  const body=document.getElementById("dashboardProductsBody");if(!body||!DASHBOARD_DATA)return;
+  const rows=(DASHBOARD_DATA.produtos||[]).filter(x=>String(x.cliente_id||"")===String(clientId||""));
+
+  if(!rows.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum produto encontrado para este cliente.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=rows.map(x=>
+    '<tr><td><b>'+escapeHtml(x.label||"N/I")+'</b></td><td>'+escapeHtml(x.sku||"—")+'</td><td>'+Number(x.qtde||0).toLocaleString("pt-BR")+'</td>'+
+    '<td>'+formatBRL(x.faturamento)+'</td><td>'+formatBRL(x.custo)+'</td>'+
+    '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td><td>'+formatPct(x.margem)+'</td></tr>'
+  ).join("");
+
+  document.querySelector(".dashboard-products-panel")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function dashboardClientLabel(id){
+  const x=(DASHBOARD_DATA?.clientes||[]).find(x=>String(x.id||x.chave)===String(id));
+  return x?.label||"Cliente";
+}
 
 function clientName(c){return String(c.NOME_FANTASIA||c.RAZAO_SOCIAL||"").trim()}
 function truthy(v){return v===true||String(v).toLowerCase()==="true"||String(v)==="1"}
@@ -2445,8 +2761,8 @@ function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;",
 
 document.addEventListener("DOMContentLoaded",()=>{
   initUiPreferences();
-  currentPage=document.querySelector(".page.active")?.id||"clients";
-  initClientsPage();
+  currentPage=document.querySelector(".page.active")?.id||"overview";
+  initOverviewPage();
 });
 </script>
 </body>
