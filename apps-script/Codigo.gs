@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.2.2' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.3.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -1486,6 +1486,9 @@ function getDashboardVendas_(params) {
   const porCliente = {};
   const porProduto = {};
   const porEstado = {};
+  const vendasUnicas = {};
+  const vendasDentro = {};
+  const vendasFora = {};
 
   filtradas.forEach(function(v) {
     const fat = numero_(v.VALOR_TOTAL);
@@ -1502,6 +1505,12 @@ function getDashboardVendas_(params) {
     kpis.lucro += lucro;
     kpis.qtde += qtde;
     kpis.registros++;
+
+    const chaveVenda = chaveVendaDashboard_(v);
+    vendasUnicas[chaveVenda] = true;
+    const dentroEstado = normalizarTexto_(v.DESTINO) === 'INTERNA' || String(v.UF_DESTINO || '').toUpperCase() === 'SP';
+    if (dentroEstado) vendasDentro[chaveVenda] = true;
+    else vendasFora[chaveVenda] = true;
 
     const dt = normalizarDataFiltro_(v.DATA_VENDA);
     const mesKey = dt ? dt.substring(0,7) : ((v.ANO || '') + '-' + String(v.MES || ''));
@@ -1545,6 +1554,18 @@ function getDashboardVendas_(params) {
   kpis.margem_bruta = kpis.faturamento ? (kpis.faturamento - kpis.custo) / kpis.faturamento : 0;
   kpis.dv_pct = kpis.faturamento ? kpis.dv / kpis.faturamento : 0;
   kpis.df_pct = kpis.faturamento ? kpis.df / kpis.faturamento : 0;
+  kpis.vendas = Object.keys(vendasUnicas).length;
+
+  const qtdDentro = Object.keys(vendasDentro).length;
+  const qtdFora = Object.keys(vendasFora).length;
+  const totalVendas = kpis.vendas || 0;
+  const dentro_fora = {
+    estado_base: 'SP',
+    dentro: qtdDentro,
+    fora: qtdFora,
+    dentro_pct: totalVendas ? qtdDentro / totalVendas : 0,
+    fora_pct: totalVendas ? qtdFora / totalVendas : 0
+  };
 
   const todas = vendas;
   const filtros = {
@@ -1563,6 +1584,7 @@ function getDashboardVendas_(params) {
     ok: true,
     origem: 'VENDAS',
     kpis: kpis,
+    dentro_fora: dentro_fora,
     filtros: filtros,
     mensal: ordenarAgregados_(porMes, 'label', false),
     segmentos_final: ordenarAgregados_(porFinal, 'faturamento', true),
@@ -1571,6 +1593,23 @@ function getDashboardVendas_(params) {
     produtos: ordenarAgregados_(porProduto, 'faturamento', true),
     estados: ordenarAgregados_(porEstado, 'faturamento', true)
   };
+}
+
+function chaveVendaDashboard_(v) {
+  const pedidoId = String(v.PEDIDO_ID || '').trim();
+  if (pedidoId) return 'PEDIDO_ID|' + pedidoId;
+
+  const pedidoOrigem = String(v.PEDIDO_ORIGEM || '').trim();
+  if (pedidoOrigem) {
+    return [
+      'HIST',
+      String(v.ANO || ''),
+      pedidoOrigem,
+      String(v.CLIENTE_ID || v.CLIENTE_NOME_SNAPSHOT || '')
+    ].join('|');
+  }
+
+  return 'VENDA|' + String(v.ID_VENDA || Utilities.getUuid());
 }
 
 function agregarDashboard_(mapa, chave, faturamento, custo, dv, df, lucro, qtde, meta) {
