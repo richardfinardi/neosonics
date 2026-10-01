@@ -723,6 +723,15 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
 </head>
 <body>
 <div class="menu-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
+<div class="action-loading-bg" id="actionLoadingBg">
+  <div class="action-loading-card">
+    <div class="action-spinner"></div>
+    <div>
+      <b id="actionLoadingTitle">Processando...</b>
+      <span id="actionLoadingText">Aguarde alguns segundos.</span>
+    </div>
+  </div>
+</div>
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
@@ -1088,27 +1097,48 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
           </div>
         </div>
 
-        <div class="panel order-detail-panel" id="orderDetailPanel" style="display:none">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title" id="orderDetailTitle">Pedido</div>
-              <div class="panel-sub" id="orderDetailSub"></div>
+        <div class="order-modal-bg" id="orderDetailPanel" onclick="closeOrderModal(event)" style="display:none">
+          <div class="order-modal-card" onclick="event.stopPropagation()">
+            <div class="order-modal-head">
+              <div>
+                <div class="order-modal-kicker">Detalhes do pedido</div>
+                <div class="order-modal-title" id="orderDetailTitle">Pedido</div>
+                <div class="order-modal-sub" id="orderDetailSub"></div>
+              </div>
+              <button class="close order-modal-close" onclick="closeOrderDetail()">×</button>
             </div>
-            <button class="secondary" onclick="closeOrderDetail()">Fechar</button>
-          </div>
-          <div class="panel-body">
-            <div class="grid4 order-detail-kpis">
-              <div class="summary"><span>Faturamento</span><strong id="odRevenue">R$ 0,00</strong><small>valor do pedido</small></div>
-              <div class="summary"><span>Custo</span><strong id="odCost">R$ 0,00</strong><small>custo dos itens</small></div>
-              <div class="summary"><span>Lucro</span><strong id="odProfit">R$ 0,00</strong><small>após despesas</small></div>
-              <div class="summary"><span>Lucratividade</span><strong id="odMargin">0,00%</strong><small>lucro / faturamento</small></div>
+
+            <div class="order-status-bar">
+              <div>
+                <b>Status do pedido</b>
+                <span>Pedidos históricos vieram como FATURADO. Novos pedidos nascem ABERTO.</span>
+              </div>
+              <div class="order-status-actions">
+                <select id="odStatusSelect">
+                  <option value="ABERTO">ABERTO</option>
+                  <option value="CONFIRMADO">CONFIRMADO</option>
+                  <option value="FATURADO">FATURADO</option>
+                  <option value="CANCELADO">CANCELADO</option>
+                </select>
+                <button class="primary" id="odStatusSaveBtn" onclick="saveOrderStatus()">Salvar status</button>
+              </div>
             </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>#</th><th>Item</th><th>SKU</th><th>FINAL</th><th>NEO</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
-              <tbody id="orderItemsBody"></tbody>
-            </table>
+
+            <div class="order-modal-body">
+              <div class="grid4 order-detail-kpis">
+                <div class="summary"><span>Faturamento</span><strong id="odRevenue">R$ 0,00</strong><small>valor do pedido</small></div>
+                <div class="summary"><span>Custo</span><strong id="odCost">R$ 0,00</strong><small>custo dos itens</small></div>
+                <div class="summary"><span>Lucro</span><strong id="odProfit">R$ 0,00</strong><small>após despesas</small></div>
+                <div class="summary"><span>Lucratividade</span><strong id="odMargin">0,00%</strong><small>lucro / faturamento</small></div>
+              </div>
+
+              <div class="order-items-wrap table-wrap">
+                <table>
+                  <thead><tr><th>#</th><th>Item</th><th>SKU</th><th>FINAL</th><th>NEO</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
+                  <tbody id="orderItemsBody"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1360,6 +1390,7 @@ let FIXED_EXPENSE=0.12741625391756686;
 let apiOnline=false;
 let quoteHistoryCache=[];
 let orderCache=[];
+let currentOrderId="";
 let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[]};
 let currentPage="overview";
 
@@ -1838,9 +1869,26 @@ function renderOrdersTable(){
 }
 
 async function openOrder(id){
+  currentOrderId=String(id||"");
+  const modal=document.getElementById("orderDetailPanel");
+  if(!modal)return;
+
+  modal.style.display="flex";
+  document.body.classList.add("modal-open");
+  orderDetailTitle.textContent="Carregando pedido...";
+  orderDetailSub.textContent="Aguarde um instante.";
+  orderItemsBody.innerHTML='<tr class="empty-row"><td colspan="10">Carregando itens...</td></tr>';
+  odRevenue.textContent="R$ 0,00";
+  odCost.textContent="R$ 0,00";
+  odProfit.textContent="R$ 0,00";
+  odMargin.textContent="0,00%";
+  odStatusSelect.value="ABERTO";
+
   try{
     const j=await apiGet("pedido_detalhe",{id});
     const p=j.pedido||{}, r=j.resumo||{}, items=j.itens||[];
+    currentOrderId=String(p.ID_PEDIDO||id);
+
     orderDetailTitle.textContent="Pedido "+(p.NUMERO_PEDIDO||"");
     orderDetailSub.textContent=[
       p.CLIENTE_NOME_SNAPSHOT||"",
@@ -1848,6 +1896,7 @@ async function openOrder(id){
       String(p.ORIGEM)==="HISTORICO"?"Histórico":"Gerado pelo orçamento "+(p.NUMERO_ORCAMENTO_ORIGEM||"")
     ].filter(Boolean).join(" • ");
 
+    odStatusSelect.value=String(p.STATUS||"ABERTO").toUpperCase();
     odRevenue.textContent=formatBRL(r.faturamento);
     odCost.textContent=formatBRL(r.custo);
     odProfit.textContent=formatBRL(r.lucro);
@@ -1867,17 +1916,68 @@ async function openOrder(id){
         '<td>'+formatPct(x.MARGEM_PCT_SNAPSHOT)+'</td>'+
       '</tr>'
     ).join(""):'<tr class="empty-row"><td colspan="10">Pedido sem itens.</td></tr>';
-
-    orderDetailPanel.style.display="";
-    orderDetailPanel.scrollIntoView({behavior:"smooth",block:"start"});
   }catch(err){
-    alert("Não foi possível abrir o pedido: "+err.message);
+    orderDetailTitle.textContent="Erro ao abrir pedido";
+    orderDetailSub.textContent=err.message;
+    orderItemsBody.innerHTML='<tr class="empty-row"><td colspan="10">Não foi possível carregar os itens.</td></tr>';
   }
+}
+
+function closeOrderModal(event){
+  if(event&&event.target!==event.currentTarget)return;
+  closeOrderDetail();
 }
 
 function closeOrderDetail(){
   const p=document.getElementById("orderDetailPanel");
   if(p)p.style.display="none";
+  document.body.classList.remove("modal-open");
+  currentOrderId="";
+}
+
+async function saveOrderStatus(){
+  if(!currentOrderId)return;
+  const status=String(odStatusSelect.value||"").toUpperCase();
+  const btn=document.getElementById("odStatusSaveBtn");
+
+  btn.disabled=true;
+  const oldText=btn.textContent;
+  btn.textContent="Salvando...";
+  showActionLoading("Atualizando pedido","Salvando o novo status.");
+
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"alterar_status_pedido",id_pedido:currentOrderId,status})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Erro ao atualizar status");
+
+    const cached=orderCache.find(x=>String(x.ID_PEDIDO)===String(currentOrderId));
+    if(cached)cached.STATUS=status;
+    renderOrdersTable();
+    await openOrder(currentOrderId);
+  }catch(err){
+    alert("Não foi possível alterar o status: "+err.message);
+  }finally{
+    hideActionLoading();
+    btn.disabled=false;
+    btn.textContent=oldText;
+  }
+}
+
+function showActionLoading(title,text){
+  const bg=document.getElementById("actionLoadingBg");
+  if(!bg)return;
+  actionLoadingTitle.textContent=title||"Processando...";
+  actionLoadingText.textContent=text||"Aguarde alguns segundos.";
+  bg.classList.add("open");
+}
+
+function hideActionLoading(){
+  document.getElementById("actionLoadingBg")?.classList.remove("open");
 }
 
 async function approveCurrentQuote(){
@@ -1895,6 +1995,7 @@ async function approveCurrentQuote(){
   }
   if(!confirm("Aprovar este orçamento e gerar o pedido agora?"))return;
 
+  showActionLoading("Aprovando orçamento","Gerando o pedido e gravando os itens...");
   try{
     const r=await fetch(NEOSONICS_API_URL,{
       method:"POST",
@@ -1911,6 +2012,8 @@ async function approveCurrentQuote(){
     alert("Orçamento aprovado e pedido "+(j.numero_pedido||"")+" gerado.");
   }catch(err){
     alert("Não foi possível aprovar o orçamento: "+err.message);
+  }finally{
+    hideActionLoading();
   }
 }
 
@@ -1918,6 +2021,7 @@ async function approveQuoteFromHistory(id){
   const q=quoteHistoryCache.find(x=>String(x.ID_ORCAMENTO)===String(id));
   if(!q)return;
   if(!confirm("Aprovar o orçamento "+q.NUMERO_ORCAMENTO+" e gerar o pedido?"))return;
+  showActionLoading("Aprovando orçamento","Gerando o pedido "+q.NUMERO_ORCAMENTO+"...");
   try{
     const r=await fetch(NEOSONICS_API_URL,{
       method:"POST",
@@ -1931,6 +2035,8 @@ async function approveQuoteFromHistory(id){
     alert("Pedido "+(j.numero_pedido||"")+" gerado.");
   }catch(err){
     alert("Não foi possível aprovar o orçamento: "+err.message);
+  }finally{
+    hideActionLoading();
   }
 }
 
