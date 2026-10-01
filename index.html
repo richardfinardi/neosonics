@@ -811,8 +811,8 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
             <div class="dashboard-filter-grid">
               <div class="field"><label>Data inicial</label><input type="date" id="dStart"></div>
               <div class="field"><label>Data final</label><input type="date" id="dEnd"></div>
-              <div class="field"><label>Segmentação FINAL</label><select id="dFinal"><option value="">Todos</option></select></div>
-              <div class="field"><label>Segmentação NEO</label><select id="dNeo"><option value="">Todos</option></select></div>
+              <div class="field"><label>Segmentação FINAL</label><select id="dFinal" onchange="DASHBOARD_SELECTED_CLIENT='';loadDashboard()"><option value="">Todos</option></select></div>
+              <div class="field"><label>Segmentação NEO</label><select id="dNeo" onchange="DASHBOARD_SELECTED_CLIENT='';loadDashboard()"><option value="">Todos</option></select></div>
               <div class="field"><label>Cliente</label><select id="dClient"><option value="">Todos</option></select></div>
               <div class="field"><label>Modalidade</label><select id="dModality"><option value="">Todas</option></select></div>
               <div class="field"><label>UF</label><select id="dUf"><option value="">Todas</option></select></div>
@@ -827,6 +827,31 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
           <div class="kpi"><div class="label">Despesa fixa</div><div class="value" id="dKpiDf">R$ 0,00</div><div class="delta" id="dKpiDfPct">0,00% do faturamento</div></div>
           <div class="kpi"><div class="label">Lucro</div><div class="value" id="dKpiProfit">R$ 0,00</div><div class="delta">após despesas variável e fixa</div></div>
           <div class="kpi"><div class="label">Lucratividade</div><div class="value" id="dKpiMargin">0,00%</div><div class="delta">lucro sobre faturamento</div></div>
+        </div>
+
+        <div class="panel dashboard-grid state-split-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Vendas dentro e fora do estado</div>
+              <div class="panel-sub">Quantidade e percentual de vendas. Estado base: São Paulo.</div>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="state-split-grid">
+              <div class="state-split-card inside">
+                <span>Dentro do estado</span>
+                <strong id="dInsideCount">0 vendas</strong>
+                <b id="dInsidePct">0,00%</b>
+                <small>São Paulo</small>
+              </div>
+              <div class="state-split-card outside">
+                <span>Fora do estado</span>
+                <strong id="dOutsideCount">0 vendas</strong>
+                <b id="dOutsidePct">0,00%</b>
+                <small>Demais estados</small>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="panel dashboard-grid monthly-panel">
@@ -846,24 +871,24 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
             <div class="panel-body"><div id="dashboardStates" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação no faturamento, lucro e lucratividade.</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação e lucratividade por segmento. Clique em um segmento para ver os clientes dentro dele.</div></div></div>
             <div class="panel-body"><div id="dashboardFinal" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação no faturamento, lucro e lucratividade.</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação e lucratividade por segmento. Clique em um segmento para ver os clientes dentro dele.</div></div></div>
             <div class="panel-body"><div id="dashboardNeo" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-head">
-            <div><div class="panel-title">Lucratividade por cliente</div><div class="panel-sub">Clique em um cliente para ver os produtos vendidos para ele.</div></div>
+            <div><div class="panel-title" id="dashboardClientsTitle">Lucratividade por cliente</div><div class="panel-sub" id="dashboardClientsSub">Clique em um cliente para ver os produtos vendidos para ele.</div></div>
             <input id="dashboardClientSearch" class="compact-search" placeholder="Pesquisar cliente..." oninput="renderDashboardClients()">
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Cliente</th><th>Faturamento</th><th>Custo</th><th>Despesa variável</th><th>Despesa fixa</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
-              <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="7">Carregando...</td></tr></tbody>
+              <thead><tr><th>Cliente</th><th id="dashboardClientParticipationHeader">Participação no faturamento</th><th>Faturamento</th><th>Custo</th><th>Despesa variável</th><th>Despesa fixa</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
+              <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="8">Carregando...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1630,7 +1655,14 @@ function renderDashboard(j){
   dKpiMargin.textContent=formatPct(k.margem_lucro);
   dKpiDvPct.textContent=formatPct(k.dv_pct)+" do faturamento";
   dKpiDfPct.textContent=formatPct(k.df_pct)+" do faturamento";
-  dKpiRows.textContent=(k.registros||0)+" venda"+((k.registros||0)===1?"":"s");
+  const salesCount=Number(k.vendas||k.registros||0);
+  dKpiRows.textContent=salesCount+" venda"+(salesCount===1?"":"s");
+
+  const split=j.dentro_fora||{};
+  if(document.getElementById("dInsideCount"))dInsideCount.textContent=Number(split.dentro||0)+" venda"+(Number(split.dentro||0)===1?"":"s");
+  if(document.getElementById("dOutsideCount"))dOutsideCount.textContent=Number(split.fora||0)+" venda"+(Number(split.fora||0)===1?"":"s");
+  if(document.getElementById("dInsidePct"))dInsidePct.textContent=formatPct(split.dentro_pct);
+  if(document.getElementById("dOutsidePct"))dOutsidePct.textContent=formatPct(split.fora_pct);
 
   const start=document.getElementById("dStart")?.value||j.filtros?.datas?.min||"";
   const end=document.getElementById("dEnd")?.value||j.filtros?.datas?.max||"";
@@ -1710,7 +1742,13 @@ function renderRankList(id,items,limit){
     const participation=revenue/totalRevenue;
     const width=Math.max(1,participation*100);
 
-    return '<div class="rank-card">'+
+    const segmentType=id==="dashboardFinal"?"FINAL":id==="dashboardNeo"?"NEO":"";
+    const clickAttr=segmentType&&x.id
+      ? ' onclick="selectDashboardSegment(\''+segmentType+'\',\''+escapeJs(x.id)+'\')"'
+      : '';
+    const clickClass=segmentType&&x.id?' clickable':'';
+
+    return '<div class="rank-card'+clickClass+'"'+clickAttr+'>'+
       '<div class="rank-card-head">'+
         '<div class="rank-name"><span class="rank-position">'+(i+1)+'</span><strong>'+escapeHtml(x.label||x.chave||"N/I")+'</strong></div>'+
         '<div class="rank-revenue"><span>Faturamento</span><strong>'+formatBRL(revenue)+'</strong></div>'+
@@ -1725,27 +1763,71 @@ function renderRankList(id,items,limit){
   }).join("");
 }
 
+function selectDashboardSegment(type,id){
+  if(type==="FINAL"){
+    dFinal.value=String(id||"");
+    dNeo.value="";
+  }else if(type==="NEO"){
+    dNeo.value=String(id||"");
+    dFinal.value="";
+  }
+  DASHBOARD_SELECTED_CLIENT="";
+  loadDashboard();
+}
+
+function dashboardSelectedSegmentLabel(){
+  const finalEl=document.getElementById("dFinal");
+  const neoEl=document.getElementById("dNeo");
+  if(finalEl?.value){
+    return {type:"FINAL",label:finalEl.options[finalEl.selectedIndex]?.text||""};
+  }
+  if(neoEl?.value){
+    return {type:"NEO",label:neoEl.options[neoEl.selectedIndex]?.text||""};
+  }
+  return null;
+}
+
 function renderDashboardClients(){
   const body=document.getElementById("dashboardClientsBody");if(!body||!DASHBOARD_DATA)return;
   const term=String(document.getElementById("dashboardClientSearch")?.value||"").trim().toUpperCase();
   const rows=(DASHBOARD_DATA.clientes||[]).filter(x=>!term||String(x.label||"").toUpperCase().includes(term));
+  const totalRevenue=Number(DASHBOARD_DATA.kpis?.faturamento||0)||1;
+  const selectedSegment=dashboardSelectedSegmentLabel();
+
+  if(document.getElementById("dashboardClientsTitle")){
+    dashboardClientsTitle.textContent=selectedSegment
+      ? "Clientes dentro do segmento • "+selectedSegment.label
+      : "Lucratividade por cliente";
+  }
+  if(document.getElementById("dashboardClientsSub")){
+    dashboardClientsSub.textContent=selectedSegment
+      ? "Participação de cada cliente dentro deste segmento e sua lucratividade."
+      : "Participação no faturamento total. Clique em um cliente para ver os produtos vendidos para ele.";
+  }
+  if(document.getElementById("dashboardClientParticipationHeader")){
+    dashboardClientParticipationHeader.textContent=selectedSegment
+      ? "Participação no segmento"
+      : "Participação no faturamento";
+  }
 
   if(!rows.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum cliente encontrado.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum cliente encontrado.</td></tr>';
     return;
   }
 
-  body.innerHTML=rows.map(x=>
-    '<tr class="dashboard-client-row" onclick="showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">'+
+  body.innerHTML=rows.map(x=>{
+    const participation=Number(x.faturamento||0)/totalRevenue;
+    return '<tr class="dashboard-client-row" onclick="showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">'+
       '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
+      '<td><b>'+formatPct(participation)+'</b></td>'+
       '<td>'+formatBRL(x.faturamento)+'</td>'+
       '<td>'+formatBRL(x.custo)+'</td>'+
       '<td>'+formatBRL(x.dv)+'</td>'+
       '<td>'+formatBRL(x.df)+'</td>'+
       '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
       '<td>'+formatPct(x.margem)+'</td>'+
-    '</tr>'
-  ).join("");
+    '</tr>';
+  }).join("");
 }
 
 function showClientProducts(clientId,label){
