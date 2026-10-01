@@ -667,18 +667,29 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
 .dashboard-filter-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .dashboard-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
 .dashboard-grid{margin-bottom:14px}
-.month-chart{height:270px;display:flex;align-items:stretch;gap:7px;overflow-x:auto;padding:8px 2px 0}
-.month-col{min-width:54px;flex:1;display:grid;grid-template-rows:26px 1fr 22px 22px;align-items:end;text-align:center}
-.month-value{font-size:9px;color:var(--muted);white-space:nowrap}
-.month-bar-zone{height:170px;display:flex;align-items:flex-end;justify-content:center;border-bottom:1px solid var(--line)}
-.month-bar{width:58%;min-height:5px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#f3a15b,#dc7a34);box-shadow:0 5px 14px rgba(220,122,52,.18)}
-.month-label{font-size:10px;font-weight:800;color:var(--text);padding-top:5px}
-.month-profit{font-size:9px;font-weight:800}
-.month-profit.pos,.profit-positive{color:#53c79b}
-.month-profit.neg,.profit-negative{color:#ed7b7b}
+.month-chart{min-height:320px}
+.monthly-legend{display:flex;align-items:center;gap:18px;margin-bottom:14px;font-size:11px;color:var(--muted)}
+.monthly-legend span{display:flex;align-items:center;gap:7px}
+.legend-dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+.legend-dot.revenue{background:#ef9450}
+.legend-dot.profit{background:#53c79b}
+.monthly-list{display:grid;gap:14px;max-height:470px;overflow:auto;padding-right:6px}
+.monthly-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.monthly-period{font-size:12px;font-weight:900;color:var(--text)}
+.monthly-metrics{display:grid;gap:8px}
+.monthly-metric{display:grid;gap:4px}
+.monthly-metric-head{display:flex;justify-content:space-between;align-items:center;gap:14px;font-size:10px;color:var(--muted)}
+.monthly-metric-head strong{font-size:11px;color:var(--text);white-space:nowrap}
+.monthly-track{height:8px;background:#14263d;border:1px solid #213953;border-radius:999px;overflow:hidden}
+.monthly-fill{height:100%;border-radius:999px}
+.monthly-fill.revenue{background:linear-gradient(90deg,#df813b,#f3a15b)}
+.monthly-fill.profit-positive-bar{background:#53c79b}
+.monthly-fill.profit-negative-bar{background:#ed7b7b}
+.profit-positive{color:#2fa97d!important}
+.profit-negative{color:#d85d5d!important}
 .rank-list{display:grid;gap:12px}
 .rank-row{display:grid;gap:5px}
-.rank-top,.rank-foot{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.rank-top,.rank-foot{font-size:9px;color:var(--muted)}
 .rank-top span{font-size:11px;color:var(--text)}.rank-top strong{font-size:11px}
 .rank-foot{font-size:9px;color:var(--muted)}
 .rank-track{height:7px;background:#14263d;border:1px solid #213953;border-radius:999px;overflow:hidden}
@@ -688,10 +699,27 @@ body.theme-light .segment-type.neo{background:#f7eadf;color:#a9622d;border-color
 body.theme-light .rank-track{background:#e6edf4;border-color:#cdd8e3}
 body.theme-light .rank-fill{background:linear-gradient(90deg,#6f96bc,#e68b45)}
 body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
-@media(max-width:1180px){.dashboard-kpis{grid-template-columns:repeat(3,1fr)}.dashboard-filter-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1550px){.dashboard-kpis{grid-template-columns:repeat(3,1fr)}}\n@media(max-width:1180px){.dashboard-filter-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.dashboard-kpis{grid-template-columns:repeat(2,1fr)}.dashboard-filter-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.dashboard-kpis,.dashboard-filter-grid{grid-template-columns:1fr}.month-col{min-width:62px}}
-</style>
+
+.dashboard-kpis .kpi{min-width:0}
+.dashboard-kpis .kpi .label{font-size:12px;line-height:1.25}
+.dashboard-kpis .kpi .value{
+  font-size:clamp(18px,1.45vw,27px);
+  line-height:1.08;
+  letter-spacing:-.035em;
+  white-space:nowrap;
+}
+.dashboard-kpis .kpi .delta{font-size:10px;line-height:1.25}
+.rank-foot-detailed{display:flex;flex-wrap:wrap;gap:5px 14px;justify-content:flex-start}
+.rank-foot-detailed span{white-space:nowrap}
+body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
+@media(max-width:760px){
+  .monthly-row{grid-template-columns:1fr;gap:7px}
+  .monthly-metric-head{align-items:flex-start;flex-direction:column;gap:2px}
+  .monthly-metric-head strong{white-space:normal}
+}</style>
 </head>
 <body>
 <div class="menu-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
@@ -704,7 +732,7 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
 
     <div class="group-title">Análises</div>
     <div class="nav">
-      <button class="active" data-page="overview"><span class="ico">▦</span><span class="nav-text">Visão Executiva</span></button>
+      <button class="active" data-page="overview"><span class="ico">▦</span><span class="nav-text">Indicadores</span></button>
     </div>
 
     <div class="group-title">Cadastros</div>
@@ -737,8 +765,8 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
       <div style="display:flex;align-items:center;gap:10px">
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Abrir menu">☰</button>
         <div>
-        <div class="breadcrumb">Neosonics › <b id="crumb">Visão Executiva</b></div>
-        <div class="title" id="pageTitle">Visão Executiva</div>
+        <div class="breadcrumb">Neosonics › <b id="crumb">Indicadores</b></div>
+        <div class="title" id="pageTitle">Indicadores</div>
         </div>
       </div>
       <div class="actions">
@@ -755,8 +783,8 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
       <section id="overview" class="page active">
         <div class="hero executive-hero">
           <div>
-            <h2>Visão Executiva</h2>
-            <p>Faturamento, custos e rentabilidade calculados a partir das vendas consolidadas.</p>
+            <h2>Indicadores</h2>
+            <p>Faturamento, custos e lucratividade calculados a partir das vendas consolidadas.</p>
           </div>
           <div class="badge" id="dashPeriodBadge">Carregando...</div>
         </div>
@@ -784,43 +812,43 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
 
         <div class="dashboard-kpis">
           <div class="kpi"><div class="label">Faturamento</div><div class="value" id="dKpiRevenue">R$ 0,00</div><div class="delta" id="dKpiRows">0 vendas</div></div>
-          <div class="kpi"><div class="label">Custo</div><div class="value" id="dKpiCost">R$ 0,00</div><div class="delta">custo dos itens</div></div>
-          <div class="kpi"><div class="label">DV</div><div class="value" id="dKpiDv">R$ 0,00</div><div class="delta" id="dKpiDvPct">0,00%</div></div>
-          <div class="kpi"><div class="label">DF</div><div class="value" id="dKpiDf">R$ 0,00</div><div class="delta" id="dKpiDfPct">0,00%</div></div>
-          <div class="kpi"><div class="label">Lucro</div><div class="value" id="dKpiProfit">R$ 0,00</div><div class="delta">após DV e DF</div></div>
-          <div class="kpi"><div class="label">Lucro %</div><div class="value" id="dKpiMargin">0,00%</div><div class="delta">sobre faturamento</div></div>
+          <div class="kpi"><div class="label">Custo total</div><div class="value" id="dKpiCost">R$ 0,00</div><div class="delta">custo dos itens vendidos</div></div>
+          <div class="kpi"><div class="label">Despesa variável</div><div class="value" id="dKpiDv">R$ 0,00</div><div class="delta" id="dKpiDvPct">0,00% do faturamento</div></div>
+          <div class="kpi"><div class="label">Despesa fixa</div><div class="value" id="dKpiDf">R$ 0,00</div><div class="delta" id="dKpiDfPct">0,00% do faturamento</div></div>
+          <div class="kpi"><div class="label">Lucro</div><div class="value" id="dKpiProfit">R$ 0,00</div><div class="delta">após despesas variável e fixa</div></div>
+          <div class="kpi"><div class="label">Lucratividade</div><div class="value" id="dKpiMargin">0,00%</div><div class="delta">lucro sobre faturamento</div></div>
         </div>
 
         <div class="grid2eq dashboard-grid">
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Evolução mensal</div><div class="panel-sub">Faturamento e lucro por mês</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Evolução mensal</div><div class="panel-sub">Comparação mensal entre faturamento e lucro, com lucratividade do período.</div></div></div>
             <div class="panel-body"><div id="dashboardMonthly" class="month-chart"><div class="history-loading">Carregando...</div></div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Vendas por estado</div><div class="panel-sub">Participação por UF</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Vendas por estado</div><div class="panel-sub">A barra mostra a participação no faturamento total filtrado.</div></div></div>
             <div class="panel-body"><div id="dashboardStates" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
         </div>
 
         <div class="grid2eq dashboard-grid">
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação e rentabilidade</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação no faturamento e lucratividade por segmentação.</div></div></div>
             <div class="panel-body"><div id="dashboardFinal" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação e rentabilidade</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação no faturamento e lucratividade por segmentação.</div></div></div>
             <div class="panel-body"><div id="dashboardNeo" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-head">
-            <div><div class="panel-title">Rentabilidade por cliente</div><div class="panel-sub">Clique em um cliente para ver os produtos vendidos para ele.</div></div>
+            <div><div class="panel-title">Lucratividade por cliente</div><div class="panel-sub">Clique em um cliente para ver os produtos vendidos para ele.</div></div>
             <input id="dashboardClientSearch" class="compact-search" placeholder="Pesquisar cliente..." oninput="renderDashboardClients()">
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Cliente</th><th>Faturamento</th><th>Custo</th><th>DV</th><th>DF</th><th>Lucro</th><th>Lucro %</th></tr></thead>
+              <thead><tr><th>Cliente</th><th>Faturamento</th><th>Custo</th><th>Despesa variável</th><th>Despesa fixa</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
               <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="7">Carregando...</td></tr></tbody>
             </table>
           </div>
@@ -832,7 +860,7 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Produto</th><th>SKU</th><th>Qtde</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Lucro %</th></tr></thead>
+              <thead><tr><th>Produto</th><th>SKU</th><th>Quantidade</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
               <tbody id="dashboardProductsBody"><tr class="empty-row"><td colspan="7">Selecione um cliente.</td></tr></tbody>
             </table>
           </div>
@@ -1173,7 +1201,7 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
                 <div><span>DF</span><b id="rFinalDF">R$ 0,00</b></div>
                 <div><span>Margem contribuição</span><b id="rFinalMC">R$ 0,00</b></div>
                 <div><span>Lucro</span><b id="rFinalProfit">R$ 0,00</b></div>
-                <div><span>Lucro %</span><b id="rFinalMargin">0,00%</b></div>
+                <div><span>Lucratividade</span><b id="rFinalMargin">0,00%</b></div>
               </div>
 
               <div class="quote-item-actions">
@@ -1194,7 +1222,7 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
           </div>
           <div class="table-wrap">
             <table class="quote-items-table">
-              <thead><tr><th>#</th><th>Item</th><th>FINAL / NEO</th><th>Qtde</th><th>Custo</th><th>Preço final</th><th>Unitário</th><th>Lucro</th><th>Lucro %</th><th></th></tr></thead>
+              <thead><tr><th>#</th><th>Item</th><th>FINAL / NEO</th><th>Qtde</th><th>Custo</th><th>Preço final</th><th>Unitário</th><th>Lucro</th><th>Lucratividade</th><th></th></tr></thead>
               <tbody id="quoteItemsBody">
                 <tr class="empty-row"><td colspan="10">Nenhum item adicionado ainda.</td></tr>
               </tbody>
@@ -1248,7 +1276,7 @@ body.theme-light .month-bar{background:linear-gradient(180deg,#f0a264,#df813b)}
 </div>
 
 <script>
-const names={overview:"Visão Executiva",clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos"};
+const names={overview:"Indicadores",clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos"};
 
 const NEOSONICS_API_URL="https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec";
 let PARAM_VERSION="PV-20260924-001";
@@ -1324,9 +1352,9 @@ document.querySelectorAll(".nav button").forEach(btn=>{
 });
 
 const GUIDES={
-  overview:{title:"Visão Executiva",steps:[
+  overview:{title:"Indicadores",steps:[
     ["Filtre","Use período, segmentações, cliente, modalidade e UF."],
-    ["Compare","Os indicadores mostram faturamento, custo, DV, DF, lucro e margem."],
+    ["Compare","Os indicadores mostram faturamento, custo, despesa variável, despesa fixa, lucro e lucratividade."],
     ["Aprofunde","Clique em um cliente para abrir os produtos vendidos para ele."]
   ]},
   clients:{title:"Clientes",steps:[
@@ -1477,8 +1505,8 @@ function renderDashboard(j){
   dKpiDf.textContent=formatBRL(k.df);
   dKpiProfit.textContent=formatBRL(k.lucro);
   dKpiMargin.textContent=formatPct(k.margem_lucro);
-  dKpiDvPct.textContent=formatPct(k.dv_pct);
-  dKpiDfPct.textContent=formatPct(k.df_pct);
+  dKpiDvPct.textContent=formatPct(k.dv_pct)+" do faturamento";
+  dKpiDfPct.textContent=formatPct(k.df_pct)+" do faturamento";
   dKpiRows.textContent=(k.registros||0)+" venda"+((k.registros||0)===1?"":"s");
 
   const start=document.getElementById("dStart")?.value||j.filtros?.datas?.min||"";
@@ -1496,24 +1524,40 @@ function renderDashboard(j){
 function renderMonthChart(items){
   const el=document.getElementById("dashboardMonthly");if(!el)return;
   if(!items.length){el.innerHTML='<div class="history-loading">Sem dados para o período.</div>';return}
-  const max=Math.max(...items.map(x=>Number(x.faturamento||0)),1);
-  el.innerHTML=items.map(x=>{
-    const h=Math.max(5,Math.round(Number(x.faturamento||0)/max*100));
-    const month=formatMonthLabel(x.label);
-    return '<div class="month-col" title="'+escapeHtml(month)+' • '+escapeHtml(formatBRL(x.faturamento))+'">'+
-      '<div class="month-value">'+formatCompactBRL(x.faturamento)+'</div>'+
-      '<div class="month-bar-zone"><div class="month-bar" style="height:'+h+'%"></div></div>'+
-      '<div class="month-label">'+escapeHtml(month)+'</div>'+
-      '<div class="month-profit '+(Number(x.lucro||0)>=0?'pos':'neg')+'">'+formatCompactBRL(x.lucro)+'</div>'+
+
+  const maxRevenue=Math.max(...items.map(x=>Number(x.faturamento||0)),1);
+  const maxProfit=Math.max(...items.map(x=>Math.abs(Number(x.lucro||0))),1);
+
+  el.innerHTML='<div class="monthly-legend">'+
+    '<span><i class="legend-dot revenue"></i>Faturamento</span>'+
+    '<span><i class="legend-dot profit"></i>Lucro</span>'+
+  '</div>'+
+  '<div class="monthly-list">'+items.map(x=>{
+    const revenueWidth=Math.max(1,Number(x.faturamento||0)/maxRevenue*100);
+    const profitWidth=Math.max(1,Math.abs(Number(x.lucro||0))/maxProfit*100);
+    const positive=Number(x.lucro||0)>=0;
+    const margin=Number(x.faturamento||0)?Number(x.lucro||0)/Number(x.faturamento||0):0;
+    return '<div class="monthly-row">'+
+      '<div class="monthly-period">'+escapeHtml(formatMonthLabel(x.label))+'</div>'+
+      '<div class="monthly-metrics">'+
+        '<div class="monthly-metric">'+
+          '<div class="monthly-metric-head"><span>Faturamento</span><strong>'+formatBRL(x.faturamento)+'</strong></div>'+
+          '<div class="monthly-track"><div class="monthly-fill revenue" style="width:'+revenueWidth+'%"></div></div>'+
+        '</div>'+
+        '<div class="monthly-metric">'+
+          '<div class="monthly-metric-head"><span>Lucro</span><strong class="'+(positive?'profit-positive':'profit-negative')+'">'+formatBRL(x.lucro)+' • Lucratividade '+formatPct(margin)+'</strong></div>'+
+          '<div class="monthly-track"><div class="monthly-fill '+(positive?'profit-positive-bar':'profit-negative-bar')+'" style="width:'+profitWidth+'%"></div></div>'+
+        '</div>'+
+      '</div>'+
     '</div>';
-  }).join("");
+  }).join("")+'</div>';
 }
 
 function formatMonthLabel(v){
   const m=String(v||"").match(/^(\d{4})-(\d{2})/);
   if(!m)return String(v||"");
-  const names=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-  return names[Number(m[2])-1]+"/"+m[1].slice(-2);
+  const names=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  return names[Number(m[2])-1]+" / "+m[1];
 }
 
 function formatCompactBRL(v){
@@ -1527,13 +1571,20 @@ function renderRankList(id,items,limit){
   const el=document.getElementById(id);if(!el)return;
   const list=(items||[]).slice(0,limit||10);
   if(!list.length){el.innerHTML='<div class="history-loading">Sem dados.</div>';return}
-  const max=Math.max(...list.map(x=>Number(x.faturamento||0)),1);
+
+  const totalRevenue=Number(DASHBOARD_DATA?.kpis?.faturamento||0) || list.reduce((s,x)=>s+Number(x.faturamento||0),0) || 1;
+
   el.innerHTML=list.map((x,i)=>{
-    const width=Math.max(2,Math.round(Number(x.faturamento||0)/max*100));
+    const participation=Number(x.faturamento||0)/totalRevenue;
+    const width=Math.max(1,participation*100);
     return '<div class="rank-row">'+
       '<div class="rank-top"><span><b>'+(i+1)+'.</b> '+escapeHtml(x.label||x.chave||"N/I")+'</span><strong>'+formatBRL(x.faturamento)+'</strong></div>'+
-      '<div class="rank-track"><div class="rank-fill" style="width:'+width+'%"></div></div>'+
-      '<div class="rank-foot"><span>Lucro '+formatBRL(x.lucro)+'</span><span>'+formatPct(x.margem)+'</span></div>'+
+      '<div class="rank-track" title="Participação no faturamento: '+escapeHtml(formatPct(participation))+'"><div class="rank-fill" style="width:'+width+'%"></div></div>'+
+      '<div class="rank-foot rank-foot-detailed">'+
+        '<span>Participação no faturamento: <b>'+formatPct(participation)+'</b></span>'+
+        '<span>Lucro: <b class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'">'+formatBRL(x.lucro)+'</b></span>'+
+        '<span>Lucratividade: <b>'+formatPct(x.margem)+'</b></span>'+
+      '</div>'+
     '</div>';
   }).join("");
 }
