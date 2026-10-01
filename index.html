@@ -1309,6 +1309,8 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
   .product-modal-card{width:100%!important;max-height:96vh!important}
 }
 
+
+#iSegmentFinal:invalid,#iSegmentNeo:invalid{border-color:#e08143}
 </style>
 </head>
 <body>
@@ -2796,6 +2798,7 @@ async function approveCurrentQuote(){
     alert("Primeiro defina o orçamento como enviado.");
     return;
   }
+  if(!validateQuoteSegments())return;
   if(!confirm("Aprovar este orçamento e gerar o pedido agora?"))return;
 
   showActionLoading("Aprovando orçamento","Gerando o pedido e gravando os itens...");
@@ -3878,11 +3881,31 @@ function applyQuoteFreezeState(){
   }
 }
 
+function validateQuoteSegments(){
+  const invalidIndex=quoteState.items.findIndex(item=>
+    !String(item.SEGMENTO_FINAL_ID||"").trim() ||
+    !String(item.SEGMENTO_NEO_ID||"").trim()
+  );
+
+  if(invalidIndex<0)return true;
+
+  alert("Todos os itens do orçamento precisam ter Segmentação FINAL e Segmentação NEO.");
+  editQuoteItem(invalidIndex);
+
+  setTimeout(()=>{
+    if(!String(iSegmentFinal.value||"").trim())iSegmentFinal.focus();
+    else if(!String(iSegmentNeo.value||"").trim())iSegmentNeo.focus();
+  },250);
+
+  return false;
+}
+
 async function saveQuoteDraft(){
   if(quoteIsFrozen()){alert("Orçamento aprovado está congelado e não pode mais ser alterado.");return}
   if(quoteSaving)return;
   if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item ao orçamento.");return}
+  if(!validateQuoteSegments())return;
   const payload=collectQuotePayload("RASCUNHO");
   setQuoteSaving(true,"Salvando...");
   try{
@@ -3897,6 +3920,7 @@ async function sendQuote(){
   if(quoteSaving)return;
   if(!qClientId.value){alert("Selecione um cliente cadastrado.");qClient.focus();return}
   if(!quoteState.items.length){alert("Adicione pelo menos um item.");return}
+  if(!validateQuoteSegments())return;
   if(quoteState.items.some(x=>!Number(x.PRECO_FINAL_TOTAL))){alert("Todos os itens precisam ter preço final.");return}
   const payload=collectQuotePayload("ENVIADO");
   setQuoteSaving(true,"Enviando...");
