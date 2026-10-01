@@ -316,51 +316,179 @@ body.sidebar-collapsed .nav button{justify-content:center;padding:10px}
 body.sidebar-collapsed #sidebarToggle{transform:rotate(180deg)}
 
 body.theme-light{
-  --bg:#f4f7fb;--bg2:#ffffff;--panel:#ffffff;--panel2:#f8fafc;
-  --line:#d9e1eb;--text:#182334;--muted:#66758a;
-  --shadow:0 14px 38px rgba(32,48,70,.10);
-  background:#f4f7fb;color:var(--text)
+  --bg:#edf2f7;
+  --bg2:#f6f8fb;
+  --panel:#fbfcfe;
+  --panel2:#f3f6fa;
+  --line:#cbd6e3;
+  --text:#1b2a3b;
+  --muted:#607187;
+  --shadow:0 12px 32px rgba(34,52,74,.09);
+  background:linear-gradient(180deg,#edf2f7 0%,#f5f7fa 100%);
+  color:var(--text)
 }
-body.theme-light .sidebar{background:#fff;border-color:#dce4ee}
-body.theme-light .brand{border-color:#e1e7ef}
-body.theme-light .nav button{color:#536277}
-body.theme-light .nav button:hover{background:#f0f4f9;color:#162132}
-body.theme-light .nav button.active{color:#182334;background:linear-gradient(90deg,rgba(243,155,82,.18),rgba(243,155,82,.04))}
-body.theme-light .ico{background:#eef3f8;color:#546b86}
+body.theme-light .sidebar{
+  background:linear-gradient(180deg,#f8fafc 0%,#eef3f8 100%);
+  border-color:#cbd6e3;
+  box-shadow:6px 0 24px rgba(42,61,83,.06)
+}
+body.theme-light .brand{border-color:#d4dde8}
+body.theme-light .nav button{color:#53677f}
+body.theme-light .nav button:hover{background:#e8eef5;color:#1d2d40}
+body.theme-light .nav button.active{
+  color:#17283a;
+  background:linear-gradient(90deg,rgba(235,137,62,.20),rgba(235,137,62,.06));
+  box-shadow:inset 3px 0 0 #e9863c
+}
+body.theme-light .nav button.active .ico{background:#fff0e4;color:#cf6f2e}
+body.theme-light .ico{background:#e5ebf2;color:#5d7188}
+body.theme-light .sidebar-tool{
+  background:#f6f8fb;
+  border-color:#cbd6e3;
+  color:#42576f
+}
+body.theme-light .sidebar-tool:hover{
+  background:#e8eef5;
+  border-color:#b9c7d6;
+  color:#1f3044
+}
+body.theme-light .sidebar-tool-icon{background:#e6edf5;color:#425b75}
 body.theme-light .sidebar-foot,
 body.theme-light .profile,
 body.theme-light .icon-btn,
-body.theme-light .secondary{background:#fff;border-color:#d5dee9;color:#40536b}
-body.theme-light .sidebar-foot b{color:#213147}
-body.theme-light .topbar{background:rgba(255,255,255,.90);border-color:#dce4ee}
-body.theme-light .breadcrumb b{color:#27374c}
-body.theme-light .hero{background:radial-gradient(circle at 86% 14%,rgba(243,155,82,.15),transparent 30%),linear-gradient(135deg,#fff,#f7f9fc);border-color:#d9e3ee}
-body.theme-light .hero p{color:#66768a}
-body.theme-light .panel{background:#fff;border-color:#dce4ed;box-shadow:var(--shadow)}
-body.theme-light .panel-head{border-color:#e1e7ef}
-body.theme-light .panel-sub{color:#718096}
+body.theme-light .secondary{
+  background:#f8fafc;
+  border-color:#cbd6e3;
+  color:#3d526a
+}
+body.theme-light .sidebar-foot b{color:#203247}
+body.theme-light .topbar{
+  background:rgba(246,249,252,.94);
+  border-color:#cbd6e3;
+  box-shadow:0 4px 18px rgba(37,55,76,.05)
+}
+body.theme-light .breadcrumb{color:#6b7b8f}
+body.theme-light .breadcrumb b{color:#253a51}
+body.theme-light .hero{
+  background:
+    radial-gradient(circle at 88% 16%,rgba(235,137,62,.15),transparent 32%),
+    linear-gradient(135deg,#fbfcfe,#f1f5f9);
+  border-color:#cbd6e3;
+  box-shadow:var(--shadow)
+}
+body.theme-light .hero p{color:#617289}
+body.theme-light .panel{
+  background:#fbfcfe;
+  border-color:#cbd6e3;
+  box-shadow:var(--shadow)
+}
+body.theme-light .panel-head{border-color:#d5dee8}
+body.theme-light .panel-sub{color:#718196}
 body.theme-light .summary,
 body.theme-light .kpi,
-body.theme-light .drawer-card{background:#f8fafc;border-color:#dce4ed}
+body.theme-light .drawer-card{
+  background:#f3f6fa;
+  border-color:#d3dde8
+}
 body.theme-light select,
-body.theme-light input{background:#fff;color:#172336;border-color:#cfd9e5}
-body.theme-light th{background:#f3f6fa;color:#63758c;border-color:#dce4ed}
-body.theme-light td{color:#34465c;border-color:#e3e9f0}
-body.theme-light tbody tr:hover td{background:#f7f9fc}
+body.theme-light input{
+  background:#ffffff;
+  color:#18293b;
+  border-color:#bdcad9;
+  box-shadow:inset 0 1px 2px rgba(30,48,68,.03)
+}
+body.theme-light select:focus,
+body.theme-light input:focus{
+  border-color:#df8542;
+  box-shadow:0 0 0 3px rgba(223,133,66,.12)
+}
+body.theme-light th{
+  background:#eaf0f6;
+  color:#536980;
+  border-color:#cfd9e4
+}
+body.theme-light td{
+  color:#334960;
+  border-color:#dbe3eb
+}
+body.theme-light tbody tr:hover td{background:#f0f4f8}
 body.theme-light .chip,
-body.theme-light .data-chip{background:#f2f6fa;border-color:#d4deea;color:#566b84}
-body.theme-light .cost-section{background:#fff;border-color:#d8e1ec}
-body.theme-light .cost-section-head{background:#f5f8fb;color:#27384e}
-body.theme-light .cost-section-body{border-color:#e1e7ef}
+body.theme-light .data-chip{
+  background:#edf2f7;
+  border-color:#c8d4e0;
+  color:#51677f
+}
+body.theme-light .cost-section{background:#fbfcfe;border-color:#ced9e4}
+body.theme-light .cost-section-head{background:#eef3f7;color:#263b51}
+body.theme-light .cost-section-body{border-color:#d5dee8}
 body.theme-light .cost-row .readonly,
 body.theme-light .process-row .readonly,
-body.theme-light .row-total{background:#f5f7fa;color:#41546c;border-color:#d4dee9}
+body.theme-light .row-total{
+  background:#eef3f7;
+  color:#40576f;
+  border-color:#c8d4e0
+}
 body.theme-light .suggestion-card,
 body.theme-light .scenario-btn,
-body.theme-light .final-kpis div{background:#f7f9fc;border-color:#d8e1ec;color:#27384e}
+body.theme-light .final-kpis div{
+  background:#f1f5f9;
+  border-color:#ccd7e3;
+  color:#263b51
+}
 body.theme-light .money-input{background:#fff}
-body.theme-light .drawer,
-body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec}
+body.theme-light .guide-panel{background:#f8fafc;color:#18293b;border-color:#cbd6e3}
+body.theme-light .guide-strip,
+body.theme-light .simple-help{
+  background:#eef4fa;
+  border-color:#cedbe8
+}
+body.theme-light .primary{
+  box-shadow:0 5px 14px rgba(220,124,52,.18)
+}
+
+.sidebar{display:flex;flex-direction:column}
+.sidebar-spacer{flex:1;min-height:18px}
+.sidebar-tools{
+  display:grid;
+  gap:7px;
+  padding:10px 12px;
+  border-top:1px solid var(--line)
+}
+.sidebar-tool{
+  width:100%;
+  min-height:42px;
+  border:1px solid #243a56;
+  border-radius:11px;
+  background:#0d1a2c;
+  color:#94a8c2;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:7px 9px;
+  cursor:pointer;
+  transition:.18s ease
+}
+.sidebar-tool:hover{background:#12223a;color:#d9e6f5;border-color:#345273}
+.sidebar-tool-icon{
+  width:28px;
+  height:28px;
+  flex:0 0 28px;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  background:#15263d;
+  color:#a9bbd0;
+  font-size:15px;
+  font-weight:800
+}
+.sidebar-tool-text{font-size:12px;font-weight:700;white-space:nowrap}
+body.sidebar-collapsed .sidebar-tools{padding:10px 9px}
+body.sidebar-collapsed .sidebar-tool{justify-content:center;padding:7px}
+body.sidebar-collapsed .sidebar-tool-text{display:none}
+body.sidebar-collapsed #sidebarToggle .sidebar-tool-icon{transform:rotate(180deg)}
+@media(max-width:820px){
+  .sidebar-collapse-btn{display:none}
+}
 
 .guide-strip{margin:-4px 0 16px;padding:11px 14px;border:1px solid rgba(118,170,255,.20);background:rgba(118,170,255,.06);border-radius:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .guide-strip b{color:var(--text)}.guide-strip span:before{content:"• ";color:var(--blue)}
@@ -421,6 +549,19 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
       <button data-page="quotes"><span class="ico">R$</span><span class="nav-text">Orçamentos</span></button>
     </div>
 
+    <div class="sidebar-spacer"></div>
+
+    <div class="sidebar-tools">
+      <button class="sidebar-tool" id="themeBtn" onclick="toggleTheme()" title="Alternar tema claro/escuro">
+        <span class="sidebar-tool-icon">☾</span>
+        <span class="sidebar-tool-text">Tema claro</span>
+      </button>
+      <button class="sidebar-tool sidebar-collapse-btn" id="sidebarToggle" onclick="toggleSidebar()" title="Recolher ou expandir menu">
+        <span class="sidebar-tool-icon">⇤</span>
+        <span class="sidebar-tool-text">Recolher menu</span>
+      </button>
+    </div>
+
     <div class="sidebar-foot"><b>Plataforma Comercial</b>Cadastro de clientes e formação de orçamentos conectados ao banco real.</div>
   </aside>
 
@@ -434,11 +575,9 @@ body.theme-light .guide-panel{background:#fff;color:#172336;border-color:#d8e1ec
         </div>
       </div>
       <div class="actions">
-        <button class="icon-btn desktop-collapse" id="sidebarToggle" onclick="toggleSidebar()" title="Recolher ou expandir menu">⇤</button>
-        <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Alternar claro/escuro">☾</button>
         <button class="icon-btn guide-top-btn" onclick="openGuide()" title="Como funciona esta tela">?</button>
         <button class="icon-btn" onclick="refreshCurrentPage(this)" title="Atualizar">↻</button>
-        <div class="profile"><div class="avatar">NS</div><div class="profile-copy"><b>Neosonic</b><span>Acesso executivo</span></div></div>
+        <div class="profile"><div class="avatar">NS</div><div class="profile-copy"><b>NEOSONICS</b><span>Acesso executivo</span></div></div>
       </div>
     </div>
 
@@ -879,6 +1018,8 @@ function initUiPreferences(){
   document.body.classList.toggle("theme-light",theme==="light");
   document.body.classList.toggle("sidebar-collapsed",localStorage.getItem("neosonics_sidebar")==="collapsed");
   updateThemeButton();
+  const collapseLabel=document.querySelector("#sidebarToggle .sidebar-tool-text");
+  if(collapseLabel)collapseLabel.textContent=document.body.classList.contains("sidebar-collapsed")?"Expandir menu":"Recolher menu";
 }
 
 function toggleTheme(){
@@ -888,11 +1029,18 @@ function toggleTheme(){
 }
 function updateThemeButton(){
   const b=document.getElementById("themeBtn");
-  if(b)b.textContent=document.body.classList.contains("theme-light")?"☀":"☾";
+  if(!b)return;
+  const light=document.body.classList.contains("theme-light");
+  const icon=b.querySelector(".sidebar-tool-icon");
+  const label=b.querySelector(".sidebar-tool-text");
+  if(icon)icon.textContent=light?"☀":"☾";
+  if(label)label.textContent=light?"Tema escuro":"Tema claro";
 }
 function toggleSidebar(){
   const collapsed=document.body.classList.toggle("sidebar-collapsed");
   localStorage.setItem("neosonics_sidebar",collapsed?"collapsed":"expanded");
+  const label=document.querySelector("#sidebarToggle .sidebar-tool-text");
+  if(label)label.textContent=collapsed?"Expandir menu":"Recolher menu";
 }
 function openGuide(page){
   const id=page||currentPage||document.querySelector(".page.active")?.id||"clients";
