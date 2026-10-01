@@ -744,6 +744,7 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
     <div class="group-title">Comercial</div>
     <div class="nav">
       <button data-page="quotes"><span class="ico">R$</span><span class="nav-text">Orçamentos</span></button>
+      <button data-page="orders"><span class="ico">▤</span><span class="nav-text">Pedidos</span></button>
     </div>
 
     <div class="sidebar-spacer"></div>
@@ -1038,6 +1039,76 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
         </div>
       </section>
 
+      <section id="orders" class="page">
+        <div class="hero">
+          <div>
+            <h2>Pedidos</h2>
+            <p>Pedidos históricos e pedidos gerados a partir de orçamentos aprovados.</p>
+          </div>
+          <div class="badge" id="ordersBadge">Carregando...</div>
+        </div>
+
+        <div class="guide-strip">
+          <b>Como funciona:</b>
+          <span>1. Consulte os pedidos históricos</span>
+          <span>2. Aprove um orçamento para gerar um novo pedido</span>
+          <span>3. Abra o pedido para conferir itens e lucratividade</span>
+          <button type="button" onclick="openGuide('orders')">Ver guia</button>
+        </div>
+
+        <div class="dashboard-kpis orders-kpis">
+          <div class="kpi"><div class="label">Pedidos</div><div class="value" id="oKpiTotal">0</div><div class="delta">total cadastrado</div></div>
+          <div class="kpi"><div class="label">Históricos</div><div class="value" id="oKpiHistorical">0</div><div class="delta">importados da planilha</div></div>
+          <div class="kpi"><div class="label">Gerados por orçamento</div><div class="value" id="oKpiNew">0</div><div class="delta">novos pedidos</div></div>
+          <div class="kpi"><div class="label">Valor total</div><div class="value" id="oKpiValue">R$ 0,00</div><div class="delta">pedidos filtrados</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head orders-filter-head">
+            <div><div class="panel-title">Lista de pedidos</div><div class="panel-sub">Pesquise e filtre os pedidos.</div></div>
+            <div class="panel-head-actions order-filter-actions">
+              <input id="orderSearch" class="compact-search" placeholder="Pedido ou cliente..." oninput="renderOrdersTable()">
+              <select id="orderYear" class="compact-select" onchange="renderOrdersTable()"><option value="">Todos os anos</option></select>
+              <select id="orderOrigin" class="compact-select" onchange="renderOrdersTable()"><option value="">Todas as origens</option></select>
+              <select id="orderStatus" class="compact-select" onchange="renderOrdersTable()"><option value="">Todos os status</option></select>
+              <select id="orderClient" class="compact-select" onchange="renderOrdersTable()"><option value="">Todos os clientes</option></select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="orders-table">
+              <thead>
+                <tr><th>Pedido</th><th>Data</th><th>Cliente</th><th>Origem</th><th>Itens</th><th>Valor</th><th>Lucro</th><th>Lucratividade</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody id="ordersTableBody"><tr class="empty-row"><td colspan="10">Carregando pedidos...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel order-detail-panel" id="orderDetailPanel" style="display:none">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title" id="orderDetailTitle">Pedido</div>
+              <div class="panel-sub" id="orderDetailSub"></div>
+            </div>
+            <button class="secondary" onclick="closeOrderDetail()">Fechar</button>
+          </div>
+          <div class="panel-body">
+            <div class="grid4 order-detail-kpis">
+              <div class="summary"><span>Faturamento</span><strong id="odRevenue">R$ 0,00</strong><small>valor do pedido</small></div>
+              <div class="summary"><span>Custo</span><strong id="odCost">R$ 0,00</strong><small>custo dos itens</small></div>
+              <div class="summary"><span>Lucro</span><strong id="odProfit">R$ 0,00</strong><small>após despesas</small></div>
+              <div class="summary"><span>Lucratividade</span><strong id="odMargin">0,00%</strong><small>lucro / faturamento</small></div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Item</th><th>SKU</th><th>FINAL</th><th>NEO</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th>Lucro</th><th>Lucratividade</th></tr></thead>
+              <tbody id="orderItemsBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section id="quotes" class="page">
         <div class="hero quote-hero">
           <div>
@@ -1232,6 +1303,7 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
             <div class="quote-status-note" id="quoteStatusNote">Rascunho • ainda não enviado</div>
             <div>
               <button class="secondary" onclick="saveQuoteDraft()">Salvar rascunho</button>
+              <button class="secondary" onclick="approveCurrentQuote()">Aprovar e gerar pedido</button>
               <button class="primary" onclick="sendQuote()">Definir como enviado</button>
             </div>
           </div>
@@ -1276,13 +1348,14 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
 </div>
 
 <script>
-const names={overview:"Indicadores",clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos"};
+const names={overview:"Indicadores",clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos",orders:"Pedidos"};
 
 const NEOSONICS_API_URL="https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec";
 let PARAM_VERSION="PV-20260924-001";
 let FIXED_EXPENSE=0.12741625391756686;
 let apiOnline=false;
 let quoteHistoryCache=[];
+let orderCache=[];
 let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[]};
 let currentPage="overview";
 
@@ -1346,6 +1419,7 @@ document.querySelectorAll(".nav button").forEach(btn=>{
     window.scrollTo({top:0,behavior:"smooth"});
     if(id==="overview") initOverviewPage();
     if(id==="quotes") initQuotesPage();
+    if(id==="orders") initOrdersPage();
     if(id==="clients") initClientsPage();
     if(id==="segments") initSegmentsPage();
   }
@@ -1366,6 +1440,11 @@ const GUIDES={
     ["Escolha o tipo","FINAL e NEO são cadastros separados."],
     ["Corrija ou crie","Edite nomes digitados errado ou crie novas opções."],
     ["Inative em vez de apagar","Uma opção inativa deixa de aparecer para novos lançamentos, sem quebrar o histórico."]
+  ]},
+  orders:{title:"Pedidos",steps:[
+    ["Histórico","Os pedidos antigos foram reconstruídos a partir das vendas históricas."],
+    ["Novos pedidos","Ao aprovar um orçamento, o pedido é criado automaticamente."],
+    ["Detalhe","Abra um pedido para ver itens, valores, lucro e lucratividade."]
   ]},
   quotes:{title:"Orçamentos",steps:[
     ["Escolha o cliente","O cliente precisa estar cadastrado antes."],
@@ -1419,6 +1498,7 @@ function refreshCurrentPage(btn){
   else if(currentPage==="clients")initClientsPage();
   else if(currentPage==="segments")initSegmentsPage();
   else if(currentPage==="quotes")initQuotesPage();
+  else if(currentPage==="orders")initOrdersPage();
 }
 
 function toggleMobileMenu(){
@@ -1637,6 +1717,204 @@ function showClientProducts(clientId,label){
 function dashboardClientLabel(id){
   const x=(DASHBOARD_DATA?.clientes||[]).find(x=>String(x.id||x.chave)===String(id));
   return x?.label||"Cliente";
+}
+
+async function initOrdersPage(){
+  const body=document.getElementById("ordersTableBody");
+  if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Carregando pedidos...</td></tr>';
+
+  try{
+    const j=await apiGet("pedidos");
+    orderCache=Array.isArray(j.dados)?j.dados:[];
+    populateOrderFilters();
+    renderOrdersTable();
+    if(document.getElementById("ordersBadge"))ordersBadge.textContent=orderCache.length+" pedidos";
+  }catch(err){
+    console.error("Pedidos:",err);
+    orderCache=[];
+    if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Não foi possível carregar os pedidos.</td></tr>';
+    if(document.getElementById("ordersBadge"))ordersBadge.textContent="Erro ao carregar";
+  }
+}
+
+function populateOrderFilters(){
+  const selected={
+    year:document.getElementById("orderYear")?.value||"",
+    origin:document.getElementById("orderOrigin")?.value||"",
+    status:document.getElementById("orderStatus")?.value||"",
+    client:document.getElementById("orderClient")?.value||""
+  };
+
+  const years=[...new Set(orderCache.map(x=>String(x.ANO_ORIGEM||String(x.DATA_PEDIDO||"").slice(0,4))).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  const origins=[...new Set(orderCache.map(x=>String(x.ORIGEM||"").trim()).filter(Boolean))].sort();
+  const statuses=[...new Set(orderCache.map(x=>String(x.STATUS||"").trim()).filter(Boolean))].sort();
+  const clients=[...new Map(orderCache.filter(x=>x.CLIENTE_ID).map(x=>[String(x.CLIENTE_ID),String(x.CLIENTE_NOME_SNAPSHOT||"")])).entries()]
+    .sort((a,b)=>a[1].localeCompare(b[1],"pt-BR"));
+
+  const fill=(id,placeholder,items,valueFn,labelFn,selectedValue)=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.innerHTML='<option value="">'+placeholder+'</option>'+items.map(x=>'<option value="'+escapeHtml(valueFn(x))+'">'+escapeHtml(labelFn(x))+'</option>').join("");
+    el.value=selectedValue;
+  };
+
+  fill("orderYear","Todos os anos",years,x=>x,x=>x,selected.year);
+  fill("orderOrigin","Todas as origens",origins,x=>x,x=>x==="HISTORICO"?"Histórico":"Orçamento",selected.origin);
+  fill("orderStatus","Todos os status",statuses,x=>x,x=>x,selected.status);
+  fill("orderClient","Todos os clientes",clients,x=>x[0],x=>x[1],selected.client);
+}
+
+function filteredOrders(){
+  const term=String(document.getElementById("orderSearch")?.value||"").trim().toUpperCase();
+  const year=String(document.getElementById("orderYear")?.value||"");
+  const origin=String(document.getElementById("orderOrigin")?.value||"");
+  const status=String(document.getElementById("orderStatus")?.value||"");
+  const client=String(document.getElementById("orderClient")?.value||"");
+
+  return orderCache.filter(x=>{
+    const y=String(x.ANO_ORIGEM||String(x.DATA_PEDIDO||"").slice(0,4));
+    const hay=[x.NUMERO_PEDIDO,x.CLIENTE_NOME_SNAPSHOT,x.NUMERO_ORCAMENTO_ORIGEM].join(" ").toUpperCase();
+    if(term&&!hay.includes(term))return false;
+    if(year&&y!==year)return false;
+    if(origin&&String(x.ORIGEM)!==origin)return false;
+    if(status&&String(x.STATUS)!==status)return false;
+    if(client&&String(x.CLIENTE_ID)!==client)return false;
+    return true;
+  });
+}
+
+function renderOrdersTable(){
+  const body=document.getElementById("ordersTableBody");if(!body)return;
+  const rows=filteredOrders();
+
+  const hist=rows.filter(x=>String(x.ORIGEM)==="HISTORICO").length;
+  const novos=rows.filter(x=>String(x.ORIGEM)==="ORCAMENTO").length;
+  const value=rows.reduce((s,x)=>s+Number(x.VALOR_TOTAL||0),0);
+
+  if(document.getElementById("oKpiTotal"))oKpiTotal.textContent=rows.length;
+  if(document.getElementById("oKpiHistorical"))oKpiHistorical.textContent=hist;
+  if(document.getElementById("oKpiNew"))oKpiNew.textContent=novos;
+  if(document.getElementById("oKpiValue"))oKpiValue.textContent=formatBRL(value);
+
+  if(!rows.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="10">Nenhum pedido encontrado.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=rows.map(x=>{
+    const origin=String(x.ORIGEM||"");
+    const originLabel=origin==="HISTORICO"?"Histórico":"Orçamento";
+    const orderLabel=escapeHtml(x.NUMERO_PEDIDO||"");
+    const year=String(x.ANO_ORIGEM||String(x.DATA_PEDIDO||"").slice(0,4));
+    return '<tr>'+
+      '<td><b>'+orderLabel+'</b><small class="table-sub">'+escapeHtml(year)+'</small></td>'+
+      '<td>'+formatDateBR(x.DATA_PEDIDO)+'</td>'+
+      '<td>'+escapeHtml(x.CLIENTE_NOME_SNAPSHOT||"")+'</td>'+
+      '<td><span class="origin-chip '+(origin==="HISTORICO"?"historical":"quote")+'">'+originLabel+'</span></td>'+
+      '<td>'+Number(x.QTD_ITENS||0)+'</td>'+
+      '<td><b>'+formatBRL(x.VALOR_TOTAL)+'</b></td>'+
+      '<td class="'+(Number(x.LUCRO_TOTAL||0)>=0?"profit-positive":"profit-negative")+'">'+formatBRL(x.LUCRO_TOTAL)+'</td>'+
+      '<td>'+formatPct(x.LUCRATIVIDADE_PCT)+'</td>'+
+      '<td><span class="status '+statusClass(x.STATUS)+'">'+escapeHtml(x.STATUS||"")+'</span></td>'+
+      '<td><button class="secondary" style="height:30px" onclick="openOrder(\''+escapeJs(x.ID_PEDIDO)+'\')">Abrir</button></td>'+
+    '</tr>';
+  }).join("");
+}
+
+async function openOrder(id){
+  try{
+    const j=await apiGet("pedido_detalhe",{id});
+    const p=j.pedido||{}, r=j.resumo||{}, items=j.itens||[];
+    orderDetailTitle.textContent="Pedido "+(p.NUMERO_PEDIDO||"");
+    orderDetailSub.textContent=[
+      p.CLIENTE_NOME_SNAPSHOT||"",
+      formatDateBR(p.DATA_PEDIDO),
+      String(p.ORIGEM)==="HISTORICO"?"Histórico":"Gerado pelo orçamento "+(p.NUMERO_ORCAMENTO_ORIGEM||"")
+    ].filter(Boolean).join(" • ");
+
+    odRevenue.textContent=formatBRL(r.faturamento);
+    odCost.textContent=formatBRL(r.custo);
+    odProfit.textContent=formatBRL(r.lucro);
+    odMargin.textContent=formatPct(r.lucratividade);
+
+    orderItemsBody.innerHTML=items.length?items.map((x,i)=>
+      '<tr>'+
+        '<td>'+(i+1)+'</td>'+
+        '<td><b>'+escapeHtml(x.DESCRICAO||"")+'</b></td>'+
+        '<td>'+escapeHtml(x.SKU||"—")+'</td>'+
+        '<td>'+escapeHtml(x.SEGMENTO_FINAL_SNAPSHOT||"—")+'</td>'+
+        '<td>'+escapeHtml(x.SEGMENTO_NEO_SNAPSHOT||"—")+'</td>'+
+        '<td>'+Number(x.QTDE||0).toLocaleString("pt-BR")+'</td>'+
+        '<td>'+formatBRL(x.PRECO_UNITARIO)+'</td>'+
+        '<td>'+formatBRL(x.VALOR_TOTAL)+'</td>'+
+        '<td class="'+(Number(x.LUCRO_SNAPSHOT||0)>=0?"profit-positive":"profit-negative")+'">'+formatBRL(x.LUCRO_SNAPSHOT)+'</td>'+
+        '<td>'+formatPct(x.MARGEM_PCT_SNAPSHOT)+'</td>'+
+      '</tr>'
+    ).join(""):'<tr class="empty-row"><td colspan="10">Pedido sem itens.</td></tr>';
+
+    orderDetailPanel.style.display="";
+    orderDetailPanel.scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(err){
+    alert("Não foi possível abrir o pedido: "+err.message);
+  }
+}
+
+function closeOrderDetail(){
+  const p=document.getElementById("orderDetailPanel");
+  if(p)p.style.display="none";
+}
+
+async function approveCurrentQuote(){
+  if(!quoteState.id){
+    alert("Salve e envie o orçamento antes de aprovar.");
+    return;
+  }
+  if(String(quoteState.status||"").toUpperCase()==="CONVERTIDO"){
+    alert("Este orçamento já gerou um pedido.");
+    return;
+  }
+  if(String(quoteState.status||"").toUpperCase()!=="ENVIADO" && String(quoteState.status||"").toUpperCase()!=="APROVADO"){
+    alert("Primeiro defina o orçamento como enviado.");
+    return;
+  }
+  if(!confirm("Aprovar este orçamento e gerar o pedido agora?"))return;
+
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"aprovar_orcamento",id_orcamento:quoteState.id})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Falha ao aprovar");
+
+    quoteState.status="CONVERTIDO";
+    quoteStatusNote.textContent="Aprovado • pedido gerado";
+    await renderQuoteHistory();
+    alert("Orçamento aprovado e pedido "+(j.numero_pedido||"")+" gerado.");
+  }catch(err){
+    alert("Não foi possível aprovar o orçamento: "+err.message);
+  }
+}
+
+async function approveQuoteFromHistory(id){
+  const q=quoteHistoryCache.find(x=>String(x.ID_ORCAMENTO)===String(id));
+  if(!q)return;
+  if(!confirm("Aprovar o orçamento "+q.NUMERO_ORCAMENTO+" e gerar o pedido?"))return;
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"aprovar_orcamento",id_orcamento:id})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Falha ao aprovar");
+    await renderQuoteHistory();
+    alert("Pedido "+(j.numero_pedido||"")+" gerado.");
+  }catch(err){
+    alert("Não foi possível aprovar o orçamento: "+err.message);
+  }
 }
 
 function clientName(c){return String(c.NOME_FANTASIA||c.RAZAO_SOCIAL||"").trim()}
@@ -2729,7 +3007,7 @@ async function renderQuoteHistory(){
     <td>${q.QTD_ITENS||0}</td>
     <td>${formatBRL(q.VALOR_TOTAL)}</td>
     <td><span class="status ${statusClass(q.STATUS)}">${q.STATUS||"RASCUNHO"}</span></td>
-    <td><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button></td>
+    <td><div class="row-actions"><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button>${String(q.STATUS||"").toUpperCase()==="ENVIADO"?'<button class="primary" style="height:29px" onclick="approveQuoteFromHistory(\''+q.ID_ORCAMENTO+'\')">Aprovar</button>':""}</div></td>
   </tr>`).join("");
 
   document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
@@ -2787,8 +3065,8 @@ function searchQuote(){
 
 function statusClass(s){
   const v=String(s||"").toUpperCase();
-  if(v==="APROVADO"||v==="CONVERTIDO")return "good";
-  if(v==="ENVIADO"||v==="RASCUNHO")return "mid";
+  if(v==="APROVADO"||v==="CONVERTIDO"||v==="FATURADO")return "good";
+  if(v==="ENVIADO"||v==="RASCUNHO"||v==="ABERTO")return "mid";
   if(v==="RECUSADO"||v==="CANCELADO")return "low";
   return "";
 }
