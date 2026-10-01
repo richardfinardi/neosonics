@@ -643,6 +643,12 @@ body.theme-light .history-explain{background:#edf4fa;border-color:#cddbea}
   .history-variant{grid-template-columns:1fr auto}
   .history-count{grid-column:1/-1;justify-self:start}
 }
+.segment-help{margin-top:-4px}
+.segment-help span{font-size:10px;color:var(--muted);line-height:1.4}
+.segment-pair{display:grid;gap:2px;min-width:160px}
+.segment-pair b{font-size:11px;color:var(--text)}
+.segment-pair span{font-size:10px;color:var(--muted)}
+body.theme-light .segment-pair b{color:#253a51}
 </style>
 </head>
 <body>
@@ -725,7 +731,8 @@ body.theme-light .history-explain{background:#edf4fa;border-color:#cddbea}
                 <div class="field"><label>Razão social *</label><input id="cRazao" placeholder="Razão social"></div>
                 <div class="field"><label>Nome fantasia</label><input id="cFantasia" placeholder="Nome fantasia"></div>
                 <div class="field"><label>CNPJ / CPF</label><input id="cDocumento" placeholder="00.000.000/0000-00"></div>
-                <div class="field"><label>Segmento</label><input id="cSegment" list="clientSegmentOptions" placeholder="Ex.: Automotivo"><datalist id="clientSegmentOptions"></datalist></div>
+                <div class="field"><label>Segmentação FINAL padrão</label><select id="cSegmentFinal"><option value="">Sem padrão</option></select></div>
+                <div class="field"><label>Segmentação NEO padrão</label><select id="cSegmentNeo"><option value="">Sem padrão</option></select></div>
                 <div class="field"><label>UF</label><select id="cUf"><option value="">Selecione</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
                 <div class="field"><label>Cidade</label><input id="cCidade" placeholder="Cidade"></div>
                 <div class="field"><label>Contato principal</label><input id="cContato" placeholder="Nome / área"></div>
@@ -769,8 +776,8 @@ body.theme-light .history-explain{background:#edf4fa;border-color:#cddbea}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Cliente</th><th>Razão social</th><th>Segmento</th><th>UF</th><th>Contato</th><th>Vendedor</th><th>Status</th><th></th></tr></thead>
-              <tbody id="clientsTableBody"><tr class="empty-row"><td colspan="8">Carregando clientes...</td></tr></tbody>
+              <thead><tr><th>Cliente</th><th>Razão social</th><th>Seg. FINAL</th><th>Seg. NEO</th><th>UF</th><th>Contato</th><th>Vendedor</th><th>Status</th><th></th></tr></thead>
+              <tbody id="clientsTableBody"><tr class="empty-row"><td colspan="9">Carregando clientes...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -887,6 +894,9 @@ body.theme-light .history-explain{background:#edf4fa;border-color:#cddbea}
                 <div class="field full"><label>Item</label><input id="iDescription" placeholder="Descrição do item"></div>
                 <div class="field"><label>SKU / referência</label><input id="iSku" placeholder="Opcional"></div>
                 <div class="field"><label>Quantidade de peças</label><input id="iQty" type="number" min="1" step="1" value="1" oninput="recalculateItem()"></div>
+                <div class="field"><label>Segmentação FINAL *</label><select id="iSegmentFinal" onchange="syncItemNeoFromFinal()"><option value="">Selecione...</option></select></div>
+                <div class="field"><label>Segmentação NEO *</label><select id="iSegmentNeo"><option value="">Selecione...</option></select></div>
+                <div class="field full segment-help"><span id="segmentAutoHint">As duas segmentações vêm do cadastro oficial. Quando a relação histórica for única, a NEO será preenchida automaticamente.</span></div>
               </div>
 
               <div class="cost-section open" id="secMP">
@@ -989,9 +999,9 @@ body.theme-light .history-explain{background:#edf4fa;border-color:#cddbea}
           </div>
           <div class="table-wrap">
             <table class="quote-items-table">
-              <thead><tr><th>#</th><th>Item</th><th>Qtde</th><th>Custo</th><th>Preço final</th><th>Unitário</th><th>Lucro</th><th>Lucro %</th><th></th></tr></thead>
+              <thead><tr><th>#</th><th>Item</th><th>FINAL / NEO</th><th>Qtde</th><th>Custo</th><th>Preço final</th><th>Unitário</th><th>Lucro</th><th>Lucro %</th><th></th></tr></thead>
               <tbody id="quoteItemsBody">
-                <tr class="empty-row"><td colspan="9">Nenhum item adicionado ainda.</td></tr>
+                <tr class="empty-row"><td colspan="10">Nenhum item adicionado ainda.</td></tr>
               </tbody>
             </table>
           </div>
@@ -1050,7 +1060,7 @@ let PARAM_VERSION="PV-20260924-001";
 let FIXED_EXPENSE=0.12741625391756686;
 let apiOnline=false;
 let quoteHistoryCache=[];
-let APP_DATA={clients:[],segments:[],clientMap:[]};
+let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[]};
 let currentPage="clients";
 
 let PROCESS_COSTS=[
@@ -1183,17 +1193,32 @@ function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transiti
 function clientName(c){return String(c.NOME_FANTASIA||c.RAZAO_SOCIAL||"").trim()}
 function truthy(v){return v===true||String(v).toLowerCase()==="true"||String(v)==="1"}
 
+function activeSegmentsByType(type){
+  return APP_DATA.segments
+    .filter(s=>String(s.TIPO||"").toUpperCase()===String(type).toUpperCase() && s.ATIVO!==false)
+    .slice()
+    .sort((a,b)=>Number(a.ORDEM||9999)-Number(b.ORDEM||9999)||String(a.SEGMENTO||"").localeCompare(String(b.SEGMENTO||""),"pt-BR"));
+}
+function segmentNameById(id){
+  const s=APP_DATA.segments.find(x=>String(x.ID_SEGMENTO)===String(id));
+  return s?String(s.SEGMENTO||""):"";
+}
+function segmentOptions(type,emptyLabel="Selecione..."){
+  return '<option value="">'+escapeHtml(emptyLabel)+'</option>'+
+    activeSegmentsByType(type).map(s=>'<option value="'+escapeHtml(s.ID_SEGMENTO)+'">'+escapeHtml(s.SEGMENTO)+'</option>').join("");
+}
 function populateClientSelectors(){
   const qList=document.getElementById("quoteClientOptions");
   if(qList)qList.innerHTML=APP_DATA.clients.filter(c=>truthy(c.ATIVO)!==false).map(c=>'<option value="'+escapeHtml(clientName(c))+'"></option>').join("");
 
-  const segList=document.getElementById("clientSegmentOptions");
-  if(segList){
-    const segs=new Set();
-    APP_DATA.segments.forEach(s=>{const v=s.SEGMENTO||s.ID_SEGMENTO;if(v)segs.add(String(v))});
-    APP_DATA.clients.forEach(x=>{if(x.SEGMENTO_ID)segs.add(String(x.SEGMENTO_ID))});
-    segList.innerHTML=[...segs].sort((a,b)=>a.localeCompare(b,"pt-BR")).map(v=>'<option value="'+escapeHtml(v)+'"></option>').join("");
-  }
+  const cFinal=document.getElementById("cSegmentFinal");
+  const cNeo=document.getElementById("cSegmentNeo");
+  const iFinal=document.getElementById("iSegmentFinal");
+  const iNeo=document.getElementById("iSegmentNeo");
+  if(cFinal)cFinal.innerHTML=segmentOptions("FINAL","Sem padrão");
+  if(cNeo)cNeo.innerHTML=segmentOptions("NEO","Sem padrão");
+  if(iFinal)iFinal.innerHTML=segmentOptions("FINAL","Selecione...");
+  if(iNeo)iNeo.innerHTML=segmentOptions("NEO","Selecione...");
 }
 
 async function initClientsPage(){
@@ -1221,16 +1246,17 @@ function renderClientsTable(){
   const body=document.getElementById("clientsTableBody");if(!body)return;
   const term=String(document.getElementById("clientSearch")?.value||"").trim().toUpperCase();
   const list=APP_DATA.clients.filter(c=>{
-    const hay=[c.NOME_FANTASIA,c.RAZAO_SOCIAL,c.CNPJ_CPF,c.SEGMENTO_ID,c.UF,c.CIDADE,c.VENDEDOR].join(" ").toUpperCase();
+    const hay=[c.NOME_FANTASIA,c.RAZAO_SOCIAL,c.CNPJ_CPF,segmentNameById(c.SEGMENTO_FINAL_ID),segmentNameById(c.SEGMENTO_NEO_ID),c.UF,c.CIDADE,c.VENDEDOR].join(" ").toUpperCase();
     return !term||hay.includes(term);
   });
   if(!list.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum cliente encontrado.</td></tr>';return;
+    body.innerHTML='<tr class="empty-row"><td colspan="9">Nenhum cliente encontrado.</td></tr>';return;
   }
   body.innerHTML=list.map(c=>'<tr>'+
     '<td><b>'+escapeHtml(clientName(c))+'</b></td>'+
     '<td>'+escapeHtml(c.RAZAO_SOCIAL||"")+'</td>'+
-    '<td>'+escapeHtml(c.SEGMENTO_ID||"—")+'</td>'+
+    '<td>'+escapeHtml(segmentNameById(c.SEGMENTO_FINAL_ID)||"—")+'</td>'+
+    '<td>'+escapeHtml(segmentNameById(c.SEGMENTO_NEO_ID)||"—")+'</td>'+
     '<td>'+escapeHtml(c.UF||"—")+'</td>'+
     '<td>'+escapeHtml(c.CONTATO||"—")+'</td>'+
     '<td>'+escapeHtml(c.VENDEDOR||"—")+'</td>'+
@@ -1390,8 +1416,10 @@ async function resolveHistoryGroup(code,mode,variantCount,extra={}){
 function escapeJs(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}
 
 function clearClientForm(){
-  ["cId","cRazao","cFantasia","cDocumento","cSegment","cCidade","cContato","cVendedor","cEmail","cTelefone","cObs"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
+  ["cId","cRazao","cFantasia","cDocumento","cCidade","cContato","cVendedor","cEmail","cTelefone","cObs"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=""});
   if(document.getElementById("cUf"))cUf.value="";
+  if(document.getElementById("cSegmentFinal"))cSegmentFinal.value="";
+  if(document.getElementById("cSegmentNeo"))cSegmentNeo.value="";
   if(document.getElementById("cAtivo"))cAtivo.value="true";
   if(document.getElementById("clientFormTitle"))clientFormTitle.textContent="Novo cliente";
   if(document.getElementById("clientFormChip"))clientFormChip.textContent="Cadastro";
@@ -1401,7 +1429,7 @@ function clearClientForm(){
 function editClient(id){
   const c=APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===String(id));if(!c)return;
   cId.value=c.ID_CLIENTE||"";cRazao.value=c.RAZAO_SOCIAL||"";cFantasia.value=c.NOME_FANTASIA||"";
-  cDocumento.value=c.CNPJ_CPF||"";cSegment.value=c.SEGMENTO_ID||"";cUf.value=c.UF||"";cCidade.value=c.CIDADE||"";
+  cDocumento.value=c.CNPJ_CPF||"";cSegmentFinal.value=c.SEGMENTO_FINAL_ID||"";cSegmentNeo.value=c.SEGMENTO_NEO_ID||"";cUf.value=c.UF||"";cCidade.value=c.CIDADE||"";
   cContato.value=c.CONTATO||"";cVendedor.value=c.VENDEDOR||"";cEmail.value=c.EMAIL||"";cTelefone.value=c.TELEFONE||"";
   cAtivo.value=truthy(c.ATIVO)?"true":"false";cObs.value=c.OBS||"";
   clientFormTitle.textContent="Editar cliente";clientFormChip.textContent="Edição";
@@ -1414,7 +1442,8 @@ async function saveClient(){
     RAZAO_SOCIAL:cRazao.value.trim(),
     NOME_FANTASIA:cFantasia.value.trim(),
     CNPJ_CPF:cDocumento.value.trim(),
-    SEGMENTO_ID:cSegment.value.trim(),
+    SEGMENTO_FINAL_ID:cSegmentFinal.value,
+    SEGMENTO_NEO_ID:cSegmentNeo.value,
     UF:cUf.value,
     CIDADE:cCidade.value.trim(),
     CONTATO:cContato.value.trim(),
@@ -1481,6 +1510,7 @@ async function loadBootstrap(){
     apiOnline=true;
     APP_DATA.clients=Array.isArray(j.clientes)?j.clientes:[];
     APP_DATA.segments=Array.isArray(j.segmentos)?j.segmentos:[];
+    APP_DATA.segmentRelations=Array.isArray(j.segmento_relacoes)?j.segmento_relacoes:[];
     populateClientSelectors();
 
     if(j.parametro_versao_ativa){
