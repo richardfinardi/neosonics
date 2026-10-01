@@ -29,7 +29,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.6.1' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.6.2' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -76,7 +76,7 @@ function doPost(e) {
         return json_(criarClienteDoMapeamento_(body.chave_origem));
 
       case 'resolver_grupo_cliente':
-        return json_(resolverGrupoCliente_(body.cod_cliente_origem, body.modo, body.nome_oficial));
+        return json_(resolverGrupoCliente_(body.cod_cliente_origem, body.modo, body.nome_oficial, body.id_cliente_oficial));
 
       case 'salvar_orcamento':
         return json_(salvarOrcamento_(body.orcamento || {}));
@@ -200,7 +200,7 @@ function criarClienteDoMapeamento_(chaveOrigem) {
   return { ok: true, cliente: cliente, chave_origem: chaveOrigem };
 }
 
-function resolverGrupoCliente_(codClienteOrigem, modo, nomeOficial) {
+function resolverGrupoCliente_(codClienteOrigem, modo, nomeOficial, idClienteOficial) {
   const codigo = String(codClienteOrigem || '').trim();
   const acao = String(modo || '').trim().toUpperCase();
 
@@ -219,41 +219,50 @@ function resolverGrupoCliente_(codClienteOrigem, modo, nomeOficial) {
   }
 
   if (acao === 'UNIFICAR') {
-    const nome = String(nomeOficial || '').trim().replace(/\s+/g, ' ');
-    if (!nome) throw new Error('Informe o nome oficial do cliente.');
-
-    const ufs = {};
-    mapas.forEach(function(m) {
-      const uf = String(m.UF_ORIGEM || '').trim().toUpperCase();
-      if (uf) ufs[uf] = true;
-    });
-    const ufUnica = Object.keys(ufs).length === 1 ? Object.keys(ufs)[0] : '';
-
     const clientes = listarObjetos_(ABAS.CLIENTES);
-    let cliente = clientes.find(function(c) {
-      return String(c.COD_CLIENTE_ORIGEM || '').trim() === codigo &&
-             normalizarTexto_(c.NOME_FANTASIA || c.RAZAO_SOCIAL) === normalizarTexto_(nome);
-    });
+    let cliente = null;
 
-    if (!cliente) {
-      cliente = {
-        ID_CLIENTE: novoId_('CLI'),
-        COD_CLIENTE_ORIGEM: codigo,
-        RAZAO_SOCIAL: nome,
-        NOME_FANTASIA: nome,
-        CNPJ_CPF: '',
-        SEGMENTO_ID: '',
-        UF: ufUnica,
-        CIDADE: '',
-        CONTATO: '',
-        EMAIL: '',
-        TELEFONE: '',
-        VENDEDOR: '',
-        ATIVO: true,
-        DT_CADASTRO: isoAgora_(),
-        OBS: 'Cliente unificado a partir do histórico da planilha.'
-      };
-      appendObjeto_(ABAS.CLIENTES, cliente);
+    if (idClienteOficial) {
+      cliente = clientes.find(function(c) {
+        return String(c.ID_CLIENTE) === String(idClienteOficial);
+      });
+      if (!cliente) throw new Error('Cliente oficial selecionado não foi encontrado.');
+    } else {
+      const nome = String(nomeOficial || '').trim().replace(/\s+/g, ' ');
+      if (!nome) throw new Error('Selecione um cliente oficial ou informe o nome para criar um novo.');
+
+      const ufs = {};
+      mapas.forEach(function(m) {
+        const uf = String(m.UF_ORIGEM || '').trim().toUpperCase();
+        if (uf) ufs[uf] = true;
+      });
+      const ufUnica = Object.keys(ufs).length === 1 ? Object.keys(ufs)[0] : '';
+
+      cliente = clientes.find(function(c) {
+        return String(c.COD_CLIENTE_ORIGEM || '').trim() === codigo &&
+               normalizarTexto_(c.NOME_FANTASIA || c.RAZAO_SOCIAL) === normalizarTexto_(nome);
+      });
+
+      if (!cliente) {
+        cliente = {
+          ID_CLIENTE: novoId_('CLI'),
+          COD_CLIENTE_ORIGEM: codigo,
+          RAZAO_SOCIAL: nome,
+          NOME_FANTASIA: nome,
+          CNPJ_CPF: '',
+          SEGMENTO_ID: '',
+          UF: ufUnica,
+          CIDADE: '',
+          CONTATO: '',
+          EMAIL: '',
+          TELEFONE: '',
+          VENDEDOR: '',
+          ATIVO: true,
+          DT_CADASTRO: isoAgora_(),
+          OBS: 'Cliente unificado a partir do histórico da planilha.'
+        };
+        appendObjeto_(ABAS.CLIENTES, cliente);
+      }
     }
 
     mapas.forEach(function(m) {
