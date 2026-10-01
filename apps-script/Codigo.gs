@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.3.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.3.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -992,6 +992,7 @@ function alterarStatusPedido_(idPedido, novoStatus) {
     });
   }
 
+  sincronizarStatusPedidoEmVendas_(idPedido, status);
   SpreadsheetApp.flush();
 
   return {
@@ -1149,6 +1150,8 @@ function converterOrcamentoEmPedido_(idOrcamento) {
       });
     });
 
+    registrarPedidoEmVendas_(idPedido, orc, numeroPedido, agora);
+
     setCelulaPorHeader_(shOrc, hOrc, row, 'STATUS', 'CONVERTIDO');
     setCelulaPorHeader_(shOrc, hOrc, row, 'CONVERTIDO_PEDIDO_ID', idPedido);
     setCelulaPorHeader_(shOrc, hOrc, row, 'DT_ATUALIZACAO', agora);
@@ -1164,6 +1167,97 @@ function converterOrcamentoEmPedido_(idOrcamento) {
   }
 }
 
+
+function registrarPedidoEmVendas_(idPedido, orc, numeroPedido, agora) {
+  const existentes = listarObjetos_(ABAS.VENDAS).filter(function(v) {
+    return String(v.PEDIDO_ID || '') === String(idPedido);
+  });
+  if (existentes.length) return existentes.length;
+
+  const pedido = listarObjetos_(ABAS.PEDIDOS).find(function(p) {
+    return String(p.ID_PEDIDO || '') === String(idPedido);
+  });
+  if (!pedido) throw new Error('Pedido não encontrado para registrar nos indicadores.');
+
+  const cliente = getClientePorId_(orc.CLIENTE_ID);
+  const uf = cliente ? String(cliente.UF || '').trim().toUpperCase() : '';
+  const itens = listarObjetos_(ABAS.PEDIDO_ITENS).filter(function(i) {
+    return String(i.PEDIDO_ID || '') === String(idPedido);
+  });
+
+  itens.forEach(function(item) {
+    const faturamento = numero_(item.VALOR_TOTAL);
+    const custo = numero_(item.CUSTO_TOTAL_SNAPSHOT);
+    const lucroBruto = numero_(item.LUCRO_BRUTO_SNAPSHOT);
+    const lucro = numero_(item.LUCRO_SNAPSHOT);
+    const dataVenda = String(pedido.DATA_PEDIDO || agora.substring(0,10));
+    const ano = Number(dataVenda.substring(0,4)) || Number(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy'));
+    const mes = Number(dataVenda.substring(5,7)) || Number(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'M'));
+
+    appendObjeto_(ABAS.VENDAS, {
+      ID_VENDA: novoId_('VEN'),
+      DATA_VENDA: dataVenda,
+      ANO: ano,
+      MES: mes,
+      PEDIDO_ORIGEM: numeroPedido || pedido.NUMERO_PEDIDO || '',
+      PEDIDO_ID: idPedido,
+      ORCAMENTO_ID: orc.ID_ORCAMENTO || '',
+      CLIENTE_ID: orc.CLIENTE_ID || '',
+      CLIENTE_COD_ORIGEM: cliente ? (cliente.COD_CLIENTE_ORIGEM || '') : '',
+      CLIENTE_NOME_SNAPSHOT: orc.CLIENTE_NOME_SNAPSHOT || (cliente ? (cliente.NOME_FANTASIA || cliente.RAZAO_SOCIAL || '') : ''),
+      SEGMENTO_FINAL_ID: item.SEGMENTO_FINAL_ID || '',
+      SEGMENTO_FINAL_SNAPSHOT: item.SEGMENTO_FINAL_SNAPSHOT || '',
+      SEGMENTO_NEO_ID: item.SEGMENTO_NEO_ID || '',
+      SEGMENTO_NEO_SNAPSHOT: item.SEGMENTO_NEO_SNAPSHOT || '',
+      SKU: item.SKU || '',
+      PRODUTO_ID: '',
+      DESCRICAO: item.DESCRICAO || '',
+      QTDE: numero_(item.QTDE),
+      CUSTO_UNIT: numero_(item.CUSTO_UNIT_SNAPSHOT),
+      CUSTO_TOTAL: custo,
+      VALOR_UNIT: numero_(item.PRECO_UNITARIO),
+      VALOR_TOTAL: faturamento,
+      LUCRO_BRUTO: lucroBruto,
+      MARGEM_BRUTA_PCT: faturamento ? lucroBruto / faturamento : 0,
+      ENQUADRAMENTO: orc.ENQUADRAMENTO || 'NORMAL',
+      TIPO_VENDA: orc.TIPO_VENDA || '',
+      DESTINO: orc.DESTINO || '',
+      DV_PCT: numero_(item.DV_PCT_SNAPSHOT),
+      DV_VALOR: numero_(item.DV_VALOR_SNAPSHOT),
+      DF_PCT: numero_(item.DF_PCT_SNAPSHOT),
+      DF_VALOR: numero_(item.DF_VALOR_SNAPSHOT),
+      LUCRO: lucro,
+      LUCRO_PCT: faturamento ? lucro / faturamento : 0,
+      MODALIDADE: orc.TIPO_VENDA || '',
+      UF_DESTINO: uf,
+      STATUS: pedido.STATUS || 'ABERTO',
+      ORIGEM: 'PEDIDO_ORCAMENTO',
+      PARAMETRO_RENTABILIDADE_ID: orc.PARAMETRO_VERSAO_ID || '',
+      RAW_ID: '',
+      DT_IMPORTACAO: agora
+    });
+  });
+
+  return itens.length;
+}
+
+function sincronizarStatusPedidoEmVendas_(idPedido, status) {
+  const sh = aba_(ABAS.VENDAS);
+  if (sh.getLastRow() < 2) return 0;
+
+  const headers = cabecalhos_(sh);
+  const dados = sh.getDataRange().getValues();
+  let alterados = 0;
+
+  for (let r = 1; r < dados.length; r++) {
+    const pedidoId = String(dados[r][headers.PEDIDO_ID - 1] || '');
+    if (pedidoId === String(idPedido)) {
+      sh.getRange(r + 1, headers.STATUS).setValue(status);
+      alterados++;
+    }
+  }
+  return alterados;
+}
 
 function getClientePorId_(idCliente) {
   if (!idCliente) return null;
@@ -1468,6 +1562,7 @@ function getDashboardVendas_(params) {
   const filtroUf = String(p.uf || '').trim().toUpperCase();
 
   const filtradas = vendas.filter(function(v) {
+    if (String(v.STATUS || '').toUpperCase() === 'CANCELADO') return false;
     const dt = normalizarDataFiltro_(v.DATA_VENDA);
     if (dtInicio && dt && dt < dtInicio) return false;
     if (dtFim && dt && dt > dtFim) return false;
