@@ -447,6 +447,15 @@ function resolverGrupoCliente_(codClienteOrigem, modo, nomeOficial, idClienteOfi
   };
 }
 
+function autorizarConsultaCnpj() {
+  const resp = UrlFetchApp.fetch('https://brasilapi.com.br/api/cep/v1/01001000', {
+    method: 'get',
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  return 'Autorização concluída. HTTP ' + resp.getResponseCode();
+}
+
 function consultarCnpj_(cnpjInformado) {
   const cnpj = somenteDigitos_(cnpjInformado);
   if (cnpj.length !== 14) throw new Error('Informe um CNPJ com 14 dígitos.');
