@@ -820,24 +820,28 @@ body.theme-light .monthly-track{background:#e6edf4;border-color:#cdd8e3}
           <div class="kpi"><div class="label">Lucratividade</div><div class="value" id="dKpiMargin">0,00%</div><div class="delta">lucro sobre faturamento</div></div>
         </div>
 
-        <div class="grid2eq dashboard-grid">
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Evolução mensal</div><div class="panel-sub">Comparação mensal entre faturamento e lucro, com lucratividade do período.</div></div></div>
-            <div class="panel-body"><div id="dashboardMonthly" class="month-chart"><div class="history-loading">Carregando...</div></div></div>
+        <div class="panel dashboard-grid monthly-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Evolução mensal</div>
+              <div class="panel-sub">Faturamento e lucro usam a mesma escala. Assim a comparação visual não distorce o resultado.</div>
+            </div>
+            <span class="chip">Mesma escala</span>
           </div>
-          <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Vendas por estado</div><div class="panel-sub">A barra mostra a participação no faturamento total filtrado.</div></div></div>
-            <div class="panel-body"><div id="dashboardStates" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
-          </div>
+          <div class="panel-body"><div id="dashboardMonthly" class="month-chart"><div class="history-loading">Carregando...</div></div></div>
         </div>
 
-        <div class="grid2eq dashboard-grid">
+        <div class="dashboard-rank-grid dashboard-grid">
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação no faturamento e lucratividade por segmentação.</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Vendas por estado</div><div class="panel-sub">Participação no faturamento, lucro e lucratividade por estado.</div></div></div>
+            <div class="panel-body"><div id="dashboardStates" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Segmentação FINAL</div><div class="panel-sub">Participação no faturamento, lucro e lucratividade.</div></div></div>
             <div class="panel-body"><div id="dashboardFinal" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação no faturamento e lucratividade por segmentação.</div></div></div>
+            <div class="panel-head"><div><div class="panel-title">Segmentação NEO</div><div class="panel-sub">Participação no faturamento, lucro e lucratividade.</div></div></div>
             <div class="panel-body"><div id="dashboardNeo" class="rank-list"><div class="history-loading">Carregando...</div></div></div>
           </div>
         </div>
@@ -1605,29 +1609,35 @@ function renderMonthChart(items){
   const el=document.getElementById("dashboardMonthly");if(!el)return;
   if(!items.length){el.innerHTML='<div class="history-loading">Sem dados para o período.</div>';return}
 
-  const maxRevenue=Math.max(...items.map(x=>Number(x.faturamento||0)),1);
-  const maxProfit=Math.max(...items.map(x=>Math.abs(Number(x.lucro||0))),1);
+  const maxScale=Math.max(
+    ...items.map(x=>Math.abs(Number(x.faturamento||0))),
+    ...items.map(x=>Math.abs(Number(x.lucro||0))),
+    1
+  );
 
-  el.innerHTML='<div class="monthly-legend">'+
-    '<span><i class="legend-dot revenue"></i>Faturamento</span>'+
-    '<span><i class="legend-dot profit"></i>Lucro</span>'+
-  '</div>'+
-  '<div class="monthly-list">'+items.map(x=>{
-    const revenueWidth=Math.max(1,Number(x.faturamento||0)/maxRevenue*100);
-    const profitWidth=Math.max(1,Math.abs(Number(x.lucro||0))/maxProfit*100);
-    const positive=Number(x.lucro||0)>=0;
-    const margin=Number(x.faturamento||0)?Number(x.lucro||0)/Number(x.faturamento||0):0;
+  el.innerHTML='<div class="monthly-list">'+items.map(x=>{
+    const revenue=Number(x.faturamento||0);
+    const profit=Number(x.lucro||0);
+    const revenueWidth=Math.max(1,Math.abs(revenue)/maxScale*100);
+    const profitWidth=Math.max(1,Math.abs(profit)/maxScale*100);
+    const positive=profit>=0;
+    const margin=revenue?profit/revenue:0;
+
     return '<div class="monthly-row">'+
       '<div class="monthly-period">'+escapeHtml(formatMonthLabel(x.label))+'</div>'+
-      '<div class="monthly-metrics">'+
-        '<div class="monthly-metric">'+
-          '<div class="monthly-metric-head"><span>Faturamento</span><strong>'+formatBRL(x.faturamento)+'</strong></div>'+
-          '<div class="monthly-track"><div class="monthly-fill revenue" style="width:'+revenueWidth+'%"></div></div>'+
+      '<div class="monthly-content">'+
+        '<div class="monthly-line">'+
+          '<div class="monthly-line-head"><span>Faturamento</span><strong>'+formatBRL(revenue)+'</strong></div>'+
+          '<div class="monthly-track" title="Faturamento '+escapeHtml(formatBRL(revenue))+'"><div class="monthly-fill revenue" style="width:'+revenueWidth+'%"></div></div>'+
         '</div>'+
-        '<div class="monthly-metric">'+
-          '<div class="monthly-metric-head"><span>Lucro</span><strong class="'+(positive?'profit-positive':'profit-negative')+'">'+formatBRL(x.lucro)+' • Lucratividade '+formatPct(margin)+'</strong></div>'+
-          '<div class="monthly-track"><div class="monthly-fill '+(positive?'profit-positive-bar':'profit-negative-bar')+'" style="width:'+profitWidth+'%"></div></div>'+
+        '<div class="monthly-line">'+
+          '<div class="monthly-line-head"><span>Lucro</span><strong class="'+(positive?'profit-positive':'profit-negative')+'">'+formatBRL(profit)+'</strong></div>'+
+          '<div class="monthly-track" title="Lucro '+escapeHtml(formatBRL(profit))+'"><div class="monthly-fill '+(positive?'profit-positive-bar':'profit-negative-bar')+'" style="width:'+profitWidth+'%"></div></div>'+
         '</div>'+
+      '</div>'+
+      '<div class="monthly-margin">'+
+        '<span>Lucratividade</span>'+
+        '<strong class="'+(positive?'profit-positive':'profit-negative')+'">'+formatPct(margin)+'</strong>'+
       '</div>'+
     '</div>';
   }).join("")+'</div>';
@@ -1652,18 +1662,25 @@ function renderRankList(id,items,limit){
   const list=(items||[]).slice(0,limit||10);
   if(!list.length){el.innerHTML='<div class="history-loading">Sem dados.</div>';return}
 
-  const totalRevenue=Number(DASHBOARD_DATA?.kpis?.faturamento||0) || list.reduce((s,x)=>s+Number(x.faturamento||0),0) || 1;
+  const totalRevenue=Number(DASHBOARD_DATA?.kpis?.faturamento||0) ||
+    list.reduce((sum,x)=>sum+Number(x.faturamento||0),0) || 1;
 
   el.innerHTML=list.map((x,i)=>{
-    const participation=Number(x.faturamento||0)/totalRevenue;
+    const revenue=Number(x.faturamento||0);
+    const profit=Number(x.lucro||0);
+    const participation=revenue/totalRevenue;
     const width=Math.max(1,participation*100);
-    return '<div class="rank-row">'+
-      '<div class="rank-top"><span><b>'+(i+1)+'.</b> '+escapeHtml(x.label||x.chave||"N/I")+'</span><strong>'+formatBRL(x.faturamento)+'</strong></div>'+
+
+    return '<div class="rank-card">'+
+      '<div class="rank-card-head">'+
+        '<div class="rank-name"><span class="rank-position">'+(i+1)+'</span><strong>'+escapeHtml(x.label||x.chave||"N/I")+'</strong></div>'+
+        '<div class="rank-revenue"><span>Faturamento</span><strong>'+formatBRL(revenue)+'</strong></div>'+
+      '</div>'+
       '<div class="rank-track" title="Participação no faturamento: '+escapeHtml(formatPct(participation))+'"><div class="rank-fill" style="width:'+width+'%"></div></div>'+
-      '<div class="rank-foot rank-foot-detailed">'+
-        '<span>Participação no faturamento: <b>'+formatPct(participation)+'</b></span>'+
-        '<span>Lucro: <b class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'">'+formatBRL(x.lucro)+'</b></span>'+
-        '<span>Lucratividade: <b>'+formatPct(x.margem)+'</b></span>'+
+      '<div class="rank-metrics">'+
+        '<div><span>Participação no faturamento</span><strong>'+formatPct(participation)+'</strong></div>'+
+        '<div><span>Lucro</span><strong class="'+(profit>=0?'profit-positive':'profit-negative')+'">'+formatBRL(profit)+'</strong></div>'+
+        '<div><span>Lucratividade</span><strong class="'+(profit>=0?'profit-positive':'profit-negative')+'">'+formatPct(x.margem)+'</strong></div>'+
       '</div>'+
     '</div>';
   }).join("");
