@@ -1467,12 +1467,52 @@ async function saveClient(){
 
 function syncQuoteClient(){
   const name=String(qClient.value||"").trim().toUpperCase();
-  const c=APP_DATA.clients.find(x=>clientName(x).toUpperCase()===name);
-  qClientId.value=c?c.ID_CLIENTE:"";
-  if(c){
-    qCity.value=[c.CIDADE,c.UF].filter(Boolean).join(" / ");
-    qContact.value=c.CONTATO||"";
-    qSeller.value=c.VENDEDOR||"";
+  const client=APP_DATA.clients.find(x=>clientName(x).toUpperCase()===name);
+  qClientId.value=client?client.ID_CLIENTE:"";
+  if(client){
+    qCity.value=[client.CIDADE,client.UF].filter(Boolean).join(" / ");
+    qContact.value=client.CONTATO||"";
+    qSeller.value=client.VENDEDOR||"";
+    applyClientSegmentDefaults(client);
+  }
+}
+
+function applyClientSegmentDefaults(client){
+  if(!client)return;
+  const finalEl=document.getElementById("iSegmentFinal");
+  const neoEl=document.getElementById("iSegmentNeo");
+
+  if(finalEl && client.SEGMENTO_FINAL_ID){
+    finalEl.value=client.SEGMENTO_FINAL_ID;
+    syncItemNeoFromFinal(false);
+  }
+  if(neoEl && client.SEGMENTO_NEO_ID){
+    neoEl.value=client.SEGMENTO_NEO_ID;
+  }
+}
+
+function syncItemNeoFromFinal(clearWhenAmbiguous=true){
+  const finalEl=document.getElementById("iSegmentFinal");
+  const neoEl=document.getElementById("iSegmentNeo");
+  const hint=document.getElementById("segmentAutoHint");
+  if(!finalEl||!neoEl)return;
+
+  const finalId=String(finalEl.value||"");
+  if(!finalId){
+    if(clearWhenAmbiguous)neoEl.value="";
+    if(hint)hint.textContent="Selecione a Segmentação FINAL. A NEO será puxada automaticamente quando houver uma relação histórica única.";
+    return;
+  }
+
+  const rels=APP_DATA.segmentRelations.filter(r=>String(r.SEGMENTO_FINAL_ID)===finalId);
+  const uniqueNeoIds=[...new Set(rels.map(r=>String(r.SEGMENTO_NEO_ID||"")).filter(Boolean))];
+
+  if(uniqueNeoIds.length===1){
+    neoEl.value=uniqueNeoIds[0];
+    if(hint)hint.textContent="Segmentação NEO preenchida automaticamente pela relação histórica cadastrada.";
+  }else{
+    if(clearWhenAmbiguous)neoEl.value="";
+    if(hint)hint.textContent="Este FINAL possui mais de uma relação histórica. Escolha a Segmentação NEO correta.";
   }
 }
 
@@ -1720,13 +1760,27 @@ function collectCurrentItem(){
   const desc=document.getElementById("iDescription").value.trim();
   if(!desc){alert("Informe a descrição do item.");return null}
   if(!r.qty){alert("Informe a quantidade.");return null}
-  if(!r.finalPrice||r.finalPrice<=0){alert("Defina o preço final que será enviado ao cliente.");document.getElementById("iFinalPrice").focus();return null}
+
+  const segFinalId=String(document.getElementById("iSegmentFinal")?.value||"");
+  const segNeoId=String(document.getElementById("iSegmentNeo")?.value||"");
+  if(!segFinalId){alert("Selecione a Segmentação FINAL do item.");iSegmentFinal.focus();return null}
+  if(!segNeoId){alert("Selecione a Segmentação NEO do item.");iSegmentNeo.focus();return null}
+
+  if(!r.finalPrice||r.finalPrice<=0){
+    alert("Defina o preço final que será enviado ao cliente.");
+    document.getElementById("iFinalPrice").focus();
+    return null
+  }
 
   const components=[...r.costs.mp,...r.costs.ferr,...r.costs.third,...r.costs.process].filter(x=>x.DESCRICAO||x.CUSTO_TOTAL);
   return {
     ID_ITEM:editingItemIndex!==null?quoteState.items[editingItemIndex]?.ID_ITEM:null,
     SEQ:editingItemIndex!==null?editingItemIndex+1:quoteState.items.length+1,
     SKU:document.getElementById("iSku").value.trim(),
+    SEGMENTO_FINAL_ID:segFinalId,
+    SEGMENTO_FINAL_SNAPSHOT:segmentNameById(segFinalId),
+    SEGMENTO_NEO_ID:segNeoId,
+    SEGMENTO_NEO_SNAPSHOT:segmentNameById(segNeoId),
     DESCRICAO:desc,
     QTDE:r.qty,
     CUSTO_MP:r.costs.totals.mp,
@@ -1762,26 +1816,57 @@ function addItemToQuote(){
 function renderQuoteItems(){
   const body=document.getElementById("quoteItemsBody");if(!body)return;
   if(!quoteState.items.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="9">Nenhum item adicionado ainda.</td></tr>';
-    quoteGrandTotal.textContent=formatBRL(0);return;
+    body.innerHTML='<tr class="empty-row"><td colspan="10">Nenhum item adicionado ainda.</td></tr>';
+    quoteGrandTotal.textContent=formatBRL(0);
+    return;
   }
-  body.innerHTML=quoteState.items.map((x,i)=>`<tr>
-    <td>${i+1}</td><td>${escapeHtml(x.DESCRICAO)}</td><td>${x.QTDE}</td><td>${formatBRL(x.CUSTO_TOTAL)}</td>
-    <td><b>${formatBRL(x.PRECO_FINAL_TOTAL)}</b></td><td>${formatBRL(x.PRECO_FINAL_UNIT)}</td>
-    <td>${formatBRL(x.LUCRO_FINAL)}</td><td>${formatPct(x.MARGEM_FINAL_PCT)}</td>
-    <td><button class="secondary" style="height:29px" onclick="editQuoteItem(${i})">Editar</button> <button class="secondary" style="height:29px" onclick="removeQuoteItem(${i})">Excluir</button></td>
-  </tr>`).join("");
-  quoteGrandTotal.textContent=formatBRL(quoteState.items.reduce((s,x)=>s+Number(x.PRECO_FINAL_TOTAL||0),0));
+
+  body.innerHTML=quoteState.items.map((x,i)=>{
+    const finalName=x.SEGMENTO_FINAL_SNAPSHOT||segmentNameById(x.SEGMENTO_FINAL_ID)||"—";
+    const neoName=x.SEGMENTO_NEO_SNAPSHOT||segmentNameById(x.SEGMENTO_NEO_ID)||"—";
+
+    return '<tr>'+
+      '<td>'+(i+1)+'</td>'+
+      '<td>'+escapeHtml(x.DESCRICAO)+'</td>'+
+      '<td><div class="segment-pair"><b>'+escapeHtml(finalName)+'</b><span>'+escapeHtml(neoName)+'</span></div></td>'+
+      '<td>'+x.QTDE+'</td>'+
+      '<td>'+formatBRL(x.CUSTO_TOTAL)+'</td>'+
+      '<td><b>'+formatBRL(x.PRECO_FINAL_TOTAL)+'</b></td>'+
+      '<td>'+formatBRL(x.PRECO_FINAL_UNIT)+'</td>'+
+      '<td>'+formatBRL(x.LUCRO_FINAL)+'</td>'+
+      '<td>'+formatPct(x.MARGEM_FINAL_PCT)+'</td>'+
+      '<td><button class="secondary" style="height:29px" onclick="editQuoteItem('+i+')">Editar</button> <button class="secondary" style="height:29px" onclick="removeQuoteItem('+i+')">Excluir</button></td>'+
+    '</tr>';
+  }).join("");
+
+  quoteGrandTotal.textContent=formatBRL(quoteState.items.reduce((sum,x)=>sum+Number(x.PRECO_FINAL_TOTAL||0),0));
 }
 function removeQuoteItem(i){quoteState.items.splice(i,1);quoteState.items.forEach((x,j)=>x.SEQ=j+1);renderQuoteItems()}
 function editQuoteItem(i){
   const x=quoteState.items[i];if(!x)return;
-  editingItemIndex=i;itemModeChip.textContent="Editando item "+(i+1);
-  iDescription.value=x.DESCRICAO||"";iSku.value=x.SKU||"";iQty.value=x.QTDE||1;iFinalPrice.value=moneyInputValue(x.PRECO_FINAL_TOTAL);
-  mpRows.innerHTML="";ferrRows.innerHTML="";thirdRows.innerHTML="";processRows.innerHTML="";
+  editingItemIndex=i;
+  itemModeChip.textContent="Editando item "+(i+1);
+
+  iDescription.value=x.DESCRICAO||"";
+  iSku.value=x.SKU||"";
+  iQty.value=x.QTDE||1;
+  iSegmentFinal.value=x.SEGMENTO_FINAL_ID||"";
+  iSegmentNeo.value=x.SEGMENTO_NEO_ID||"";
+  iFinalPrice.value=moneyInputValue(x.PRECO_FINAL_TOTAL);
+
+  mpRows.innerHTML="";
+  ferrRows.innerHTML="";
+  thirdRows.innerHTML="";
+  processRows.innerHTML="";
   (x.componentes||[]).forEach(comp=>loadComponentRow(comp));
-  if(!mpRows.children.length)addCostRow("mp");if(!ferrRows.children.length)addCostRow("ferr");if(!thirdRows.children.length)addCostRow("third");if(!processRows.children.length)addProcessRow();
-  recalculateItem();window.scrollTo({top:document.getElementById("quotes").offsetTop,behavior:"smooth"});
+
+  if(!mpRows.children.length)addCostRow("mp");
+  if(!ferrRows.children.length)addCostRow("ferr");
+  if(!thirdRows.children.length)addCostRow("third");
+  if(!processRows.children.length)addProcessRow();
+
+  recalculateItem();
+  window.scrollTo({top:document.getElementById("quotes").offsetTop,behavior:"smooth"});
 }
 function loadComponentRow(comp){
   const type=String(comp.TIPO_COMPONENTE||"").toUpperCase();
@@ -1798,9 +1883,29 @@ function loadComponentRow(comp){
 }
 
 function clearItemForm(){
-  editingItemIndex=null;itemModeChip.textContent="Novo item";iDescription.value="";iSku.value="";iQty.value=1;iFinalPrice.value="";
-  mpRows.innerHTML="";ferrRows.innerHTML="";thirdRows.innerHTML="";processRows.innerHTML="";
-  addCostRow("mp");addCostRow("ferr");addCostRow("third");addProcessRow();recalculateItem();
+  editingItemIndex=null;
+  itemModeChip.textContent="Novo item";
+  iDescription.value="";
+  iSku.value="";
+  iQty.value=1;
+  iSegmentFinal.value="";
+  iSegmentNeo.value="";
+  iFinalPrice.value="";
+
+  mpRows.innerHTML="";
+  ferrRows.innerHTML="";
+  thirdRows.innerHTML="";
+  processRows.innerHTML="";
+
+  addCostRow("mp");
+  addCostRow("ferr");
+  addCostRow("third");
+  addProcessRow();
+
+  const client=APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===String(document.getElementById("qClientId")?.value||""));
+  if(client)applyClientSegmentDefaults(client);
+
+  recalculateItem();
 }
 
 function collectQuotePayload(status){
