@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.9.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.9.1' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -510,8 +510,7 @@ function salvarOrcamento_(orcamento) {
   const tipoVenda = normalizarTipoVendaComercial_(orcamento.TIPO_VENDA || 'VENDA');
   const enquadramento = 'NORMAL';
   const destino = destinoPorUf_(cliente.UF);
-  const tipoTributario = tipoVenda === 'SERVICO' ? 'SERVICO_14_01' : tipoVenda;
-  const impostosPct = getImpostoPct_(enquadramento, destino, tipoTributario);
+  const impostosPct = getImpostoPct_(enquadramento, destino, tipoVenda);
 
   const shOrc = aba_(ABAS.ORCAMENTOS);
   const hOrc = cabecalhos_(shOrc);
@@ -854,7 +853,10 @@ function normalizarTipoVendaComercial_(tipo) {
   const t = normalizarTexto_(tipo);
   if (t === 'VENDA' || t === 'VENDA DE PRODUTO' || t === 'LOC - EQUIP_MAQ') return 'VENDA';
   if (t === 'REVENDA' || t === 'REVENDA DE PRODUTO') return 'REVENDA';
-  if (t === 'SERVICO' || t === 'SERVIÇO' || t === 'SERVICO_14_01' || t === 'SERVICO_8_02' || t.indexOf('PSERV -') === 0) return 'SERVICO';
+  if (t === 'SERVICO_8_02' || t === 'SERVICO 8.02') return 'SERVICO_8_02';
+  if (t === 'SERVICO_14_01' || t === 'SERVICO 14.01' || t === 'SERVICO' || t === 'SERVIÇO') return 'SERVICO_14_01';
+  if (t.indexOf('PSERV - TREINAMENTO') === 0) return 'SERVICO_8_02';
+  if (t.indexOf('PSERV -') === 0) return 'SERVICO_14_01';
   throw new Error('Tipo de venda inválido: ' + tipo);
 }
 
