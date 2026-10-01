@@ -17,6 +17,7 @@ const ABAS = Object.freeze({
   PEDIDO_ITENS: 'PEDIDO_ITENS',
   PROCESSOS_CUSTO: 'PROCESSOS_CUSTO',
   TABELA_IMPOSTOS: 'TABELA_IMPOSTOS',
+  SEGMENTO_RELACOES: 'SEGMENTO_RELACOES',
   PARAMETRO_VERSOES: 'PARAMETRO_VERSOES',
   CUSTO_HORA_VERSOES: 'CUSTO_HORA_VERSOES',
   CONFIG: 'CONFIG',
@@ -29,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.6.2' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.7.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -109,6 +110,7 @@ function getBootstrap_() {
     ok: true,
     clientes: listarObjetos_(ABAS.CLIENTES),
     segmentos: listarObjetos_(ABAS.SEGMENTOS),
+    segmento_relacoes: listarObjetos_(ABAS.SEGMENTO_RELACOES),
     produtos: listarObjetos_(ABAS.PRODUTOS),
     processos: listarObjetos_(ABAS.PROCESSOS_CUSTO),
     impostos: listarObjetos_(ABAS.TABELA_IMPOSTOS),
@@ -344,6 +346,10 @@ function salvarCliente_(cliente) {
   const agora = isoAgora_();
 
   const novo = Object.assign({}, cliente);
+
+  if (novo.SEGMENTO_FINAL_ID) validarSegmentoTipo_(novo.SEGMENTO_FINAL_ID, 'FINAL');
+  if (novo.SEGMENTO_NEO_ID) validarSegmentoTipo_(novo.SEGMENTO_NEO_ID, 'NEO');
+
   novo.ID_CLIENTE = novo.ID_CLIENTE || novoId_('CLI');
   novo.ATIVO = novo.ATIVO !== false;
   novo.DT_CADASTRO = novo.DT_CADASTRO || agora;
@@ -425,6 +431,14 @@ function salvarOrcamento_(orcamento) {
 
   itens.forEach(function(item, idx) {
     const idItem = item.ID_ITEM || novoId_('ORI');
+
+    const segFinal = item.SEGMENTO_FINAL_ID
+      ? validarSegmentoTipo_(item.SEGMENTO_FINAL_ID, 'FINAL')
+      : null;
+    const segNeo = item.SEGMENTO_NEO_ID
+      ? validarSegmentoTipo_(item.SEGMENTO_NEO_ID, 'NEO')
+      : null;
+
     const precoFinalTotal = numero_(item.PRECO_FINAL_TOTAL);
     const qtdeItem = numero_(item.QTDE);
     const custoMP = numero_(item.CUSTO_MP);
@@ -445,6 +459,10 @@ function salvarOrcamento_(orcamento) {
       ID_ITEM: idItem,
       ORCAMENTO_ID: idOrcamento,
       SEQ: item.SEQ || (idx + 1),
+      SEGMENTO_FINAL_ID: segFinal ? segFinal.ID_SEGMENTO : '',
+      SEGMENTO_FINAL_SNAPSHOT: segFinal ? segFinal.SEGMENTO : '',
+      SEGMENTO_NEO_ID: segNeo ? segNeo.ID_SEGMENTO : '',
+      SEGMENTO_NEO_SNAPSHOT: segNeo ? segNeo.SEGMENTO : '',
       PRECO_FINAL_TOTAL: precoFinalTotal,
       PRECO_FINAL_UNIT: qtdeItem ? precoFinalTotal / qtdeItem : precoFinalTotal,
       MC_FINAL: mcFinal,
@@ -646,6 +664,10 @@ function converterOrcamentoEmPedido_(idOrcamento) {
         ORCAMENTO_ITEM_ID_ORIGEM: item.ID_ITEM,
         SEQ: item.SEQ,
         SKU: item.SKU,
+        SEGMENTO_FINAL_ID: item.SEGMENTO_FINAL_ID || '',
+        SEGMENTO_FINAL_SNAPSHOT: item.SEGMENTO_FINAL_SNAPSHOT || '',
+        SEGMENTO_NEO_ID: item.SEGMENTO_NEO_ID || '',
+        SEGMENTO_NEO_SNAPSHOT: item.SEGMENTO_NEO_SNAPSHOT || '',
         DESCRICAO: item.DESCRICAO,
         QTDE: qtd,
         PRECO_UNITARIO: preco,
@@ -674,6 +696,21 @@ function converterOrcamentoEmPedido_(idOrcamento) {
   }
 }
 
+
+function validarSegmentoTipo_(idSegmento, tipoEsperado) {
+  const segmentos = listarObjetos_(ABAS.SEGMENTOS);
+  const segmento = segmentos.find(function(s) {
+    return String(s.ID_SEGMENTO) === String(idSegmento) &&
+           String(s.TIPO || '').toUpperCase() === String(tipoEsperado || '').toUpperCase() &&
+           s.ATIVO !== false;
+  });
+
+  if (!segmento) {
+    throw new Error('Segmentação ' + tipoEsperado + ' inválida ou inativa: ' + idSegmento);
+  }
+
+  return segmento;
+}
 
 function validarPrecoFinalItensPayload_(itens) {
   itens.forEach(function(item) {
