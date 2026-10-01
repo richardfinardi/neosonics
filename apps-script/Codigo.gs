@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.3.1' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.3.2' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -648,6 +648,15 @@ function salvarOrcamento_(orcamento) {
   if (!itens.length) throw new Error('O orçamento precisa ter pelo menos um item.');
   if (itens.length > 10) throw new Error('Limite máximo de 10 itens por proposta atingido.');
 
+  itens.forEach(function(item, idx) {
+    if (!String(item.SEGMENTO_FINAL_ID || '').trim()) {
+      throw new Error('Item ' + (idx + 1) + ': Segmentação FINAL é obrigatória.');
+    }
+    if (!String(item.SEGMENTO_NEO_ID || '').trim()) {
+      throw new Error('Item ' + (idx + 1) + ': Segmentação NEO é obrigatória.');
+    }
+  });
+
   const idOrcamento = orcamento.ID_ORCAMENTO || novoId_('ORC');
   const numero = orcamento.NUMERO_ORCAMENTO || proximoNumeroOrcamentoSeguro_();
   const agora = isoAgora_();
@@ -1039,6 +1048,7 @@ function alterarStatusOrcamento_(idOrcamento, novoStatus) {
   const status = String(novoStatus || '').toUpperCase();
   if (status === 'ENVIADO' || status === 'APROVADO' || status === 'CONVERTIDO') {
     validarPrecoFinalOrcamentoSalvo_(idOrcamento);
+    validarSegmentosOrcamentoSalvo_(idOrcamento);
   }
 
   const sh = aba_(ABAS.ORCAMENTOS);
@@ -1331,6 +1341,28 @@ function validarPrecoFinalItensPayload_(itens) {
       throw new Error('Defina o preço final que será enviado ao cliente para todos os itens.');
     }
   });
+}
+
+function validarSegmentosOrcamentoSalvo_(idOrcamento) {
+  const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS).filter(function(item) {
+    return String(item.ORCAMENTO_ID) === String(idOrcamento);
+  });
+
+  if (!itens.length) throw new Error('O orçamento não possui itens.');
+
+  itens.forEach(function(item, idx) {
+    if (!String(item.SEGMENTO_FINAL_ID || '').trim()) {
+      throw new Error('Item ' + (idx + 1) + ': Segmentação FINAL é obrigatória.');
+    }
+    if (!String(item.SEGMENTO_NEO_ID || '').trim()) {
+      throw new Error('Item ' + (idx + 1) + ': Segmentação NEO é obrigatória.');
+    }
+
+    validarSegmentoTipo_(item.SEGMENTO_FINAL_ID, 'FINAL');
+    validarSegmentoTipo_(item.SEGMENTO_NEO_ID, 'NEO');
+  });
+
+  return true;
 }
 
 function validarPrecoFinalOrcamentoSalvo_(idOrcamento) {
