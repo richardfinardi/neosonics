@@ -2276,8 +2276,6 @@ function populateDashboardFilters(f){
       (items||[]).map(x=>'<option value="'+escapeHtml(getValue(x))+'">'+escapeHtml(getLabel(x))+'</option>').join("");
   };
 
-  fill("dFinal",f.segmentos_final,"Todos",x=>x.id,x=>x.label);
-  fill("dNeo",f.segmentos_neo,"Todos",x=>x.id,x=>x.label);
   fill("dClient",f.clientes,"Todos",x=>x.id,x=>x.label);
   fill("dModality",f.modalidades,"Todas",x=>x,x=>x);
   fill("dUf",f.ufs,"Todas",x=>x,x=>x);
@@ -2455,6 +2453,9 @@ function renderRankList(id,items,limit){
 }
 
 function selectDashboardSegment(type,id){
+  const btn=document.getElementById("clearSegmentSelectionBtn");
+  if(btn){btn.style.display="";btn.textContent="Carregando segmento...";btn.disabled=true;}
+
   if(type==="FINAL"){
     dFinal.value=String(id||"");
     dNeo.value="";
@@ -2466,18 +2467,26 @@ function selectDashboardSegment(type,id){
   dashboardProductsPanel.style.display="none";
   loadDashboard().then(()=>{
     document.getElementById("dashboardClientsPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
+  }).finally(()=>{
+    const b=document.getElementById("clearSegmentSelectionBtn");
+    if(b){b.textContent="Limpar segmento";b.disabled=false;}
   });
 }
 
 function dashboardSelectedSegmentLabel(){
-  const finalEl=document.getElementById("dFinal");
-  const neoEl=document.getElementById("dNeo");
-  if(finalEl?.value){
-    return {type:"FINAL",label:finalEl.options[finalEl.selectedIndex]?.text||""};
+  const finalId=String(document.getElementById("dFinal")?.value||"");
+  const neoId=String(document.getElementById("dNeo")?.value||"");
+
+  if(finalId){
+    const item=(DASHBOARD_DATA?.segmentos_final||[]).find(x=>String(x.id||"")===finalId);
+    return {type:"FINAL",label:item?.label||"Segmento selecionado"};
   }
-  if(neoEl?.value){
-    return {type:"NEO",label:neoEl.options[neoEl.selectedIndex]?.text||""};
+
+  if(neoId){
+    const item=(DASHBOARD_DATA?.segmentos_neo||[]).find(x=>String(x.id||"")===neoId);
+    return {type:"NEO",label:item?.label||"Segmento selecionado"};
   }
+
   return null;
 }
 
