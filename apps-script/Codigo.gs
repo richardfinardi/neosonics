@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.2.1' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.2.2' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -685,6 +685,13 @@ function salvarOrcamento_(orcamento) {
   const rowExistente = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
   const existente = rowExistente ? objetoDaLinha_(shOrc, rowExistente) : null;
 
+  if (existente) {
+    const statusAtual = String(existente.STATUS || '').toUpperCase();
+    if (statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO') {
+      throw new Error('Orçamento aprovado está congelado e não pode mais ser alterado.');
+    }
+  }
+
   const despesaFixaPct = existente && existente.DESPESA_FIXA_PCT !== ''
     ? numero_(existente.DESPESA_FIXA_PCT)
     : numero_(versaoParametros.DESPESA_FIXA_PCT);
@@ -1037,6 +1044,12 @@ function alterarStatusOrcamento_(idOrcamento, novoStatus) {
   const headers = cabecalhos_(sh);
   const row = localizarLinha_(sh, headers.ID_ORCAMENTO, idOrcamento);
   if (!row) throw new Error('Orçamento não encontrado.');
+
+  const atual = objetoDaLinha_(sh, row);
+  const statusAtual = String(atual.STATUS || '').toUpperCase();
+  if ((statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO') && status !== statusAtual) {
+    throw new Error('Orçamento aprovado está congelado e não pode mais mudar de status.');
+  }
 
   setCelulaPorHeader_(sh, headers, row, 'STATUS', status);
   setCelulaPorHeader_(sh, headers, row, 'DT_ATUALIZACAO', isoAgora_());
