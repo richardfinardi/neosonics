@@ -30,7 +30,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.7.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '0.8.0' });
 
       case 'bootstrap':
         return json_(getBootstrap_());
@@ -40,6 +40,9 @@ function doGet(e) {
 
       case 'map_clientes':
         return json_({ ok: true, dados: listarMapClientes_() });
+
+      case 'segmentos':
+        return json_({ ok: true, dados: listarSegmentos_() });
 
       case 'orcamentos':
         return json_({ ok: true, dados: listarOrcamentosResumo_() });
@@ -69,6 +72,9 @@ function doPost(e) {
     switch (acao) {
       case 'salvar_cliente':
         return json_(salvarCliente_(body.cliente || {}));
+
+      case 'salvar_segmento':
+        return json_(salvarSegmento_(body.segmento || {}));
 
       case 'salvar_mapeamento_cliente':
         return json_(salvarMapeamentoCliente_(body.chave_origem, body.id_cliente_oficial));
@@ -127,6 +133,108 @@ function listarClientes_() {
       const nb = String(b.NOME_FANTASIA || b.RAZAO_SOCIAL || '').toUpperCase();
       return na.localeCompare(nb, 'pt-BR');
     });
+}
+
+function listarSegmentos_() {
+  return listarObjetos_(ABAS.SEGMENTOS)
+    .sort(function(a,b) {
+      const ta = String(a.TIPO || '');
+      const tb = String(b.TIPO || '');
+      if (ta !== tb) return ta.localeCompare(tb);
+      const aa = a.ATIVO === false ? 1 : 0;
+      const ab = b.ATIVO === false ? 1 : 0;
+      if (aa !== ab) return aa - ab;
+      const oa = numero_(a.ORDEM || 9999);
+      const ob = numero_(b.ORDEM || 9999);
+      if (oa !== ob) return oa - ob;
+      return String(a.SEGMENTO || '').localeCompare(String(b.SEGMENTO || ''), 'pt-BR');
+    });
+}
+
+function salvarSegmento_(segmento) {
+  const tipo = String(segmento.TIPO || '').trim().toUpperCase();
+  const nome = String(segmento.SEGMENTO || '').trim().replace(/\s+/g, ' ');
+
+  if (tipo !== 'FINAL' && tipo !== 'NEO') {
+    throw new Error('Tipo de segmentação inválido. Use FINAL ou NEO.');
+  }
+  if (!nome) throw new Error('Informe o nome da segmentação.');
+
+  const todos = listarObjetos_(ABAS.SEGMENTOS);
+  const duplicado = todos.find(function(s) {
+    return String(s.ID_SEGMENTO) !== String(segmento.ID_SEGMENTO || '') &&
+           String(s.TIPO || '').toUpperCase() === tipo &&
+           normalizarTexto_(s.SEGMENTO) === normalizarTexto_(nome) &&
+           s.ATIVO !== false;
+  });
+  if (duplicado) {
+    throw new Error('Já existe uma segmentação ' + tipo + ' com este nome.');
+  }
+
+  const sh = aba_(ABAS.SEGMENTOS);
+  const headers = cabecalhos_(sh);
+  let id = String(segmento.ID_SEGMENTO || '').trim();
+  let row = id ? localizarLinha_(sh, headers.ID_SEGMENTO, id) : null;
+
+  if (!id) {
+    id = 'SEG-' + tipo + '-' + Utilities.getUuid().replace(/-/g, '').substring(0, 8).toUpperCase();
+  }
+
+  let ordem = numero_(segmento.ORDEM);
+  if (!ordem) {
+    ordem = todos
+      .filter(function(s) { return String(s.TIPO || '').toUpperCase() === tipo; })
+      .reduce(function(max, s) { return Math.max(max, numero_(s.ORDEM)); }, 0) + 1;
+  }
+
+  const obj = {
+    ID_SEGMENTO: id,
+    TIPO: tipo,
+    SEGMENTO: nome,
+    DESCRICAO: String(segmento.DESCRICAO || '').trim(),
+    ATIVO: segmento.ATIVO !== false,
+    ORDEM: ordem,
+    ORIGEM: segmento.ORIGEM || (row ? 'SISTEMA' : 'SISTEMA')
+  };
+
+  if (row) escreverObjetoNaLinha_(sh, row, obj);
+  else appendObjeto_(ABAS.SEGMENTOS, obj);
+
+  atualizarNomeSegmentoReferencias_(id, tipo, nome);
+
+  SpreadsheetApp.flush();
+  return { ok: true, segmento: obj, atualizado: !!row };
+}
+
+function atualizarNomeSegmentoReferencias_(idSegmento, tipo, nome) {
+  const shRel = aba_(ABAS.SEGMENTO_RELACOES);
+  if (shRel.getLastRow() >= 2) {
+    const h = cabecalhos_(shRel);
+    const idCol = tipo === 'FINAL' ? h.SEGMENTO_FINAL_ID : h.SEGMENTO_NEO_ID;
+    const nomeCol = tipo === 'FINAL' ? h.SEGMENTO_FINAL : h.SEGMENTO_NEO;
+
+    if (idCol && nomeCol) {
+      const vals = shRel.getRange(2, idCol, shRel.getLastRow() - 1, 1).getValues();
+      vals.forEach(function(r, i) {
+        if (String(r[0]) === String(idSegmento)) {
+          shRel.getRange(i + 2, nomeCol).setValue(nome);
+        }
+      });
+    }
+  }
+
+  const shMap = aba_(ABAS.MAP_CLASSIFICACOES);
+  if (shMap.getLastRow() >= 2) {
+    const h = cabecalhos_(shMap);
+    const vals = shMap.getRange(2, h.ID_PADRAO, shMap.getLastRow() - 1, 1).getValues();
+    vals.forEach(function(r, i) {
+      if (String(r[0]) === String(idSegmento)) {
+        shMap.getRange(i + 2, h.VALOR_PADRAO).setValue(nome);
+        if (h.DT_REVISAO) shMap.getRange(i + 2, h.DT_REVISAO).setValue(isoAgora_().substring(0,10));
+        if (h.REVISADO_POR) shMap.getRange(i + 2, h.REVISADO_POR).setValue('SISTEMA');
+      }
+    });
+  }
 }
 
 function listarMapClientes_() {
