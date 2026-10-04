@@ -2020,6 +2020,7 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
             <div class="quote-status-note" id="quoteStatusNote">Rascunho • ainda não enviado</div>
             <div>
               <button class="secondary" onclick="saveQuoteDraft()">Salvar rascunho</button>
+              <button class="secondary" onclick="printCurrentQuoteProposal()">Imprimir proposta</button>
               <button class="secondary" onclick="approveCurrentQuote()">Aprovar e gerar pedido</button>
               <button class="primary" onclick="sendQuote()">Definir como enviado</button>
             </div>
@@ -3995,7 +3996,7 @@ async function renderQuoteHistory(){
     <td>${q.QTD_ITENS||0}</td>
     <td>${formatBRL(q.VALOR_TOTAL)}</td>
     <td><span class="status ${statusClass(q.STATUS)}">${q.STATUS||"RASCUNHO"}</span></td>
-    <td><div class="row-actions"><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button>${String(q.STATUS||"").toUpperCase()==="ENVIADO"?'<button class="primary" style="height:29px" onclick="approveQuoteFromHistory(\''+q.ID_ORCAMENTO+'\')">Aprovar</button>':""}</div></td>
+    <td><div class="row-actions"><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button><button class="secondary" style="height:29px" onclick="printQuoteById('${q.ID_ORCAMENTO}')">Imprimir</button>${String(q.STATUS||"").toUpperCase()==="ENVIADO"?'<button class="primary" style="height:29px" onclick="approveQuoteFromHistory(\''+q.ID_ORCAMENTO+'\')">Aprovar</button>':""}</div></td>
   </tr>`).join("");
 
   document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
@@ -4083,5 +4084,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   initOverviewPage();
 });
 </script>
+<script src="proposal.js?v=20261003-1"></script>
 </body>
 </html>
