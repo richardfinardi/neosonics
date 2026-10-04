@@ -100,6 +100,14 @@ select,input{
   width:100%;height:39px;padding:0 10px;background:#0f1c2f;color:#dce7f5;
   border:1px solid #29405f;border-radius:10px;outline:none
 }
+textarea{
+  width:100%;min-height:84px;padding:10px;background:#0f1c2f;color:#dce7f5;
+  border:1px solid #29405f;border-radius:10px;outline:none;font:inherit;resize:vertical
+}
+.clause-editor details{border:1px solid #29405f;border-radius:10px;background:#0d192a;overflow:hidden}
+.clause-editor summary{cursor:pointer;padding:11px 12px;font-size:9px;font-weight:800;color:#b8c9dc}
+.clause-editor textarea{border:0;border-top:1px solid #29405f;border-radius:0;min-height:280px;line-height:1.45}
+.product-reuse-hint{display:block;margin-top:5px;color:#6f84a2;font-size:8px}
 .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:16px}
 .kpi{
   min-height:112px;padding:15px;border:1px solid #213652;border-radius:16px;
@@ -1871,6 +1879,21 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
               <div class="field"><label>Vendedor</label><input id="qSeller" placeholder="Vendedor"></div>
               <div class="field"><label>Condição pagamento</label><input id="qPayment" placeholder="Ex.: 28 dias"></div>
               <div class="field"><label>Prazo entrega</label><input id="qDelivery" placeholder="Ex.: 10 dias úteis"></div>
+              <div class="field"><label>Modelo de cláusulas</label>
+                <select id="qClauseModel" onchange="applyClauseTemplate(true)">
+                  <option value="PADRAO_COMPLETO">Padrão completo</option>
+                  <option value="COMERCIAL_SIMPLES">Comercial simplificado</option>
+                  <option value="SEM_CLAUSULAS">Sem cláusulas</option>
+                  <option value="PERSONALIZADO">Personalizado</option>
+                </select>
+              </div>
+              <div class="field full"><label>Observações adicionais</label><textarea id="qObs" placeholder="Observações que devem aparecer na proposta"></textarea></div>
+              <div class="field full clause-editor"><label>Termos da proposta</label>
+                <details>
+                  <summary>Editar cláusulas deste orçamento</summary>
+                  <textarea id="qClauses" oninput="markClausesCustom()" placeholder="Selecione um modelo ou escreva os termos deste orçamento"></textarea>
+                </details>
+              </div>
               <input type="hidden" id="qFramework" value="NORMAL">
               <input type="hidden" id="qDestination">
               <div class="field"><label>Tipo de venda</label>
@@ -1900,8 +1923,13 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
             </div>
             <div class="panel-body">
               <div class="form-grid">
+                <div class="field full"><label>Produto aprovado / já vendido</label>
+                  <select id="iProduct" onchange="loadApprovedProduct()"><option value="">Novo item / não usar cadastro</option></select>
+                  <span class="product-reuse-hint">Ao aprovar um orçamento, o item entra neste cadastro para poder ser usado novamente.</span>
+                </div>
                 <div class="field full"><label>Item</label><input id="iDescription" placeholder="Descrição do item"></div>
                 <div class="field"><label>SKU / referência</label><input id="iSku" placeholder="Opcional"></div>
+                <div class="field"><label>NCM</label><input id="iNcm" inputmode="numeric" maxlength="8" placeholder="Ex.: 85444200"></div>
                 <div class="field"><label>Quantidade de peças</label><input id="iQty" type="number" min="1" step="1" value="1" oninput="recalculateItem()"></div>
                 <div class="field"><label>Segmentação FINAL *</label><select id="iSegmentFinal" onchange="syncItemNeoFromFinal()"><option value="">Selecione...</option></select></div>
                 <div class="field"><label>Segmentação NEO *</label><select id="iSegmentNeo"><option value="">Selecione...</option></select></div>
@@ -2010,9 +2038,9 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
           </div>
           <div class="table-wrap">
             <table class="quote-items-table">
-              <thead><tr><th>#</th><th>Item</th><th>FINAL / NEO</th><th>Qtde</th><th>Custo</th><th>Preço final</th><th>Unitário</th><th>Lucro</th><th>Lucratividade</th><th></th></tr></thead>
+              <thead><tr><th>#</th><th>Item</th><th>NCM</th><th>FINAL / NEO</th><th>Qtde</th><th>Custo</th><th>Preço final</th><th>Unitário</th><th>Lucro</th><th>Lucratividade</th><th></th></tr></thead>
               <tbody id="quoteItemsBody">
-                <tr class="empty-row"><td colspan="10">Nenhum item adicionado ainda.</td></tr>
+                <tr class="empty-row"><td colspan="11">Nenhum item adicionado ainda.</td></tr>
               </tbody>
             </table>
           </div>
@@ -2075,7 +2103,7 @@ let apiOnline=false;
 let quoteHistoryCache=[];
 let orderCache=[];
 let currentOrderId="";
-let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[]};
+let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[],products:[]};
 let currentPage="overview";
 
 let PROCESS_COSTS=[
@@ -2120,6 +2148,101 @@ let DASHBOARD_DATA=null;
 let DASHBOARD_FILTERS_LOADED=false;
 let DASHBOARD_SELECTED_CLIENT="";
 let DASHBOARD_SEGMENT_VIEW="FINAL";
+
+const CLAUSE_TEMPLATES={
+  PADRAO_COMPLETO:`I - Descrição Detalhada do Objeto:
+Cada produto já possui em seu campo o detalhamento específico para o seu funcionamento.
+
+II - Valor Total do contrato:
+O valor total do presente contrato é de {{VALOR}}, referente aos produtos listados nesta proposta.
+
+III - Tributos:
+Os tributos aplicáveis, incluindo PIS, COFINS, IPI e ISS, serão considerados conforme a legislação vigente na data da emissão da Nota Fiscal. Alterações legais de tributos durante a vigência poderão ensejar revisão dos preços mediante comum acordo.
+
+IV - Prazo de Entrega/Execução:
+O prazo para execução será de {{PRAZO}}, contado a partir da aprovação formal do orçamento. Atrasos decorrentes de fatos fora do controle da NEO-SONICS não serão de sua responsabilidade.
+
+V - Condições de Frete:
+O frete e os custos de transporte serão de responsabilidade da empresa {{CLIENTE}}, na modalidade FOB, salvo condição expressamente diferente nesta proposta.
+
+VI - Preço e Condições de Pagamento:
+O valor total da venda será de {{VALOR}}. Para itens de importação em USD, a conversão para Reais será realizada conforme a taxa de câmbio de venda praticada pelo Banco Central do Brasil no dia útil imediatamente anterior ao pagamento. Para vendas faturadas, a NEO-SONICS poderá realizar consultas de crédito.
+
+VII - Prazo da Garantia:
+A NEO-SONICS oferece garantia de 90 dias para os produtos listados na proposta, salvo quando houver prazo específico indicado no item.
+
+VIII - Início da Contagem da Garantia:
+O prazo de garantia terá validade a partir da data de emissão da Nota Fiscal.
+
+IX - Cobertura da Garantia:
+A garantia cobre defeitos de projeto, fabricação, montagem ou componentes que afetem a funcionalidade e o desempenho do produto conforme especificações técnicas.
+
+X - Exclusões da Garantia:
+Não estão cobertos danos causados por uso indevido, instalação inadequada, negligência, acidentes, manutenção por terceiros não autorizados ou desgaste natural.
+
+XI - Obrigações da NEO-SONICS em Caso de Ativação da Garantia:
+Em caso de defeito coberto, a NEO-SONICS providenciará o reparo ou a substituição do item defeituoso conforme avaliação técnica, no menor prazo possível.
+
+XII - Padrões de Execução:
+O produto será fornecido em conformidade com boas práticas de engenharia, padrões da indústria e normas técnicas aplicáveis.
+
+XIII - Qualidade dos Componentes:
+Serão utilizados componentes e materiais de qualidade comprovada e, quando aplicável, fornecedores homologados ou tecnicamente equivalentes.
+
+XIV - Processos de Teste e Aceitação:
+A NEO-SONICS realizará os testes necessários antes da liberação do produto. Relatórios de testes e ensaios poderão ser disponibilizados quando aplicáveis.
+
+XV - Comunicações:
+As comunicações formais relativas a esta proposta deverão ser realizadas por escrito, preferencialmente por e-mail corporativo.
+
+XVI - Confidencialidade:
+As Partes comprometem-se a manter a confidencialidade das informações técnicas, comerciais e financeiras obtidas em razão desta proposta.
+
+XVII - Modificações e Aditivos:
+Alterações no escopo após a aprovação poderão gerar impactos em prazo e custo e deverão ser formalizadas entre as Partes.
+
+XVIII - Aceitação da Proposta de Orçamento:
+A aprovação formal por assinatura, pedido de compra, resposta de e-mail ou outro meio inequívoco de aceite implica concordância com os termos desta proposta.
+
+XIX - Cancelamento Unilateral pela COMPRADORA:
+Após a aprovação, o cancelamento unilateral sem justa causa atribuível à NEO-SONICS poderá gerar multa compensatória equivalente a 20% do valor total do contrato.
+
+XX - Rescisão:
+O contrato poderá ser rescindido em caso de descumprimento injustificado de suas condições, mediante notificação escrita e prazo razoável para saneamento.
+
+XXI - Foro:
+As Partes elegem o Foro da Comarca de OSASCO para dirimir dúvidas ou litígios decorrentes desta contratação.
+
+XXII - Formalização e Validade:
+O aceite eletrônico, incluindo e-mail corporativo, pedido de compra ou plataforma digital, produzirá efeitos jurídicos equivalentes à manifestação formal de aceite, observada a legislação aplicável.
+
+XXIII - Título Executivo Extrajudicial:
+O instrumento devidamente formalizado pelas Partes produzirá os efeitos jurídicos previstos na legislação aplicável.`,
+  COMERCIAL_SIMPLES:`I - Objeto:
+A NEO-SONICS fornecerá os produtos e/ou serviços descritos nesta proposta.
+
+II - Valor:
+O valor total da proposta é de {{VALOR}}.
+
+III - Prazo:
+O prazo previsto é de {{PRAZO}}, contado da aprovação formal.
+
+IV - Pagamento e Frete:
+As condições de pagamento e de frete são as indicadas no quadro comercial desta proposta.
+
+V - Garantia:
+A garantia padrão é de 90 dias a partir da emissão da Nota Fiscal, salvo condição específica indicada no item.
+
+VI - Alterações e Cancelamento:
+Alterações de escopo poderão alterar preço e prazo. Cancelamentos após a aprovação poderão gerar cobrança dos custos já incorridos e demais condições acordadas.
+
+VII - Aceite:
+A assinatura, o envio de pedido de compra ou outro meio inequívoco de aceite formaliza a concordância de {{CLIENTE}} com esta proposta.
+
+VIII - Foro:
+Fica eleito o Foro da Comarca de OSASCO para dirimir eventuais controvérsias.`,
+  SEM_CLAUSULAS:""
+};
 
 let quoteState={id:null,number:null,status:"RASCUNHO",items:[]};
 let editingItemIndex=null;
@@ -3406,6 +3529,7 @@ async function initQuotesPage(){
   document.getElementById("qFixedExpense").value=formatPctInput(FIXED_EXPENSE);
   document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
   syncTaxRule();
+  if(document.getElementById("qClauses")&&!qClauses.value.trim())applyClauseTemplate(false);
   await renderQuoteHistory();
   recalculateItem();
 }
@@ -3429,7 +3553,9 @@ async function loadBootstrap(){
     APP_DATA.clients=Array.isArray(j.clientes)?j.clientes:[];
     APP_DATA.segments=Array.isArray(j.segmentos)?j.segmentos:[];
     APP_DATA.segmentRelations=Array.isArray(j.segmento_relacoes)?j.segmento_relacoes:[];
+    APP_DATA.products=Array.isArray(j.produtos)?j.produtos:[];
     populateClientSelectors();
+    populateApprovedProducts();
 
     if(j.parametro_versao_ativa){
       PARAM_VERSION=j.parametro_versao_ativa.ID_VERSAO||PARAM_VERSION;
@@ -3454,6 +3580,66 @@ async function loadBootstrap(){
   }catch(e){
     apiOnline=false;
     console.warn("Bootstrap Neosonics:",e);
+  }
+}
+
+function applyClauseTemplate(force){
+  const model=document.getElementById("qClauseModel")?.value||"PADRAO_COMPLETO";
+  const box=document.getElementById("qClauses");
+  if(!box)return;
+  if(force || !box.value.trim()) box.value=CLAUSE_TEMPLATES[model]??box.value;
+}
+function markClausesCustom(){
+  const model=document.getElementById("qClauseModel");
+  if(model && model.value!=="PERSONALIZADO")model.value="PERSONALIZADO";
+}
+function populateApprovedProducts(){
+  const el=document.getElementById("iProduct");if(!el)return;
+  const current=el.value;
+  const list=(APP_DATA.products||[]).filter(p=>p.ATIVO!==false && String(p.ATIVO).toLowerCase()!=="false");
+  list.sort((a,b)=>String(a.DESCRICAO||a.SKU||"").localeCompare(String(b.DESCRICAO||b.SKU||""),"pt-BR"));
+  el.innerHTML='<option value="">Novo item / não usar cadastro</option>'+list.map(p=>{
+    const label=[p.SKU,p.DESCRICAO,p.NCM?("NCM "+p.NCM):""].filter(Boolean).join(" • ");
+    return '<option value="'+escapeHtml(p.ID_PRODUTO||"")+'">'+escapeHtml(label||p.ID_PRODUTO)+'</option>';
+  }).join("");
+  if([...el.options].some(o=>o.value===current))el.value=current;
+}
+async function loadApprovedProduct(){
+  const el=document.getElementById("iProduct");
+  const id=el?.value||"";if(!id)return;
+  const p=(APP_DATA.products||[]).find(x=>String(x.ID_PRODUTO)===String(id));
+  if(!p)return;
+  try{
+    let sourceItem=null;
+    if(p.ORCAMENTO_ID_ORIGEM){
+      const j=await apiGet("orcamento_detalhe",{id:p.ORCAMENTO_ID_ORIGEM});
+      sourceItem=(j.orcamento?.itens||[]).find(x=>String(x.ID_ITEM)===String(p.ORCAMENTO_ITEM_ID_ORIGEM));
+    }
+    const x=sourceItem||{
+      PRODUTO_ID:p.ID_PRODUTO,SKU:p.SKU,NCM:p.NCM,DESCRICAO:p.DESCRICAO,QTDE:1,
+      SEGMENTO_FINAL_ID:p.SEGMENTO_FINAL_ID,SEGMENTO_NEO_ID:p.SEGMENTO_NEO_ID,
+      PRECO_FINAL_TOTAL:Number(p.PRECO_ULTIMA_VENDA||0),PRECO_FINAL_UNIT:Number(p.PRECO_ULTIMA_VENDA||0),componentes:[]
+    };
+    editingItemIndex=null;
+    itemModeChip.textContent="Novo item • produto cadastrado";
+    iProduct.value=p.ID_PRODUTO||"";
+    iDescription.value=x.DESCRICAO||p.DESCRICAO||"";
+    iSku.value=x.SKU||p.SKU||"";
+    iNcm.value=x.NCM||p.NCM||"";
+    iQty.value=1;
+    iSegmentFinal.value=x.SEGMENTO_FINAL_ID||p.SEGMENTO_FINAL_ID||"";
+    iSegmentNeo.value=x.SEGMENTO_NEO_ID||p.SEGMENTO_NEO_ID||"";
+    const unit=Number(x.PRECO_FINAL_UNIT||p.PRECO_ULTIMA_VENDA||0);
+    iFinalPrice.value=moneyInputValue(unit);
+    mpRows.innerHTML="";ferrRows.innerHTML="";thirdRows.innerHTML="";processRows.innerHTML="";
+    (x.componentes||[]).forEach(comp=>loadComponentRow(comp));
+    if(!mpRows.children.length)addCostRow("mp");
+    if(!ferrRows.children.length)addCostRow("ferr");
+    if(!thirdRows.children.length)addCostRow("third");
+    if(!processRows.children.length)addProcessRow();
+    recalculateItem();
+  }catch(e){
+    alert("Não foi possível carregar o produto aprovado: "+e.message);
   }
 }
 
@@ -3690,6 +3876,8 @@ function collectCurrentItem(){
     ID_ITEM:editingItemIndex!==null?quoteState.items[editingItemIndex]?.ID_ITEM:null,
     SEQ:editingItemIndex!==null?editingItemIndex+1:quoteState.items.length+1,
     SKU:document.getElementById("iSku").value.trim(),
+    NCM:document.getElementById("iNcm").value.trim().replace(/\D/g,"").slice(0,8),
+    PRODUTO_ID:document.getElementById("iProduct").value||"",
     SEGMENTO_FINAL_ID:segFinalId,
     SEGMENTO_FINAL_SNAPSHOT:segmentNameById(segFinalId),
     SEGMENTO_NEO_ID:segNeoId,
@@ -3735,7 +3923,7 @@ function addItemToQuote(){
 function renderQuoteItems(){
   const body=document.getElementById("quoteItemsBody");if(!body)return;
   if(!quoteState.items.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="10">Nenhum item adicionado ainda.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="11">Nenhum item adicionado ainda.</td></tr>';
     quoteGrandTotal.textContent=formatBRL(0);
     return;
   }
@@ -3747,6 +3935,7 @@ function renderQuoteItems(){
     return '<tr>'+
       '<td>'+(i+1)+'</td>'+
       '<td>'+escapeHtml(x.DESCRICAO)+'</td>'+
+      '<td>'+escapeHtml(x.NCM||"—")+'</td>'+
       '<td><div class="segment-pair"><b>'+escapeHtml(finalName)+'</b><span>'+escapeHtml(neoName)+'</span></div></td>'+
       '<td>'+x.QTDE+'</td>'+
       '<td>'+formatBRL(x.CUSTO_TOTAL)+'</td>'+
@@ -3767,8 +3956,10 @@ function editQuoteItem(i){
   editingItemIndex=i;
   itemModeChip.textContent="Editando item "+(i+1);
 
+  iProduct.value=x.PRODUTO_ID||"";
   iDescription.value=x.DESCRICAO||"";
   iSku.value=x.SKU||"";
+  iNcm.value=x.NCM||"";
   iQty.value=x.QTDE||1;
   iSegmentFinal.value=x.SEGMENTO_FINAL_ID||"";
   iSegmentNeo.value=x.SEGMENTO_NEO_ID||"";
@@ -3805,8 +3996,10 @@ function loadComponentRow(comp){
 function clearItemForm(){
   editingItemIndex=null;
   itemModeChip.textContent="Novo item";
+  iProduct.value="";
   iDescription.value="";
   iSku.value="";
+  iNcm.value="";
   iQty.value=1;
   iSegmentFinal.value="";
   iSegmentNeo.value="";
@@ -3839,6 +4032,9 @@ function collectQuotePayload(status){
     VENDEDOR:document.getElementById("qSeller").value.trim(),
     COND_PAGAMENTO:document.getElementById("qPayment").value.trim(),
     PRAZO_ENTREGA:document.getElementById("qDelivery").value.trim(),
+    OBS:document.getElementById("qObs").value.trim(),
+    MODELO_CLAUSULAS:document.getElementById("qClauseModel").value,
+    CLAUSULAS_TEXTO:document.getElementById("qClauses").value,
     ENQUADRAMENTO:document.getElementById("qFramework").value,
     TIPO_VENDA:document.getElementById("qSaleType").value,
     DESTINO:document.getElementById("qDestination").value,
@@ -3865,6 +4061,7 @@ function applyQuoteFreezeState(){
   document.querySelectorAll(
     '#quotes .quote-header-card input,'+
     '#quotes .quote-header-card select,'+
+    '#quotes .quote-header-card textarea,'+
     '#quotes .quote-workspace input,'+
     '#quotes .quote-workspace select'
   ).forEach(el=>{
@@ -4027,6 +4224,9 @@ function applyQuoteToForm(q){
   qSeller.value=q.VENDEDOR||"";
   qPayment.value=q.COND_PAGAMENTO||"";
   qDelivery.value=q.PRAZO_ENTREGA||"";
+  qObs.value=q.OBS||"";
+  qClauseModel.value=q.MODELO_CLAUSULAS||"PADRAO_COMPLETO";
+  qClauses.value=q.CLAUSULAS_TEXTO||CLAUSE_TEMPLATES[qClauseModel.value]||"";
   qFramework.value="NORMAL";
   qSaleType.value=String(q.TIPO_VENDA||"VENDA").toUpperCase();
   qDestination.value=q.DESTINO||"";
@@ -4072,7 +4272,8 @@ function formatDateBR(v){
 
 function newQuote(){
   quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
-  ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery"].forEach(id=>document.getElementById(id).value="");
+  ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery","qObs"].forEach(id=>document.getElementById(id).value="");
+  qClauseModel.value="PADRAO_COMPLETO";qClauses.value=CLAUSE_TEMPLATES.PADRAO_COMPLETO;
   qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxes.value="";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
   quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();applyQuoteFreezeState();
 }
