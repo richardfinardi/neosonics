@@ -2940,7 +2940,8 @@ async function approveCurrentQuote(){
     quoteStatusNote.textContent="Aprovado • pedido gerado";
     applyQuoteFreezeState();
     await renderQuoteHistory();
-    alert("Orçamento aprovado e pedido "+(j.numero_pedido||"")+" gerado.");
+    const prodInfo=j.produtos&&Number(j.produtos.total||0)?(" • "+j.produtos.total+" item(ns) no cadastro de produtos"):"";
+    alert("Orçamento aprovado e pedido "+(j.numero_pedido||"")+" gerado."+prodInfo);
   }catch(err){
     alert("Não foi possível aprovar o orçamento: "+err.message);
   }finally{
@@ -2967,7 +2968,8 @@ async function approveQuoteFromHistory(id){
       applyQuoteFreezeState();
     }
     await renderQuoteHistory();
-    alert("Pedido "+(j.numero_pedido||"")+" gerado.");
+    const prodInfo=j.produtos&&Number(j.produtos.total||0)?(" • "+j.produtos.total+" item(ns) no cadastro de produtos"):"";
+    alert("Pedido "+(j.numero_pedido||"")+" gerado."+prodInfo);
   }catch(err){
     alert("Não foi possível aprovar o orçamento: "+err.message);
   }finally{
