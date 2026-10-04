@@ -835,6 +835,102 @@ function salvarOrcamento_(orcamento) {
   };
 }
 
+function sincronizarProdutosDoOrcamentoAprovado_(idOrcamento) {
+  if (!idOrcamento) throw new Error('ID do orçamento não informado para cadastro de produtos.');
+
+  const orc = listarObjetos_(ABAS.ORCAMENTOS).find(function(x) {
+    return String(x.ID_ORCAMENTO) === String(idOrcamento);
+  });
+  if (!orc) throw new Error('Orçamento não encontrado para cadastro de produtos.');
+
+  const status = String(orc.STATUS || '').toUpperCase();
+  if (status !== 'APROVADO' && status !== 'CONVERTIDO') {
+    throw new Error('Somente itens de orçamento aprovado podem virar produto.');
+  }
+
+  const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS).filter(function(x) {
+    return String(x.ORCAMENTO_ID) === String(idOrcamento);
+  });
+  if (!itens.length) return { criados:0, atualizados:0, total:0 };
+
+  const shProd = aba_(ABAS.PRODUTOS);
+  const hProd = cabecalhos_(shProd);
+  const produtos = listarObjetos_(ABAS.PRODUTOS);
+  let criados = 0;
+  let atualizados = 0;
+  const agora = isoAgora_();
+
+  itens.forEach(function(item) {
+    const sku = String(item.SKU || '').trim();
+    const produtoIdInformado = String(item.PRODUTO_ID || '').trim();
+
+    let existente = null;
+    if (produtoIdInformado) {
+      existente = produtos.find(function(p) {
+        return String(p.ID_PRODUTO || '') === produtoIdInformado;
+      }) || null;
+    }
+    if (!existente && sku) {
+      existente = produtos.find(function(p) {
+        return normalizarTexto_(p.SKU) === normalizarTexto_(sku);
+      }) || null;
+    }
+    if (!existente) {
+      existente = produtos.find(function(p) {
+        return String(p.ORCAMENTO_ITEM_ID_ORIGEM || '') === String(item.ID_ITEM || '');
+      }) || null;
+    }
+
+    const qtd = numero_(item.QTDE);
+    const custoTotal = numero_(item.CUSTO_TOTAL);
+    const precoTotal = numero_(item.PRECO_FINAL_TOTAL);
+    const idProduto = existente ? existente.ID_PRODUTO : novoId_('PROD');
+
+    const obj = {
+      ID_PRODUTO: idProduto,
+      SKU: sku,
+      NCM: String(item.NCM || '').trim(),
+      DESCRICAO: String(item.DESCRICAO || '').trim(),
+      UNIDADE: existente ? (existente.UNIDADE || 'PC') : 'PC',
+      CATEGORIA: String(item.SEGMENTO_NEO_SNAPSHOT || item.SEGMENTO_FINAL_SNAPSHOT || ''),
+      CUSTO_PADRAO: qtd ? custoTotal / qtd : custoTotal,
+      PRECO_ULTIMA_VENDA: qtd ? precoTotal / qtd : precoTotal,
+      SEGMENTO_FINAL_ID: item.SEGMENTO_FINAL_ID || '',
+      SEGMENTO_FINAL_SNAPSHOT: item.SEGMENTO_FINAL_SNAPSHOT || '',
+      SEGMENTO_NEO_ID: item.SEGMENTO_NEO_ID || '',
+      SEGMENTO_NEO_SNAPSHOT: item.SEGMENTO_NEO_SNAPSHOT || '',
+      ORCAMENTO_ID_ORIGEM: idOrcamento,
+      ORCAMENTO_ITEM_ID_ORIGEM: item.ID_ITEM || '',
+      ATIVO: true,
+      DT_CADASTRO: existente ? (existente.DT_CADASTRO || agora) : agora,
+      DT_ATUALIZACAO: agora,
+      OBS: 'Cadastro gerado/atualizado pelo orçamento aprovado ' + String(orc.NUMERO_ORCAMENTO || '')
+    };
+
+    if (existente) {
+      const rowProd = localizarLinha_(shProd, hProd.ID_PRODUTO, idProduto);
+      if (rowProd) escreverObjetoNaLinha_(shProd, rowProd, obj);
+      atualizados++;
+      Object.assign(existente, obj);
+    } else {
+      appendObjeto_(ABAS.PRODUTOS, obj);
+      produtos.push(obj);
+      criados++;
+    }
+
+    // Guarda no item aprovado qual cadastro de produto ele originou/usou.
+    const shItens = aba_(ABAS.ORCAMENTO_ITENS);
+    const hItens = cabecalhos_(shItens);
+    if (hItens.PRODUTO_ID) {
+      const rowItem = localizarLinha_(shItens, hItens.ID_ITEM, item.ID_ITEM);
+      if (rowItem) setCelulaPorHeader_(shItens, hItens, rowItem, 'PRODUTO_ID', idProduto);
+    }
+  });
+
+  SpreadsheetApp.flush();
+  return { criados:criados, atualizados:atualizados, total:itens.length };
+}
+
 function listarOrcamentosResumo_() {
   const shOrc = aba_(ABAS.ORCAMENTOS);
   const lastOrc = shOrc.getLastRow();
@@ -1023,22 +1119,26 @@ function aprovarOrcamentoEGerarPedido_(idOrcamento) {
 
   const orc = objetoDaLinha_(sh, row);
   if (String(orc.STATUS || '').toUpperCase() === 'CONVERTIDO' && orc.CONVERTIDO_PEDIDO_ID) {
+    const produtosRetry = sincronizarProdutosDoOrcamentoAprovado_(idOrcamento);
     return {
       ok:true,
       status:'CONVERTIDO',
       id_orcamento:idOrcamento,
       id_pedido:orc.CONVERTIDO_PEDIDO_ID,
-      ja_convertido:true
+      ja_convertido:true,
+      produtos:produtosRetry
     };
   }
 
   alterarStatusOrcamento_(idOrcamento, 'APROVADO');
+  const produtos = sincronizarProdutosDoOrcamentoAprovado_(idOrcamento);
   const pedido = converterOrcamentoEmPedido_(idOrcamento);
 
   return Object.assign({
     ok:true,
     status:'CONVERTIDO',
-    id_orcamento:idOrcamento
+    id_orcamento:idOrcamento,
+    produtos:produtos
   }, pedido);
 }
 
@@ -1134,6 +1234,8 @@ function converterOrcamentoEmPedido_(idOrcamento) {
         ORCAMENTO_ITEM_ID_ORIGEM: item.ID_ITEM,
         SEQ: item.SEQ,
         SKU: item.SKU,
+        NCM: item.NCM || '',
+        PRODUTO_ID: item.PRODUTO_ID || '',
         SEGMENTO_FINAL_ID: item.SEGMENTO_FINAL_ID || '',
         SEGMENTO_FINAL_SNAPSHOT: item.SEGMENTO_FINAL_SNAPSHOT || '',
         SEGMENTO_NEO_ID: item.SEGMENTO_NEO_ID || '',
