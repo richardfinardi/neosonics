@@ -1621,7 +1621,7 @@ body.theme-light .client-evolution-card{
               <div class="panel-sub" id="dashboardClientsSub">Participação de cada cliente no faturamento total.</div>
             </div>
             <div class="panel-head-actions">
-              <button class="secondary" id="clearSegmentSelectionBtn" style="display:none" onclick="clearDashboardSegment()">Limpar segmento</button>
+              <button class="secondary" id="clearSegmentSelectionBtn" style="display:none" onclick="clearDashboardSegment()">Voltar para todos os clientes</button>
               <input id="dashboardClientSearch" class="compact-search" placeholder="Pesquisar cliente..." oninput="renderDashboardClients()">
             </div>
           </div>
@@ -2322,6 +2322,7 @@ let DASHBOARD_DATA=null;
 let DASHBOARD_FILTERS_LOADED=false;
 let DASHBOARD_SELECTED_CLIENT="";
 let DASHBOARD_SEGMENT_VIEW="FINAL";
+let DASHBOARD_DRILLDOWN_SEGMENT=null;
 
 const CLAUSE_TEMPLATES={
   PADRAO_COMPLETO:`I - Descrição Detalhada do Objeto:
@@ -2562,6 +2563,10 @@ function writeDashboardCache(params,data){
 }
 
 async function loadDashboard(force=false){
+  if(force&&DASHBOARD_DRILLDOWN_SEGMENT){
+    DASHBOARD_DRILLDOWN_SEGMENT=null;
+    DASHBOARD_SELECTED_CLIENT="";
+  }
   const params={};
   const pairs=[
     ["dt_inicio","dStart"],["dt_fim","dEnd"],["segmento_final_id","dFinal"],
@@ -2638,7 +2643,8 @@ function clearDashboardFilters(){
   });
   DASHBOARD_FILTERS_LOADED=false;
   DASHBOARD_SELECTED_CLIENT="";
-  loadDashboard();
+  DASHBOARD_DRILLDOWN_SEGMENT=null;
+  loadDashboard(true);
 }
 
 function renderDashboard(j){
@@ -2772,13 +2778,18 @@ function renderSegmentTable(){
 }
 
 function clearDashboardSegment(){
-  dFinal.value="";
-  dNeo.value="";
+  DASHBOARD_DRILLDOWN_SEGMENT=null;
   DASHBOARD_SELECTED_CLIENT="";
-  document.getElementById("dashboardProductsPanel").style.display="none";
-  loadDashboard(true);
+  const modal=document.getElementById("dashboardProductsPanel");
+  if(modal)modal.style.display="none";
+  const btn=document.getElementById("clearSegmentSelectionBtn");
+  if(btn){
+    btn.style.display="none";
+    btn.disabled=false;
+    btn.textContent="Voltar para todos os clientes";
+  }
+  renderDashboardClients();
 }
-
 
 function renderMonthChart(items){
   const el=document.getElementById("dashboardMonthly");if(!el)return;
@@ -2873,56 +2884,81 @@ function renderRankList(id,items,limit){
   }).join("");
 }
 
-function selectDashboardSegment(type,id){
-  const btn=document.getElementById("clearSegmentSelectionBtn");
-  if(btn){btn.style.display="";btn.textContent="Carregando segmento...";btn.disabled=true;}
+async function selectDashboardSegment(type,id){
+  const segmentType=String(type||"FINAL").toUpperCase()==="NEO"?"NEO":"FINAL";
+  const segmentId=String(id||"");
+  const sourceRows=segmentType==="NEO"
+    ? (DASHBOARD_DATA?.segmentos_neo||[])
+    : (DASHBOARD_DATA?.segmentos_final||[]);
+  const selected=sourceRows.find(x=>String(x.id||"")===segmentId);
+  const label=selected?.label||"Segmento selecionado";
 
-  if(type==="FINAL"){
-    dFinal.value=String(id||"");
-    dNeo.value="";
-  }else{
-    dNeo.value=String(id||"");
-    dFinal.value="";
+  const btn=document.getElementById("clearSegmentSelectionBtn");
+  if(btn){
+    btn.style.display="";
+    btn.textContent="Carregando clientes...";
+    btn.disabled=true;
   }
-  DASHBOARD_SELECTED_CLIENT="";
-  dashboardProductsPanel.style.display="none";
-  loadDashboard(true).then(()=>{
-    document.getElementById("dashboardClientsPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
-  }).finally(()=>{
-    const b=document.getElementById("clearSegmentSelectionBtn");
-    if(b){b.textContent="Limpar segmento";b.disabled=false;}
+
+  const params={};
+  const pairs=[
+    ["dt_inicio","dStart"],["dt_fim","dEnd"],["segmento_final_id","dFinal"],
+    ["segmento_neo_id","dNeo"],["cliente_id","dClient"],["produto_id","dProduct"],
+    ["modalidade","dModality"],["uf","dUf"]
+  ];
+  pairs.forEach(([key,fieldId])=>{
+    const el=document.getElementById(fieldId);
+    if(el&&el.value)params[key]=el.value;
   });
+
+  // Clique no ranking é drill-down: não altera os filtros globais nem o dashboard principal.
+  if(segmentType==="FINAL")params.segmento_final_id=segmentId;
+  else params.segmento_neo_id=segmentId;
+
+  try{
+    const detail=await apiGet("dashboard",params);
+    DASHBOARD_DRILLDOWN_SEGMENT={
+      type:segmentType,
+      id:segmentId,
+      label,
+      data:detail
+    };
+    DASHBOARD_SELECTED_CLIENT="";
+    renderDashboardClients();
+    document.getElementById("dashboardClientsPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(err){
+    console.error("Drill-down do segmento:",err);
+    alert("Não foi possível abrir os clientes deste segmento: "+err.message);
+  }finally{
+    if(btn){
+      btn.textContent="Voltar para todos os clientes";
+      btn.disabled=false;
+      btn.style.display=DASHBOARD_DRILLDOWN_SEGMENT?"":"none";
+    }
+  }
 }
 
 function dashboardSelectedSegmentLabel(){
-  const finalId=String(document.getElementById("dFinal")?.value||"");
-  const neoId=String(document.getElementById("dNeo")?.value||"");
-
-  if(finalId){
-    const item=(DASHBOARD_DATA?.segmentos_final||[]).find(x=>String(x.id||"")===finalId);
-    return {type:"FINAL",label:item?.label||"Segmento selecionado"};
-  }
-
-  if(neoId){
-    const item=(DASHBOARD_DATA?.segmentos_neo||[]).find(x=>String(x.id||"")===neoId);
-    return {type:"NEO",label:item?.label||"Segmento selecionado"};
-  }
-
-  return null;
+  if(!DASHBOARD_DRILLDOWN_SEGMENT)return null;
+  return {
+    type:DASHBOARD_DRILLDOWN_SEGMENT.type,
+    label:DASHBOARD_DRILLDOWN_SEGMENT.label
+  };
 }
 
 function renderDashboardClients(){
   const body=document.getElementById("dashboardClientsBody");if(!body||!DASHBOARD_DATA)return;
+  const source=DASHBOARD_DRILLDOWN_SEGMENT?.data||DASHBOARD_DATA;
   const term=String(document.getElementById("dashboardClientSearch")?.value||"").trim().toUpperCase();
-  const rows=(DASHBOARD_DATA.clientes||[]).filter(x=>!term||String(x.label||"").toUpperCase().includes(term));
-  const totalRevenue=Number(DASHBOARD_DATA.kpis?.faturamento||0)||1;
+  const rows=(source.clientes||[]).filter(x=>!term||String(x.label||"").toUpperCase().includes(term));
+  const totalRevenue=Number(source.kpis?.faturamento||0)||1;
   const selectedSegment=dashboardSelectedSegmentLabel();
 
   dashboardClientsTitle.textContent=selectedSegment
     ? "Clientes do segmento • "+selectedSegment.label
     : "Lucratividade por cliente";
   dashboardClientsSub.textContent=selectedSegment
-    ? "Participação de cada cliente dentro do segmento selecionado."
+    ? "Drill-down do segmento. Os demais indicadores e rankings continuam na visão original."
     : "Participação de cada cliente no faturamento total.";
   dashboardClientParticipationHeader.textContent=selectedSegment
     ? "Participação no segmento"
@@ -2950,7 +2986,8 @@ function renderDashboardClients(){
 
 function renderClientEvolution(clientId){
   const el=document.getElementById("dashboardClientEvolution");if(!el)return;
-  const rows=(DASHBOARD_DATA?.cliente_mensal||[])
+  const source=DASHBOARD_DRILLDOWN_SEGMENT?.data||DASHBOARD_DATA;
+  const rows=(source?.cliente_mensal||[])
     .filter(x=>String(x.cliente_id||"")===String(clientId||""))
     .slice()
     .sort((a,b)=>String(a.mes||a.label||"").localeCompare(String(b.mes||b.label||"")))
@@ -2980,7 +3017,8 @@ function showClientProducts(clientId,label){
   renderClientEvolution(clientId);
 
   const body=document.getElementById("dashboardProductsBody");
-  const rows=(DASHBOARD_DATA.produtos||[]).filter(x=>String(x.cliente_id||"")===String(clientId||""));
+  const source=DASHBOARD_DRILLDOWN_SEGMENT?.data||DASHBOARD_DATA;
+  const rows=(source.produtos||[]).filter(x=>String(x.cliente_id||"")===String(clientId||""));
   const fatCliente=rows.reduce((s,x)=>s+Number(x.faturamento||0),0)||1;
 
   if(!rows.length){
@@ -3020,7 +3058,8 @@ function closeDashboardProducts(event){
 
 
 function dashboardClientLabel(id){
-  const x=(DASHBOARD_DATA?.clientes||[]).find(x=>String(x.id||x.chave)===String(id));
+  const source=DASHBOARD_DRILLDOWN_SEGMENT?.data||DASHBOARD_DATA;
+  const x=(source?.clientes||[]).find(x=>String(x.id||x.chave)===String(id));
   return x?.label||"Cliente";
 }
 
