@@ -2744,7 +2744,12 @@ const DASHBOARD_CACHE_PREFIX="neosonics_dashboard_v4:";
 const DASHBOARD_CACHE_MAX_AGE=24*60*60*1000;
 
 async function initOverviewPage(force=false){
-  await loadDashboard(force);
+  const bootstrapTask=loadBootstrap(false).then(()=>{
+    populateDashboardReferenceFiltersFromBootstrap();
+  }).catch(err=>console.warn("Filtros de referência:",err));
+
+  const dashboardTask=loadDashboard(force);
+  await Promise.allSettled([bootstrapTask,dashboardTask]);
 }
 
 function dashboardCacheKey(params){
@@ -2814,9 +2819,13 @@ async function loadDashboard(force=false){
     console.error("Dashboard:",err);
     if(!cached){
       const seg=document.getElementById("dashboardSegmentsBody");
-      if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
+      if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="8">Não foi possível carregar os indicadores agora.</td></tr>';
       const cli=document.getElementById("dashboardClientsBody");
-      if(cli)cli.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
+      if(cli)cli.innerHTML='<tr class="empty-row"><td colspan="7">Os filtros continuam disponíveis. Tente aplicar novamente.</td></tr>';
+      const month=document.getElementById("dashboardMonthly");
+      if(month)month.innerHTML='<div class="history-loading">Não foi possível carregar a evolução agora.</div>';
+      const annual=document.getElementById("dashboardAnnualBody");
+      if(annual)annual.innerHTML='<tr class="empty-row"><td colspan="7">Não foi possível carregar agora.</td></tr>';
     }
   }finally{
     if(!cached)setDashboardLoading(false);
@@ -2825,7 +2834,45 @@ async function loadDashboard(force=false){
 
 function setDashboardLoading(active,text){
   const badge=document.getElementById("dashPeriodBadge");
-  if(active&&badge)badge.textContent=text||"Atualizando...";
+  if(!badge)return;
+  if(active)badge.textContent=text||"Atualizando...";
+  else if(!DASHBOARD_DATA)badge.textContent="Sem resposta da API";
+}
+
+function populateDashboardReferenceFiltersFromBootstrap(){
+  const fill=(id,items,placeholder,getValue,getLabel)=>{
+    const el=document.getElementById(id);if(!el)return;
+    const current=el.value;
+    el.innerHTML='<option value="">'+placeholder+'</option>'+
+      (items||[]).map(x=>'<option value="'+escapeHtml(getValue(x))+'">'+escapeHtml(getLabel(x))+'</option>').join("");
+    if([...el.options].some(o=>o.value===current))el.value=current;
+  };
+
+  const finalSegments=(APP_DATA.segments||[])
+    .filter(x=>String(x.TIPO||"").toUpperCase()==="FINAL"&&x.ATIVO!==false)
+    .slice()
+    .sort((a,b)=>String(a.SEGMENTO||"").localeCompare(String(b.SEGMENTO||""),"pt-BR"));
+  const neoSegments=(APP_DATA.segments||[])
+    .filter(x=>String(x.TIPO||"").toUpperCase()==="NEO"&&x.ATIVO!==false)
+    .slice()
+    .sort((a,b)=>String(a.SEGMENTO||"").localeCompare(String(b.SEGMENTO||""),"pt-BR"));
+  const clients=(APP_DATA.clients||[])
+    .filter(x=>x.ATIVO!==false)
+    .slice()
+    .sort((a,b)=>clientName(a).localeCompare(clientName(b),"pt-BR"));
+  const products=(APP_DATA.products||[])
+    .filter(x=>x.ATIVO!==false)
+    .slice()
+    .sort((a,b)=>{
+      const aa=[a.SKU,a.DESCRICAO].filter(Boolean).join(" • ");
+      const bb=[b.SKU,b.DESCRICAO].filter(Boolean).join(" • ");
+      return aa.localeCompare(bb,"pt-BR");
+    });
+
+  fill("dFinal",finalSegments,"Todas",x=>x.ID_SEGMENTO,x=>x.SEGMENTO);
+  fill("dNeo",neoSegments,"Todas",x=>x.ID_SEGMENTO,x=>x.SEGMENTO);
+  fill("dClient",clients,"Todos",x=>x.ID_CLIENTE,x=>clientName(x));
+  fill("dProduct",products,"Todos",x=>[x.SKU||"",x.DESCRICAO||""].join("|"),x=>[x.SKU,x.DESCRICAO].filter(Boolean).join(" • "));
 }
 
 function populateDashboardFilters(f){
@@ -2837,12 +2884,12 @@ function populateDashboardFilters(f){
     if([...el.options].some(o=>o.value===current))el.value=current;
   };
 
-  fill("dFinal",f.segmentos_final,"Todas",x=>x.id,x=>x.label);
-  fill("dNeo",f.segmentos_neo,"Todas",x=>x.id,x=>x.label);
-  fill("dClient",f.clientes,"Todos",x=>x.id,x=>x.label);
-  fill("dProduct",f.produtos,"Todos",x=>x.id,x=>x.label);
-  fill("dModality",f.modalidades,"Todas",x=>x,x=>x);
-  fill("dUf",f.ufs,"Todas",x=>x,x=>x);
+  if(Array.isArray(f.segmentos_final)&&f.segmentos_final.length)fill("dFinal",f.segmentos_final,"Todas",x=>x.id,x=>x.label);
+  if(Array.isArray(f.segmentos_neo)&&f.segmentos_neo.length)fill("dNeo",f.segmentos_neo,"Todas",x=>x.id,x=>x.label);
+  if(Array.isArray(f.clientes)&&f.clientes.length)fill("dClient",f.clientes,"Todos",x=>x.id,x=>x.label);
+  if(Array.isArray(f.produtos)&&f.produtos.length)fill("dProduct",f.produtos,"Todos",x=>x.id,x=>x.label);
+  if(Array.isArray(f.modalidades))fill("dModality",f.modalidades,"Todas",x=>x,x=>x);
+  if(Array.isArray(f.ufs))fill("dUf",f.ufs,"Todas",x=>x,x=>x);
 
   if(document.getElementById("dStart")&&!dStart.value)dStart.value=f.datas?.min||"";
   if(document.getElementById("dEnd")&&!dEnd.value)dEnd.value=f.datas?.max||"";
@@ -4570,11 +4617,23 @@ async function apiGet(acao, params={}){
   const url=new URL(NEOSONICS_API_URL);
   url.searchParams.set("acao",acao);
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
-  const r=await fetch(url.toString(),{method:"GET",cache:"no-store"});
-  if(!r.ok) throw new Error("HTTP "+r.status);
-  const j=await r.json();
-  if(!j.ok) throw new Error(j.erro||"Falha na API");
-  return j;
+
+  const controller=new AbortController();
+  const timeoutMs=acao==="dashboard"?25000:15000;
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+
+  try{
+    const r=await fetch(url.toString(),{method:"GET",cache:"no-store",signal:controller.signal});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.erro||"Falha na API");
+    return j;
+  }catch(err){
+    if(err&&err.name==="AbortError")throw new Error("Tempo excedido ao carregar "+acao+".");
+    throw err;
+  }finally{
+    clearTimeout(timer);
+  }
 }
 
 function applyBootstrapData(j,fromNetwork=false){
@@ -4608,6 +4667,7 @@ function applyBootstrapData(j,fromNetwork=false){
     if(Object.keys(regras).length)TAX_RULES=regras;
   }
 
+  if(document.getElementById("dClient"))populateDashboardReferenceFiltersFromBootstrap();
   if(fromNetwork)bootstrapLoadedAt=Date.now();
 }
 
