@@ -2487,7 +2487,7 @@ let quoteListPromise=null;
 let quoteListLoadedAt=0;
 let orderListPromise=null;
 let orderListLoadedAt=0;
-const APP_CACHE_PREFIX="neosonics_app_v6:";
+const APP_CACHE_PREFIX="neosonics_app_v7:";
 const APP_CACHE_MAX_AGE=24*60*60*1000;
 const APP_REVALIDATE_MS=60*1000;
 
@@ -2740,7 +2740,7 @@ function closeMobileMenu(){
 }
 function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transition=".6s";setTimeout(()=>btn.style.transform="",650)}
 
-const DASHBOARD_CACHE_PREFIX="neosonics_dashboard_v4:";
+const DASHBOARD_CACHE_PREFIX="neosonics_dashboard_v5:";
 const DASHBOARD_CACHE_MAX_AGE=24*60*60*1000;
 
 async function initOverviewPage(force=false){
@@ -4634,15 +4634,20 @@ function markApiSlow(acao,tentativa){
 async function apiGet(acao, params={}){
   if(!NEOSONICS_API_URL) throw new Error("URL da API não configurada.");
 
-  const url=new URL(NEOSONICS_API_URL);
-  url.searchParams.set("acao",acao);
-  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
-
   const isDashboard=acao==="dashboard";
   const timeouts=isDashboard?[45000,60000,75000]:[25000,40000,60000];
   let lastError=null;
 
   for(let attempt=0;attempt<timeouts.length;attempt++){
+    const url=new URL(NEOSONICS_API_URL);
+    url.searchParams.set("acao",acao);
+    Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+
+    // Apps Script redireciona para script.googleusercontent.com com uma chave temporária.
+    // Em algumas redes/proxies esse redirect velho fica cacheado e passa a responder 404.
+    // Forçamos uma rota nova em cada tentativa para nunca reaproveitar a chave expirada.
+    url.searchParams.set("_cb",Date.now()+"-"+attempt);
+
     const controller=new AbortController();
     const timeoutMs=timeouts[attempt];
     const timer=setTimeout(()=>{
@@ -4656,6 +4661,8 @@ async function apiGet(acao, params={}){
       const r=await fetch(url.toString(),{
         method:"GET",
         cache:"no-store",
+        credentials:"omit",
+        redirect:"follow",
         signal:controller.signal
       });
 
@@ -4672,10 +4679,18 @@ async function apiGet(acao, params={}){
       const retryable=
         (err&&err.name==="AbortError") ||
         err instanceof TypeError ||
+        msg==="HTTP 404" ||
+        msg==="HTTP 410" ||
+        msg==="HTTP 429" ||
         msg.startsWith("HTTP 5");
 
       if(!retryable||attempt===timeouts.length-1)break;
-      await apiDelay(attempt===0?800:1800);
+
+      if(msg==="HTTP 404"||msg==="HTTP 410"){
+        console.warn("Redirect do Apps Script expirou; refazendo a chamada com nova rota.",acao,attempt+1);
+      }
+
+      await apiDelay(attempt===0?500:1200);
     }finally{
       clearTimeout(timer);
     }
