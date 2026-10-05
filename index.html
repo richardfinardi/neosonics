@@ -3046,7 +3046,13 @@ async function approveCurrentQuote(){
     quoteState.status="CONVERTIDO";
     quoteStatusNote.textContent="Aprovado • pedido gerado";
     applyQuoteFreezeState();
-    await renderQuoteHistory();
+    markQuoteHistoryStatus(quoteState.id,"CONVERTIDO");
+    quoteListLoadedAt=0;
+    orderListLoadedAt=0;
+    bootstrapLoadedAt=0;
+    void refreshQuoteHistory();
+    void refreshOrdersData();
+    void refreshBootstrap();
     const prodInfo=j.produtos&&Number(j.produtos.total||0)?(" • "+j.produtos.total+" item(ns) no cadastro de produtos"):"";
     alert("Orçamento aprovado e pedido "+(j.numero_pedido||"")+" gerado."+prodInfo);
   }catch(err){
@@ -3074,7 +3080,13 @@ async function approveQuoteFromHistory(id){
       quoteState.status="CONVERTIDO";
       applyQuoteFreezeState();
     }
-    await renderQuoteHistory();
+    markQuoteHistoryStatus(id,"CONVERTIDO");
+    quoteListLoadedAt=0;
+    orderListLoadedAt=0;
+    bootstrapLoadedAt=0;
+    void refreshQuoteHistory();
+    void refreshOrdersData();
+    void refreshBootstrap();
     const prodInfo=j.produtos&&Number(j.produtos.total||0)?(" • "+j.produtos.total+" item(ns) no cadastro de produtos"):"";
     alert("Pedido "+(j.numero_pedido||"")+" gerado."+prodInfo);
   }catch(err){
@@ -4303,7 +4315,14 @@ async function saveQuoteDraft(){
   setQuoteSaving(true,"Salvando...");
   try{
     const saved=await persistQuote(payload);
-    if(saved){quoteState.status="RASCUNHO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Rascunho salvo";}
+    if(saved){
+      quoteState.status="RASCUNHO";
+      updateQuoteIdentity(saved);
+      upsertQuoteHistoryLocal(payload,saved);
+      quoteStatusNote.textContent="Rascunho salvo";
+      quoteListLoadedAt=0;
+      void refreshQuoteHistory();
+    }
   }finally{
     setQuoteSaving(false);
   }
@@ -4319,7 +4338,15 @@ async function sendQuote(){
   setQuoteSaving(true,"Enviando...");
   try{
     const saved=await persistQuote(payload);
-    if(saved){quoteState.status="ENVIADO";updateQuoteIdentity(saved);await renderQuoteHistory();quoteStatusNote.textContent="Enviado • aguardando aprovação";alert("Orçamento marcado como enviado.");}
+    if(saved){
+      quoteState.status="ENVIADO";
+      updateQuoteIdentity(saved);
+      upsertQuoteHistoryLocal(payload,saved);
+      quoteStatusNote.textContent="Enviado • aguardando aprovação";
+      quoteListLoadedAt=0;
+      void refreshQuoteHistory();
+      alert("Orçamento marcado como enviado.");
+    }
   }finally{
     setQuoteSaving(false);
   }
@@ -4339,6 +4366,36 @@ function updateQuoteIdentity(saved){
   quoteState.id=saved.id_orcamento||saved.ID_ORCAMENTO||quoteState.id;
   quoteState.number=saved.numero_orcamento||saved.NUMERO_ORCAMENTO||quoteState.number;
   quoteNumberChip.textContent="Orçamento #"+quoteState.number;
+}
+
+function upsertQuoteHistoryLocal(payload,saved){
+  const id=String(saved?.id_orcamento||saved?.ID_ORCAMENTO||payload?.ID_ORCAMENTO||quoteState.id||"");
+  const numero=saved?.numero_orcamento||saved?.NUMERO_ORCAMENTO||payload?.NUMERO_ORCAMENTO||quoteState.number||"";
+  const status=String(saved?.status||payload?.STATUS||quoteState.status||"RASCUNHO").toUpperCase();
+  const idx=quoteHistoryCache.findIndex(x=>String(x.ID_ORCAMENTO)===id);
+  const atual=idx>=0?quoteHistoryCache[idx]:{};
+  const resumo=Object.assign({},atual,{
+    ID_ORCAMENTO:id,
+    NUMERO_ORCAMENTO:numero,
+    CLIENTE_NOME_SNAPSHOT:payload?.CLIENTE_NOME_SNAPSHOT||qClient.value||atual.CLIENTE_NOME_SNAPSHOT||"",
+    DATA_ORCAMENTO:payload?.DATA_ORCAMENTO||atual.DATA_ORCAMENTO||new Date().toISOString().slice(0,10),
+    QTD_ITENS:Array.isArray(payload?.itens)?payload.itens.length:(atual.QTD_ITENS||0),
+    VALOR_TOTAL:Array.isArray(payload?.itens)?payload.itens.reduce((s,x)=>s+Number(x.PRECO_FINAL_TOTAL||0),0):(atual.VALOR_TOTAL||0),
+    STATUS:status
+  });
+  if(idx>=0)quoteHistoryCache[idx]=resumo;else quoteHistoryCache.unshift(resumo);
+  quoteHistoryCache.sort((a,b)=>Number(b.NUMERO_ORCAMENTO||0)-Number(a.NUMERO_ORCAMENTO||0));
+  writeAppCache("orcamentos",quoteHistoryCache);
+  removeAppCache("orcamento_detalhe:"+id);
+  paintQuoteHistory();
+}
+
+function markQuoteHistoryStatus(id,status){
+  const q=quoteHistoryCache.find(x=>String(x.ID_ORCAMENTO)===String(id));
+  if(q)q.STATUS=status;
+  writeAppCache("orcamentos",quoteHistoryCache);
+  removeAppCache("orcamento_detalhe:"+String(id));
+  paintQuoteHistory();
 }
 
 async function persistQuote(payload){
@@ -4517,10 +4574,20 @@ function newQuote(){
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 
+function warmSystemCaches(){
+  void loadBootstrap(false);
+  setTimeout(()=>{
+    void renderQuoteHistory(false);
+    void initOrdersPage(false);
+  },500);
+}
+
 document.addEventListener("DOMContentLoaded",()=>{
   initUiPreferences();
   currentPage=document.querySelector(".page.active")?.id||"overview";
   initOverviewPage();
+  if("requestIdleCallback" in window)requestIdleCallback(warmSystemCaches,{timeout:1400});
+  else setTimeout(warmSystemCaches,500);
 });
 </script>
 <script src="proposal.js?v=20261003-1"></script>
