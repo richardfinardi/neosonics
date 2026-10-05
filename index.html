@@ -3263,6 +3263,340 @@ function dashboardClientLabel(id){
   return x?.label||"Cliente";
 }
 
+let QUICK_ORDER_SEQ=0;
+
+function quickOrderClient(){
+  const id=String(document.getElementById("qoClient")?.value||"");
+  return APP_DATA.clients.find(x=>String(x.ID_CLIENTE||"")===id)||null;
+}
+
+function quickOrderProductOptions(){
+  const products=(APP_DATA.products||[])
+    .filter(p=>p.ATIVO!==false)
+    .slice()
+    .sort((a,b)=>{
+      const aa=[a.SKU,a.DESCRICAO].filter(Boolean).join(" • ");
+      const bb=[b.SKU,b.DESCRICAO].filter(Boolean).join(" • ");
+      return aa.localeCompare(bb,"pt-BR");
+    });
+
+  return '<option value="">Item manual</option>'+
+    products.map(p=>{
+      const label=[p.SKU,p.DESCRICAO].filter(Boolean).join(" • ")||"Produto";
+      return '<option value="'+escapeHtml(p.ID_PRODUTO||"")+'">'+escapeHtml(label)+'</option>';
+    }).join("");
+}
+
+function quickOrderDefaultNeo(finalId){
+  const rels=(APP_DATA.segmentRelations||[]).filter(r=>String(r.SEGMENTO_FINAL_ID||"")===String(finalId||""));
+  const ids=[...new Set(rels.map(r=>String(r.SEGMENTO_NEO_ID||"")).filter(Boolean))];
+  return ids.length===1?ids[0]:"";
+}
+
+async function openQuickOrder(){
+  await loadBootstrap(false);
+
+  const modal=document.getElementById("quickOrderPanel");
+  if(!modal)return;
+
+  const clients=(APP_DATA.clients||[])
+    .filter(c=>c.ATIVO!==false)
+    .slice()
+    .sort((a,b)=>clientName(a).localeCompare(clientName(b),"pt-BR"));
+
+  const clientEl=document.getElementById("qoClient");
+  clientEl.innerHTML='<option value="">Selecione o cliente</option>'+
+    clients.map(c=>'<option value="'+escapeHtml(c.ID_CLIENTE||"")+'">'+escapeHtml(clientName(c))+'</option>').join("");
+
+  const today=new Date();
+  const localToday=new Date(today.getTime()-today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  document.getElementById("qoDate").value=localToday;
+  document.getElementById("qoSaleType").value="VENDA";
+  document.getElementById("qoSeller").value="";
+  document.getElementById("qoPayment").value="";
+  document.getElementById("qoDelivery").value="";
+  document.getElementById("qoObs").value="";
+  document.getElementById("quickOrderItems").innerHTML="";
+  QUICK_ORDER_SEQ=0;
+  addQuickOrderItem();
+  recalculateQuickOrder();
+
+  modal.style.display="flex";
+  document.body.classList.add("modal-open");
+}
+
+function closeQuickOrder(event){
+  if(event&&event.target!==event.currentTarget)return;
+  const modal=document.getElementById("quickOrderPanel");
+  if(modal)modal.style.display="none";
+  document.body.classList.remove("modal-open");
+}
+
+function addQuickOrderItem(seed={}){
+  QUICK_ORDER_SEQ++;
+  const wrap=document.getElementById("quickOrderItems");
+  if(!wrap)return;
+
+  const html='<div class="quick-order-item" data-qo-row="'+QUICK_ORDER_SEQ+'">'+
+    '<div class="field"><label>Produto</label><select class="qo-product" onchange="quickOrderProductChanged(this)">'+quickOrderProductOptions()+'</select></div>'+
+    '<div class="field qo-description"><label>Descrição *</label><input class="qo-desc" placeholder="Descrição do item" oninput="recalculateQuickOrder()"></div>'+
+    '<div class="field"><label>Qtde *</label><input class="qo-qty" type="number" min="0" step="0.01" value="1" oninput="recalculateQuickOrder()"></div>'+
+    '<div class="field"><label>Preço unit. *</label><input class="qo-price" inputmode="decimal" placeholder="0,00" oninput="recalculateQuickOrder()"></div>'+
+    '<div class="field"><label>Custo unit.</label><input class="qo-cost" inputmode="decimal" placeholder="0,00" oninput="recalculateQuickOrder()"></div>'+
+    '<div class="field qo-seg-final"><label>Segmento FINAL *</label><select class="qo-final" onchange="quickOrderFinalChanged(this)">'+segmentOptions("FINAL","Selecione...")+'</select></div>'+
+    '<div class="field qo-seg-neo"><label>Segmento NEO *</label><select class="qo-neo" onchange="recalculateQuickOrder()">'+segmentOptions("NEO","Selecione...")+'</select></div>'+
+    '<div class="field"><label>Total</label><div class="qo-total">R$ 0,00</div></div>'+
+    '<button type="button" class="secondary quick-order-remove" title="Remover item" onclick="removeQuickOrderItem(this)">×</button>'+
+  '</div>';
+
+  wrap.insertAdjacentHTML("beforeend",html);
+  const row=wrap.lastElementChild;
+
+  if(seed.PRODUTO_ID){
+    row.querySelector(".qo-product").value=String(seed.PRODUTO_ID);
+    quickOrderProductChanged(row.querySelector(".qo-product"));
+  }else{
+    const client=quickOrderClient();
+    if(client){
+      if(client.SEGMENTO_FINAL_ID)row.querySelector(".qo-final").value=String(client.SEGMENTO_FINAL_ID);
+      const neo=client.SEGMENTO_NEO_ID||quickOrderDefaultNeo(row.querySelector(".qo-final").value);
+      if(neo)row.querySelector(".qo-neo").value=String(neo);
+    }
+  }
+
+  if(seed.DESCRICAO!==undefined)row.querySelector(".qo-desc").value=seed.DESCRICAO;
+  if(seed.QTDE!==undefined)row.querySelector(".qo-qty").value=seed.QTDE;
+  if(seed.PRECO_UNITARIO!==undefined)row.querySelector(".qo-price").value=moneyInputValue(seed.PRECO_UNITARIO);
+  if(seed.CUSTO_UNITARIO!==undefined)row.querySelector(".qo-cost").value=moneyInputValue(seed.CUSTO_UNITARIO);
+  recalculateQuickOrder();
+}
+
+function removeQuickOrderItem(btn){
+  const wrap=document.getElementById("quickOrderItems");
+  const row=btn.closest(".quick-order-item");
+  if(row)row.remove();
+  if(wrap&&!wrap.children.length)addQuickOrderItem();
+  recalculateQuickOrder();
+}
+
+function quickOrderProductChanged(sel){
+  const row=sel.closest(".quick-order-item");
+  const product=(APP_DATA.products||[]).find(p=>String(p.ID_PRODUTO||"")===String(sel.value||""));
+  const client=quickOrderClient();
+
+  if(product){
+    row.querySelector(".qo-desc").value=product.DESCRICAO||"";
+    row.querySelector(".qo-price").value=moneyInputValue(product.PRECO_ULTIMA_VENDA||0);
+    row.querySelector(".qo-cost").value=moneyInputValue(product.CUSTO_PADRAO||0);
+
+    const finalId=product.SEGMENTO_FINAL_ID||client?.SEGMENTO_FINAL_ID||"";
+    const neoId=product.SEGMENTO_NEO_ID||client?.SEGMENTO_NEO_ID||quickOrderDefaultNeo(finalId)||"";
+    row.querySelector(".qo-final").value=String(finalId);
+    row.querySelector(".qo-neo").value=String(neoId);
+  }else{
+    if(client){
+      if(!row.querySelector(".qo-final").value&&client.SEGMENTO_FINAL_ID){
+        row.querySelector(".qo-final").value=String(client.SEGMENTO_FINAL_ID);
+      }
+      if(!row.querySelector(".qo-neo").value){
+        const neo=client.SEGMENTO_NEO_ID||quickOrderDefaultNeo(row.querySelector(".qo-final").value);
+        if(neo)row.querySelector(".qo-neo").value=String(neo);
+      }
+    }
+  }
+
+  recalculateQuickOrder();
+}
+
+function quickOrderFinalChanged(sel){
+  const row=sel.closest(".quick-order-item");
+  const finalId=String(sel.value||"");
+  const neo=quickOrderDefaultNeo(finalId);
+  if(neo)row.querySelector(".qo-neo").value=neo;
+  recalculateQuickOrder();
+}
+
+function syncQuickOrderClient(){
+  const client=quickOrderClient();
+  if(client&&document.getElementById("qoSeller")){
+    document.getElementById("qoSeller").value=client.VENDEDOR||"";
+  }
+
+  document.querySelectorAll("#quickOrderItems .quick-order-item").forEach(row=>{
+    if(!client)return;
+    if(!row.querySelector(".qo-final").value&&client.SEGMENTO_FINAL_ID){
+      row.querySelector(".qo-final").value=String(client.SEGMENTO_FINAL_ID);
+    }
+    if(!row.querySelector(".qo-neo").value){
+      const neo=client.SEGMENTO_NEO_ID||quickOrderDefaultNeo(row.querySelector(".qo-final").value);
+      if(neo)row.querySelector(".qo-neo").value=String(neo);
+    }
+  });
+
+  recalculateQuickOrder();
+}
+
+function quickOrderTaxRate(){
+  const client=quickOrderClient();
+  if(!client||!client.UF)return null;
+  const destination=destinationByUf(client.UF);
+  const type=String(document.getElementById("qoSaleType")?.value||"VENDA");
+  const key="NORMAL|"+destination+"|"+type;
+  return Object.prototype.hasOwnProperty.call(TAX_RULES,key)?Number(TAX_RULES[key]):null;
+}
+
+function recalculateQuickOrder(){
+  const client=quickOrderClient();
+  const rate=quickOrderTaxRate();
+  const df=Number(FIXED_EXPENSE||0);
+  let revenue=0,cost=0;
+
+  document.querySelectorAll("#quickOrderItems .quick-order-item").forEach(row=>{
+    const qty=Math.max(parseNum(row.querySelector(".qo-qty").value),0);
+    const price=Math.max(parseNum(row.querySelector(".qo-price").value),0);
+    const unitCost=Math.max(parseNum(row.querySelector(".qo-cost").value),0);
+    const total=qty*price;
+    revenue+=total;
+    cost+=qty*unitCost;
+    row.querySelector(".qo-total").textContent=formatBRL(total);
+  });
+
+  const tax=rate===null?0:revenue*rate;
+  const fixed=revenue*df;
+  const profit=revenue-cost-tax-fixed;
+  const margin=revenue?profit/revenue:0;
+
+  document.getElementById("qoRevenue").textContent=formatBRL(revenue);
+  document.getElementById("qoCost").textContent=formatBRL(cost);
+  document.getElementById("qoProfit").textContent=formatBRL(profit);
+  document.getElementById("qoProfit").className=profit>=0?"profit-positive":"profit-negative";
+  document.getElementById("qoMargin").textContent=formatPct(margin);
+  document.getElementById("qoMargin").className=profit>=0?"profit-positive":"profit-negative";
+
+  const info=document.getElementById("qoRuleInfo");
+  if(!client){
+    info.textContent="Selecione o cliente para calcular impostos.";
+    info.className="quick-order-rule";
+  }else if(!client.UF){
+    info.textContent="Cliente sem UF cadastrada. Corrija o cadastro antes de salvar o pedido.";
+    info.className="quick-order-rule warn";
+  }else if(rate===null){
+    info.textContent="Não existe regra de imposto para "+destinationByUf(client.UF)+" / "+document.getElementById("qoSaleType").value+".";
+    info.className="quick-order-rule warn";
+  }else{
+    info.textContent="Destino: "+destinationByUf(client.UF)+" • Impostos: "+formatPct(rate)+" • Despesa fixa: "+formatPct(df);
+    info.className="quick-order-rule ready";
+  }
+
+  const save=document.getElementById("quickOrderSaveBtn");
+  if(save)save.disabled=!client||rate===null||revenue<=0;
+}
+
+function collectQuickOrderItems(){
+  return [...document.querySelectorAll("#quickOrderItems .quick-order-item")].map((row,i)=>({
+    PRODUTO_ID:String(row.querySelector(".qo-product").value||""),
+    DESCRICAO:String(row.querySelector(".qo-desc").value||"").trim(),
+    QTDE:parseNum(row.querySelector(".qo-qty").value),
+    PRECO_UNITARIO:parseNum(row.querySelector(".qo-price").value),
+    CUSTO_UNITARIO:parseNum(row.querySelector(".qo-cost").value),
+    SEGMENTO_FINAL_ID:String(row.querySelector(".qo-final").value||""),
+    SEGMENTO_NEO_ID:String(row.querySelector(".qo-neo").value||"")
+  }));
+}
+
+function clearDashboardLocalCache(){
+  try{
+    for(let i=localStorage.length-1;i>=0;i--){
+      const key=localStorage.key(i);
+      if(key&&key.startsWith(DASHBOARD_CACHE_PREFIX))localStorage.removeItem(key);
+    }
+  }catch(e){}
+}
+
+async function saveQuickOrder(){
+  const client=quickOrderClient();
+  if(!client){alert("Selecione o cliente.");return}
+  if(!client.UF){alert("O cliente precisa ter UF cadastrada.");return}
+
+  const date=String(document.getElementById("qoDate").value||"");
+  if(!date){alert("Informe a data do pedido.");return}
+
+  const rate=quickOrderTaxRate();
+  if(rate===null){alert("Não existe regra de imposto para este cliente e tipo de venda.");return}
+
+  const items=collectQuickOrderItems();
+  if(!items.length){alert("Inclua pelo menos um item.");return}
+
+  for(let i=0;i<items.length;i++){
+    const x=items[i];
+    if(!x.DESCRICAO){alert("Informe a descrição do item "+(i+1)+".");return}
+    if(!(x.QTDE>0)){alert("Informe a quantidade do item "+(i+1)+".");return}
+    if(!(x.PRECO_UNITARIO>0)){alert("Informe o preço unitário do item "+(i+1)+".");return}
+    if(!x.SEGMENTO_FINAL_ID){alert("Selecione o segmento FINAL do item "+(i+1)+".");return}
+    if(!x.SEGMENTO_NEO_ID){alert("Selecione o segmento NEO do item "+(i+1)+".");return}
+  }
+
+  const btn=document.getElementById("quickOrderSaveBtn");
+  btn.disabled=true;
+  const oldText=btn.textContent;
+  btn.textContent="Salvando...";
+  showActionLoading("Criando pedido","Gravando o pedido e atualizando a carteira.");
+
+  try{
+    const payload={
+      CLIENTE_ID:client.ID_CLIENTE,
+      DATA_PEDIDO:date,
+      TIPO_VENDA:document.getElementById("qoSaleType").value,
+      VENDEDOR:document.getElementById("qoSeller").value.trim(),
+      COND_PAGAMENTO:document.getElementById("qoPayment").value.trim(),
+      PRAZO_ENTREGA:document.getElementById("qoDelivery").value.trim(),
+      OBS:document.getElementById("qoObs").value.trim(),
+      itens:items
+    };
+
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"criar_pedido_rapido",pedido:payload})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Não foi possível criar o pedido.");
+
+    closeQuickOrder();
+    removeAppCache("pedidos");
+    clearDashboardLocalCache();
+    DASHBOARD_DATA=null;
+    orderCache=[];
+    orderListLoadedAt=0;
+    await refreshOrdersData();
+
+    alert("Pedido "+j.numero_pedido+" criado com sucesso.");
+    await openOrder(j.id_pedido,true);
+  }catch(err){
+    alert("Não foi possível criar o pedido: "+err.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=oldText;
+    hideActionLoading();
+  }
+}
+
+function orderOriginLabel(origin){
+  const o=String(origin||"").toUpperCase();
+  if(o==="HISTORICO")return "Histórico";
+  if(o==="RAPIDO")return "Pedido rápido";
+  if(o==="ORCAMENTO")return "Orçamento";
+  return o||"—";
+}
+
+function orderOriginClass(origin){
+  const o=String(origin||"").toUpperCase();
+  if(o==="HISTORICO")return "historical";
+  if(o==="RAPIDO")return "quick";
+  return "quote";
+}
+
 function paintOrdersPage(){
   populateOrderFilters();
   renderOrdersTable();
