@@ -111,6 +111,20 @@ function doGet(e) {
           return { ok: true, dados: listarPedidosResumo_() };
         }));
 
+      case 'vendas_snapshot':
+        return json_(cacheLeitura_('vendas_snapshot', 120, function() {
+          return { ok: true, dados: listarObjetos_(ABAS.VENDAS) };
+        }));
+
+      case 'pedidos_snapshot':
+        return json_(cacheLeitura_('pedidos_snapshot', 120, function() {
+          return {
+            ok: true,
+            pedidos: listarObjetos_(ABAS.PEDIDOS),
+            itens: listarObjetos_(ABAS.PEDIDO_ITENS)
+          };
+        }));
+
       case 'pedido_detalhe': {
         const idPed = String(p.id || '');
         return json_(cacheLeitura_('pedido_detalhe:' + idPed, 300, function() {
