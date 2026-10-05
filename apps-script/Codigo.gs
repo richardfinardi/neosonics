@@ -1796,11 +1796,8 @@ function getDashboardVendasCalculado_(params) {
   const dtInicio = normalizarDataFiltro_(p.dt_inicio);
   const dtFim = normalizarDataFiltro_(p.dt_fim);
 
-  const baseSemData = vendas.filter(function(v) {
-    return vendaPassaFiltrosDashboard_(v, p, false);
-  });
-
-  const filtradas = baseSemData.filter(function(v) {
+  const filtradas = vendas.filter(function(v) {
+    if (!vendaPassaFiltrosDashboard_(v, p, false)) return false;
     const dt = v.__DASH_DATA || '';
     if (dtInicio && dt && dt < dtInicio) return false;
     if (dtFim && dt && dt > dtFim) return false;
@@ -1965,7 +1962,6 @@ function getDashboardVendasCalculado_(params) {
     ok: true,
     origem: 'VENDAS',
     kpis: kpis,
-    comparativo: calcularComparativoDashboard_(baseSemData, dtInicio, dtFim),
     dentro_fora: dentro_fora,
     filtros: filtros,
     mensal: mensal,
@@ -2065,108 +2061,6 @@ function registrarUnicosAgregado_(mapa, chave, chaveVenda, clienteId) {
   if (!item.__clientes) item.__clientes = {};
   if (chaveVenda) item.__vendas[String(chaveVenda)] = true;
   if (clienteId) item.__clientes[String(clienteId)] = true;
-}
-
-function calcularComparativoDashboard_(baseSemData, dtInicio, dtFim) {
-  const dados = baseSemData || [];
-  if (!dados.length) {
-    return {
-      atual: resumirKpisDashboard_([]),
-      anterior: resumirKpisDashboard_([]),
-      deltas: {},
-      periodo_atual: '',
-      periodo_anterior: ''
-    };
-  }
-
-  let inicioAtual = dtInicio;
-  let fimAtual = dtFim;
-  let inicioAnterior = '';
-  let fimAnterior = '';
-
-  if (inicioAtual && fimAtual) {
-    const dias = diasEntreIso_(inicioAtual, fimAtual) + 1;
-    fimAnterior = adicionarDiasIso_(inicioAtual, -1);
-    inicioAnterior = adicionarDiasIso_(fimAnterior, -(dias - 1));
-  } else {
-    const max = maiorDataVendas_(dados);
-    if (!max) {
-      return {
-        atual: resumirKpisDashboard_(dados),
-        anterior: resumirKpisDashboard_([]),
-        deltas: {},
-        periodo_atual: '',
-        periodo_anterior: ''
-      };
-    }
-    inicioAtual = inicioMesIso_(max);
-    fimAtual = fimMesIso_(max);
-    fimAnterior = adicionarDiasIso_(inicioAtual, -1);
-    inicioAnterior = inicioMesIso_(fimAnterior);
-  }
-
-  const atualDados = dados.filter(function(v) {
-    const d = v.__DASH_DATA || '';
-    return d && d >= inicioAtual && d <= fimAtual;
-  });
-  const anteriorDados = dados.filter(function(v) {
-    const d = v.__DASH_DATA || '';
-    return d && d >= inicioAnterior && d <= fimAnterior;
-  });
-
-  const atual = resumirKpisDashboard_(atualDados);
-  const anterior = resumirKpisDashboard_(anteriorDados);
-
-  return {
-    atual: atual,
-    anterior: anterior,
-    deltas: {
-      faturamento: deltaDashboard_(atual.faturamento, anterior.faturamento),
-      lucro: deltaDashboard_(atual.lucro, anterior.lucro),
-      margem_lucro_pp: atual.margem_lucro - anterior.margem_lucro,
-      vendas: deltaDashboard_(atual.vendas, anterior.vendas),
-      ticket_medio: deltaDashboard_(atual.ticket_medio, anterior.ticket_medio)
-    },
-    periodo_atual: inicioAtual + '|' + fimAtual,
-    periodo_anterior: inicioAnterior + '|' + fimAnterior
-  };
-}
-
-function deltaDashboard_(atual, anterior) {
-  const a = numero_(atual);
-  const b = numero_(anterior);
-  if (!b) return a ? null : 0;
-  return (a - b) / Math.abs(b);
-}
-
-function adicionarDiasIso_(iso, dias) {
-  const p = String(iso || '').split('-');
-  if (p.length !== 3) return '';
-  const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), 12, 0, 0);
-  d.setDate(d.getDate() + Number(dias || 0));
-  return Utilities.formatDate(d, 'America/Sao_Paulo', 'yyyy-MM-dd');
-}
-
-function diasEntreIso_(a, b) {
-  const pa = String(a || '').split('-');
-  const pb = String(b || '').split('-');
-  if (pa.length !== 3 || pb.length !== 3) return 0;
-  const da = new Date(Number(pa[0]), Number(pa[1]) - 1, Number(pa[2]), 12, 0, 0);
-  const db = new Date(Number(pb[0]), Number(pb[1]) - 1, Number(pb[2]), 12, 0, 0);
-  return Math.max(0, Math.round((db.getTime() - da.getTime()) / 86400000));
-}
-
-function inicioMesIso_(iso) {
-  const p = String(iso || '').split('-');
-  if (p.length < 2) return '';
-  return p[0] + '-' + p[1] + '-01';
-}
-
-function fimMesIso_(iso) {
-  const p = String(iso || '').split('-');
-  if (p.length < 2) return '';
-  const d = new Date(Number(p[0]), Number(p[1]), 0, 12, 0, 0);
-  return Utilities.formatDate(d, 'America/Sao_Paulo', 'yyyy-MM-dd');
 }
 
 function chaveVendaDashboard_(v) {
