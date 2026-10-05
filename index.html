@@ -1549,6 +1549,17 @@ body.theme-light .quick-order-rule{
   .quick-order-footer{flex-direction:column-reverse}
   .quick-order-footer button{width:100%}
 }
+
+.origin-chip.quick{
+  background:rgba(239,150,80,.10)!important;
+  color:#ef9650!important;
+  border-color:rgba(239,150,80,.24)!important;
+}
+body.theme-light .origin-chip.quick{
+  background:#fff2e8!important;
+  color:#b96428!important;
+  border-color:#f0d4bd!important;
+}
 </style>
 </head>
 <body>
@@ -3668,7 +3679,7 @@ function populateOrderFilters(){
   };
 
   fill("orderYear","Todos os anos",years,x=>x,x=>x,selected.year);
-  fill("orderOrigin","Todas as origens",origins,x=>x,x=>x==="HISTORICO"?"Histórico":"Orçamento",selected.origin);
+  fill("orderOrigin","Todas as origens",origins,x=>x,x=>orderOriginLabel(x),selected.origin);
   fill("orderStatus","Todos os status",statuses,x=>x,x=>x,selected.status);
   fill("orderClient","Todos os clientes",clients,x=>x[0],x=>x[1],selected.client);
 }
@@ -3698,11 +3709,13 @@ function renderOrdersTable(){
 
   const hist=rows.filter(x=>String(x.ORIGEM)==="HISTORICO").length;
   const novos=rows.filter(x=>String(x.ORIGEM)==="ORCAMENTO").length;
+  const quick=rows.filter(x=>String(x.ORIGEM)==="RAPIDO").length;
   const value=rows.reduce((s,x)=>s+Number(x.VALOR_TOTAL||0),0);
 
   if(document.getElementById("oKpiTotal"))oKpiTotal.textContent=rows.length;
   if(document.getElementById("oKpiHistorical"))oKpiHistorical.textContent=hist;
   if(document.getElementById("oKpiNew"))oKpiNew.textContent=novos;
+  if(document.getElementById("oKpiQuick"))oKpiQuick.textContent=quick;
   if(document.getElementById("oKpiValue"))oKpiValue.textContent=formatBRL(value);
 
   if(!rows.length){
@@ -3712,14 +3725,14 @@ function renderOrdersTable(){
 
   body.innerHTML=rows.map(x=>{
     const origin=String(x.ORIGEM||"");
-    const originLabel=origin==="HISTORICO"?"Histórico":"Orçamento";
+    const originLabel=orderOriginLabel(origin);
     const orderLabel=escapeHtml(x.NUMERO_PEDIDO||"");
     const year=String(x.ANO_ORIGEM||String(x.DATA_PEDIDO||"").slice(0,4));
     return '<tr>'+
       '<td><b>'+orderLabel+'</b><small class="table-sub">'+escapeHtml(year)+'</small></td>'+
       '<td>'+formatDateBR(x.DATA_PEDIDO)+'</td>'+
       '<td>'+escapeHtml(x.CLIENTE_NOME_SNAPSHOT||"")+'</td>'+
-      '<td><span class="origin-chip '+(origin==="HISTORICO"?"historical":"quote")+'">'+originLabel+'</span></td>'+
+      '<td><span class="origin-chip '+orderOriginClass(origin)+'">'+originLabel+'</span></td>'+
       '<td>'+Number(x.QTD_ITENS||0)+'</td>'+
       '<td><b>'+formatBRL(x.VALOR_TOTAL)+'</b></td>'+
       '<td class="'+(Number(x.LUCRO_TOTAL||0)>=0?"profit-positive":"profit-negative")+'">'+formatBRL(x.LUCRO_TOTAL)+'</td>'+
@@ -3735,10 +3748,16 @@ function paintOrderDetail(j,id){
   currentOrderId=String(p.ID_PEDIDO||id);
 
   orderDetailTitle.textContent="Pedido "+(p.NUMERO_PEDIDO||"");
+  const origin=String(p.ORIGEM||"").toUpperCase();
+  const originText=origin==="HISTORICO"
+    ?"Histórico"
+    :origin==="RAPIDO"
+      ?"Inserido por Pedido rápido"
+      :"Gerado pelo orçamento "+(p.NUMERO_ORCAMENTO_ORIGEM||"");
   orderDetailSub.textContent=[
     p.CLIENTE_NOME_SNAPSHOT||"",
     formatDateBR(p.DATA_PEDIDO),
-    String(p.ORIGEM)==="HISTORICO"?"Histórico":"Gerado pelo orçamento "+(p.NUMERO_ORCAMENTO_ORIGEM||"")
+    originText
   ].filter(Boolean).join(" • ");
 
   odStatusSelect.value=String(p.STATUS||"ABERTO").toUpperCase();
