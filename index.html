@@ -1319,6 +1319,129 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
 
 
 #iSegmentFinal:invalid,#iSegmentNeo:invalid{border-color:#e08143}
+
+/* ===== BI comercial - escopo aprovado ===== */
+.scope-main-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+.compare-panel .panel-head{border-bottom:1px solid var(--line)}
+.compare-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+  padding:14px;
+}
+.compare-card{
+  min-width:0;
+  display:grid;
+  gap:5px;
+  padding:13px 14px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:rgba(118,170,255,.025);
+}
+.compare-card span{font-size:9px;color:var(--muted);font-weight:800}
+.compare-card strong{font-size:18px;line-height:1.1;white-space:nowrap}
+.compare-card small{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.scope-evolution-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(520px,.75fr);
+  gap:14px;
+}
+.scope-evolution-grid>.panel{min-width:0}
+.monthly-row{
+  grid-template-columns:105px minmax(0,1fr) 115px!important;
+  gap:12px!important;
+}
+.monthly-content{display:grid;gap:8px;min-width:0}
+.monthly-line{display:grid;gap:4px}
+.monthly-line-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  font-size:9px;
+  color:var(--muted);
+}
+.monthly-line-head strong{font-size:10px;color:var(--text);white-space:nowrap}
+.monthly-margin{
+  display:grid;
+  align-content:center;
+  justify-items:end;
+  gap:4px;
+}
+.monthly-margin span{font-size:9px;color:var(--muted)}
+.monthly-margin strong{font-size:13px}
+
+.scope-rank-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  margin-bottom:14px;
+}
+.scope-rank-grid .panel{min-width:0}
+.scope-rank-grid .rank-list{
+  max-height:520px;
+  overflow:auto;
+  padding-right:4px;
+}
+
+.scope-product-modal{width:min(1380px,97vw)!important}
+.client-evolution-box{
+  margin-bottom:18px;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--line);
+}
+.mini-section-title{
+  margin:0 0 10px;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.client-evolution-grid{
+  display:grid;
+  grid-auto-flow:column;
+  grid-auto-columns:minmax(175px,1fr);
+  gap:9px;
+  overflow-x:auto;
+  padding-bottom:5px;
+}
+.client-evolution-card{
+  display:grid;
+  gap:5px;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:rgba(118,170,255,.025);
+}
+.client-evolution-card span{font-size:9px;color:var(--muted);font-weight:800}
+.client-evolution-card strong{font-size:13px;white-space:nowrap}
+.client-evolution-card small{font-size:9px;color:var(--muted);white-space:nowrap}
+.client-evolution-card b{font-size:10px;white-space:nowrap}
+
+body.theme-light .compare-card,
+body.theme-light .client-evolution-card{
+  background:#fff!important;
+  border-color:#dce2e9!important;
+}
+
+@media(max-width:1450px){
+  .scope-main-kpis{grid-template-columns:repeat(3,1fr)}
+  .compare-grid{grid-template-columns:repeat(3,1fr)}
+  .scope-evolution-grid{grid-template-columns:1fr}
+}
+@media(max-width:980px){
+  .scope-rank-grid{grid-template-columns:1fr!important}
+  .scope-filter-grid{grid-template-columns:repeat(2,1fr)!important}
+}
+@media(max-width:760px){
+  .scope-main-kpis,.compare-grid{grid-template-columns:1fr 1fr}
+  .scope-filter-grid{grid-template-columns:1fr!important}
+  .monthly-row{grid-template-columns:1fr!important}
+  .monthly-margin{justify-items:start}
+}
+@media(max-width:520px){
+  .scope-main-kpis,.compare-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
