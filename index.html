@@ -2744,12 +2744,14 @@ const DASHBOARD_CACHE_PREFIX="neosonics_dashboard_v4:";
 const DASHBOARD_CACHE_MAX_AGE=24*60*60*1000;
 
 async function initOverviewPage(force=false){
-  const bootstrapTask=loadBootstrap(false).then(()=>{
+  try{
+    await loadBootstrap(false);
     populateDashboardReferenceFiltersFromBootstrap();
-  }).catch(err=>console.warn("Filtros de referência:",err));
+  }catch(err){
+    console.warn("Filtros de referência:",err);
+  }
 
-  const dashboardTask=loadDashboard(force);
-  await Promise.allSettled([bootstrapTask,dashboardTask]);
+  await loadDashboard(force);
 }
 
 function dashboardCacheKey(params){
@@ -2795,7 +2797,7 @@ async function loadDashboard(force=false){
   });
 
   // Stale-while-revalidate: mostra o último resultado imediatamente e atualiza em seguida.
-  const cached=force?null:readDashboardCache(params);
+  const cached=readDashboardCache(params);
   if(cached){
     DASHBOARD_DATA=cached;
     if(!DASHBOARD_FILTERS_LOADED){
@@ -2817,6 +2819,10 @@ async function loadDashboard(force=false){
     renderDashboard(j);
   }catch(err){
     console.error("Dashboard:",err);
+    if(cached){
+      const badge=document.getElementById("dashPeriodBadge");
+      if(badge)badge.textContent="Dados em cache • API lenta";
+    }
     if(!cached){
       const seg=document.getElementById("dashboardSegmentsBody");
       if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="8">Não foi possível carregar os indicadores agora.</td></tr>';
@@ -2828,7 +2834,7 @@ async function loadDashboard(force=false){
       if(annual)annual.innerHTML='<tr class="empty-row"><td colspan="7">Não foi possível carregar agora.</td></tr>';
     }
   }finally{
-    if(!cached)setDashboardLoading(false);
+    if(!cached&&!DASHBOARD_DATA)setDashboardLoading(false);
   }
 }
 
@@ -4612,28 +4618,74 @@ function removeAppCache(key){
   try{localStorage.removeItem(appCacheKey(key));}catch(e){}
 }
 
+function apiDelay(ms){
+  return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+function markApiSlow(acao,tentativa){
+  if(acao==="dashboard"){
+    const badge=document.getElementById("dashPeriodBadge");
+    if(badge)badge.textContent=tentativa>1
+      ?"API lenta • nova tentativa "+tentativa
+      :"API lenta • aguardando resposta...";
+  }
+}
+
 async function apiGet(acao, params={}){
   if(!NEOSONICS_API_URL) throw new Error("URL da API não configurada.");
+
   const url=new URL(NEOSONICS_API_URL);
   url.searchParams.set("acao",acao);
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
 
-  const controller=new AbortController();
-  const timeoutMs=acao==="dashboard"?25000:15000;
-  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  const isDashboard=acao==="dashboard";
+  const timeouts=isDashboard?[45000,60000,75000]:[25000,40000,60000];
+  let lastError=null;
 
-  try{
-    const r=await fetch(url.toString(),{method:"GET",cache:"no-store",signal:controller.signal});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const j=await r.json();
-    if(!j.ok) throw new Error(j.erro||"Falha na API");
-    return j;
-  }catch(err){
-    if(err&&err.name==="AbortError")throw new Error("Tempo excedido ao carregar "+acao+".");
-    throw err;
-  }finally{
-    clearTimeout(timer);
+  for(let attempt=0;attempt<timeouts.length;attempt++){
+    const controller=new AbortController();
+    const timeoutMs=timeouts[attempt];
+    const timer=setTimeout(()=>{
+      markApiSlow(acao,attempt+1);
+      controller.abort();
+    },timeoutMs);
+
+    try{
+      if(attempt>0)markApiSlow(acao,attempt+1);
+
+      const r=await fetch(url.toString(),{
+        method:"GET",
+        cache:"no-store",
+        signal:controller.signal
+      });
+
+      if(!r.ok)throw new Error("HTTP "+r.status);
+
+      const j=await r.json();
+      if(!j.ok)throw new Error(j.erro||"Falha na API");
+
+      apiOnline=true;
+      return j;
+    }catch(err){
+      lastError=err;
+      const msg=String(err&&err.message||"");
+      const retryable=
+        (err&&err.name==="AbortError") ||
+        err instanceof TypeError ||
+        msg.startsWith("HTTP 5");
+
+      if(!retryable||attempt===timeouts.length-1)break;
+      await apiDelay(attempt===0?800:1800);
+    }finally{
+      clearTimeout(timer);
+    }
   }
+
+  apiOnline=false;
+  if(lastError&&lastError.name==="AbortError"){
+    throw new Error("A API está muito lenta e não respondeu após novas tentativas.");
+  }
+  throw lastError||new Error("Não foi possível acessar a API.");
 }
 
 function applyBootstrapData(j,fromNetwork=false){
@@ -4702,7 +4754,9 @@ async function refreshBootstrap(){
 
 async function loadBootstrap(force=false){
   if(!force&&BOOTSTRAP_DATA){
-    if(Date.now()-bootstrapLoadedAt>APP_REVALIDATE_MS&&!bootstrapPromise)void refreshBootstrap();
+    if(Date.now()-bootstrapLoadedAt>APP_REVALIDATE_MS&&!bootstrapPromise){
+      setTimeout(()=>{if(!bootstrapPromise)void refreshBootstrap()},5000);
+    }
     return BOOTSTRAP_DATA;
   }
 
@@ -4710,7 +4764,7 @@ async function loadBootstrap(force=false){
     const cached=readAppCache("bootstrap");
     if(cached){
       applyBootstrapData(cached,false);
-      if(!bootstrapPromise)void refreshBootstrap();
+      setTimeout(()=>{if(!bootstrapPromise)void refreshBootstrap()},5000);
       return cached;
     }
   }
@@ -5502,20 +5556,17 @@ function newQuote(){
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
 
-function warmSystemCaches(){
-  void loadBootstrap(false);
-  setTimeout(()=>{
-    void renderQuoteHistory(false);
-    void initOrdersPage(false);
-  },500);
+async function warmSystemCaches(){
+  await loadBootstrap(false);
+  await renderQuoteHistory(false);
+  await initOrdersPage(false);
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
   initUiPreferences();
   currentPage=document.querySelector(".page.active")?.id||"overview";
   initOverviewPage();
-  if("requestIdleCallback" in window)requestIdleCallback(warmSystemCaches,{timeout:1400});
-  else setTimeout(warmSystemCaches,500);
+  setTimeout(()=>{void warmSystemCaches()},8000);
 });
 </script>
 <script src="proposal.js?v=20261003-1"></script>
