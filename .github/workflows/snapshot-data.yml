@@ -1,0 +1,65 @@
+name: Atualizar dados Neosonics
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: neosonics-snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Baixar espelhos do Apps Script
+        env:
+          WEBAPP_URL: https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec
+        run: |
+          set -e
+          mkdir -p data
+
+          fetch_json() {
+            name="$1"
+            action="$2"
+            tmp="data/$name.tmp"
+            out="data/$name"
+            echo "Baixando $action..."
+            curl -L               --retry 8               --retry-all-errors               --retry-delay 2               --connect-timeout 20               --max-time 120               --fail               --silent               --show-error               "$WEBAPP_URL?acao=$action&_snapshot=$(date +%s%N)"               -o "$tmp"
+
+            grep -q '"ok":true' "$tmp"
+            mv "$tmp" "$out"
+          }
+
+          fetch_json "vendas.json" "vendas_snapshot"
+          fetch_json "pedidos.json" "pedidos"
+          fetch_json "pedidos-detalhe.json" "pedidos_snapshot"
+
+          python - <<'PY'
+          import json
+          for p in ["data/vendas.json","data/pedidos.json","data/pedidos-detalhe.json"]:
+              with open(p, encoding="utf-8") as f:
+                  j=json.load(f)
+              if not j.get("ok"):
+                  raise SystemExit(f"{p}: resposta sem ok=true")
+              print(p, "OK")
+          PY
+
+      - name: Publicar espelhos
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "Sem alterações."
+            exit 0
+          fi
+          git commit -m "data: atualizar espelho Neosonics"
+          git push
