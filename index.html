@@ -2754,6 +2754,224 @@ async function initOverviewPage(force=false){
   await loadDashboard(force);
 }
 
+const NEOSONICS_MIRROR_BASE="./data/";
+let SALES_MIRROR_CACHE=null;
+let ORDER_DETAIL_MIRROR_CACHE=null;
+
+async function fetchMirrorJson(file,force=false){
+  const url=NEOSONICS_MIRROR_BASE+file+(force?("?v="+Date.now()):"");
+  const r=await fetch(url,{cache:force?"no-store":"default"});
+  if(!r.ok)throw new Error("Espelho "+file+" indisponível: HTTP "+r.status);
+  const j=await r.json();
+  if(!j||j.ok!==true)throw new Error("Espelho "+file+" inválido.");
+  return j;
+}
+
+function snapshotSaleKey(v){
+  const pedidoId=String(v.PEDIDO_ID||"").trim();
+  if(pedidoId)return "PEDIDO_ID|"+pedidoId;
+  const pedidoOrigem=String(v.PEDIDO_ORIGEM||"").trim();
+  if(pedidoOrigem)return ["HIST",String(v.ANO||""),pedidoOrigem,String(v.CLIENTE_ID||v.CLIENTE_NOME_SNAPSHOT||"")].join("|");
+  return "VENDA|"+String(v.ID_VENDA||"");
+}
+
+function snapshotProductKey(v){
+  return [String(v.SKU||"").trim(),String(v.DESCRICAO||"").trim()].join("|");
+}
+
+function snapshotDate(v){
+  const s=String(v.DATA_VENDA||"").trim();
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m?m[1]+"-"+m[2]+"-"+m[3]:"";
+}
+
+function snapshotAggregate(map,key,meta,v){
+  const k=String(key||"N/I");
+  if(!map[k]){
+    map[k]=Object.assign({
+      chave:k,faturamento:0,custo:0,dv:0,df:0,lucro:0,qtde:0,registros:0,
+      _vendas:new Set(),_clientes:new Set()
+    },meta||{});
+  }
+  const x=map[k];
+  x.faturamento+=Number(v.VALOR_TOTAL||0);
+  x.custo+=Number(v.CUSTO_TOTAL||0);
+  x.dv+=Number(v.DV_VALOR||0);
+  x.df+=Number(v.DF_VALOR||0);
+  x.lucro+=Number(v.LUCRO||0);
+  x.qtde+=Number(v.QTDE||0);
+  x.registros++;
+  x._vendas.add(snapshotSaleKey(v));
+  const cli=String(v.CLIENTE_ID||v.CLIENTE_NOME_SNAPSHOT||"").trim();
+  if(cli)x._clientes.add(cli);
+}
+
+function snapshotFinalize(map,sortField="faturamento",desc=true){
+  return Object.values(map).map(x=>{
+    x.vendas=x._vendas.size;
+    x.clientes=x._clientes.size;
+    x.ticket_medio=x.vendas?x.faturamento/x.vendas:0;
+    x.margem=x.faturamento?x.lucro/x.faturamento:0;
+    delete x._vendas;delete x._clientes;
+    return x;
+  }).sort((a,b)=>{
+    const av=a[sortField],bv=b[sortField];
+    if(typeof av==="string"||typeof bv==="string"){
+      const cmp=String(av||"").localeCompare(String(bv||""),"pt-BR");
+      return desc?-cmp:cmp;
+    }
+    return desc?Number(bv||0)-Number(av||0):Number(av||0)-Number(bv||0);
+  });
+}
+
+function buildDashboardFromSales(vendas,params={}){
+  const all=(vendas||[]).map(v=>Object.assign({},v,{
+    __date:snapshotDate(v),
+    __product:snapshotProductKey(v)
+  })).filter(v=>String(v.STATUS||"").toUpperCase()!=="CANCELADO");
+
+  const start=String(params.dt_inicio||"");
+  const end=String(params.dt_fim||"");
+  const filtered=all.filter(v=>{
+    if(start&&v.__date&&v.__date<start)return false;
+    if(end&&v.__date&&v.__date>end)return false;
+    if(params.segmento_final_id&&String(v.SEGMENTO_FINAL_ID||"")!==String(params.segmento_final_id))return false;
+    if(params.segmento_neo_id&&String(v.SEGMENTO_NEO_ID||"")!==String(params.segmento_neo_id))return false;
+    if(params.cliente_id&&String(v.CLIENTE_ID||"")!==String(params.cliente_id))return false;
+    if(params.produto_id&&v.__product!==String(params.produto_id))return false;
+    if(params.modalidade&&String(v.MODALIDADE||"")!==String(params.modalidade))return false;
+    if(params.uf&&String(v.UF_DESTINO||"").toUpperCase()!==String(params.uf).toUpperCase())return false;
+    return true;
+  });
+
+  const salesSet=new Set();
+  let faturamento=0,custo=0,dv=0,df=0,lucro=0,qtde=0;
+  filtered.forEach(v=>{
+    salesSet.add(snapshotSaleKey(v));
+    faturamento+=Number(v.VALOR_TOTAL||0);
+    custo+=Number(v.CUSTO_TOTAL||0);
+    dv+=Number(v.DV_VALOR||0);
+    df+=Number(v.DF_VALOR||0);
+    lucro+=Number(v.LUCRO||0);
+    qtde+=Number(v.QTDE||0);
+  });
+  const vendasCount=salesSet.size;
+  const kpis={
+    faturamento,custo,dv,df,lucro,qtde,registros:filtered.length,vendas:vendasCount,
+    ticket_medio:vendasCount?faturamento/vendasCount:0,
+    margem_lucro:faturamento?lucro/faturamento:0,
+    dv_pct:faturamento?dv/faturamento:0,
+    df_pct:faturamento?df/faturamento:0
+  };
+
+  const porMes={},porAno={},porFinal={},porNeo={},porCliente={},porProduto={},porProdutoGeral={},porEstado={},porClienteMes={};
+  const inside=new Set(),outside=new Set();
+
+  filtered.forEach(v=>{
+    const date=v.__date;
+    const month=date?date.slice(0,7):String(v.ANO||"")+"-"+String(v.MES||"");
+    const year=date?date.slice(0,4):String(v.ANO||"N/I");
+    const saleKey=snapshotSaleKey(v);
+    if(String(v.DESTINO||"").toUpperCase()==="INTERNA"||String(v.UF_DESTINO||"").toUpperCase()==="SP")inside.add(saleKey);
+    else outside.add(saleKey);
+
+    snapshotAggregate(porMes,month,{label:month},v);
+    snapshotAggregate(porAno,year,{label:year},v);
+
+    const finalKey=String(v.SEGMENTO_FINAL_ID||v.SEGMENTO_FINAL_SNAPSHOT||"N/I");
+    snapshotAggregate(porFinal,finalKey,{label:String(v.SEGMENTO_FINAL_SNAPSHOT||"N/I"),id:String(v.SEGMENTO_FINAL_ID||"")},v);
+
+    const neoKey=String(v.SEGMENTO_NEO_ID||v.SEGMENTO_NEO_SNAPSHOT||"N/I");
+    snapshotAggregate(porNeo,neoKey,{label:String(v.SEGMENTO_NEO_SNAPSHOT||"N/I"),id:String(v.SEGMENTO_NEO_ID||"")},v);
+
+    const cliKey=String(v.CLIENTE_ID||v.CLIENTE_NOME_SNAPSHOT||"N/I");
+    snapshotAggregate(porCliente,cliKey,{label:String(v.CLIENTE_NOME_SNAPSHOT||"N/I"),id:String(v.CLIENTE_ID||"")},v);
+
+    const productBase=v.__product;
+    const productKey=[String(v.CLIENTE_ID||""),productBase].join("|");
+    snapshotAggregate(porProduto,productKey,{
+      label:String(v.DESCRICAO||v.SKU||"N/I"),sku:String(v.SKU||""),produto_id:productBase,
+      cliente_id:String(v.CLIENTE_ID||""),cliente:String(v.CLIENTE_NOME_SNAPSHOT||"")
+    },v);
+    snapshotAggregate(porProdutoGeral,productBase,{
+      label:String(v.DESCRICAO||v.SKU||"N/I"),sku:String(v.SKU||""),produto_id:productBase
+    },v);
+
+    const uf=String(v.UF_DESTINO||"N/I").toUpperCase();
+    snapshotAggregate(porEstado,uf,{label:uf,id:uf},v);
+
+    const cm=[cliKey,month].join("|");
+    snapshotAggregate(porClienteMes,cm,{
+      label:month,mes:month,cliente_id:String(v.CLIENTE_ID||""),cliente:String(v.CLIENTE_NOME_SNAPSHOT||"N/I")
+    },v);
+  });
+
+  const mensal=snapshotFinalize(porMes,"label",false);
+  const anual=snapshotFinalize(porAno,"label",false);
+  const segmentos_final=snapshotFinalize(porFinal);
+  const segmentos_neo=snapshotFinalize(porNeo);
+  const clientes=snapshotFinalize(porCliente);
+  const produtos=snapshotFinalize(porProduto);
+  const produtos_geral=snapshotFinalize(porProdutoGeral);
+  const estados=snapshotFinalize(porEstado);
+  const cliente_mensal=snapshotFinalize(porClienteMes,"mes",false);
+
+  const fatCli={};
+  clientes.forEach(x=>{fatCli[String(x.id||x.chave)]=x.faturamento;x.participacao_total=faturamento?x.faturamento/faturamento:0});
+  produtos.forEach(x=>{
+    const base=fatCli[String(x.cliente_id||"")]||0;
+    x.participacao_cliente=base?x.faturamento/base:0;
+    x.participacao_total=faturamento?x.faturamento/faturamento:0;
+  });
+  produtos_geral.forEach(x=>x.participacao_total=faturamento?x.faturamento/faturamento:0);
+  estados.forEach(x=>x.participacao_total=faturamento?x.faturamento/faturamento:0);
+  segmentos_final.forEach(x=>x.participacao_total=faturamento?x.faturamento/faturamento:0);
+  segmentos_neo.forEach(x=>x.participacao_total=faturamento?x.faturamento/faturamento:0);
+
+  const uniqueOptions=(field)=>[...new Set(all.map(v=>String(v[field]||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  const mapOptions=(idField,labelField)=>{
+    const m=new Map();
+    all.forEach(v=>{
+      const id=String(v[idField]||"").trim(),label=String(v[labelField]||"").trim();
+      if(id&&label)m.set(id,label);
+    });
+    return [...m.entries()].map(([id,label])=>({id,label})).sort((a,b)=>a.label.localeCompare(b.label,"pt-BR"));
+  };
+  const productMap=new Map();
+  all.forEach(v=>{
+    const id=v.__product,label=[v.SKU,v.DESCRICAO].filter(Boolean).join(" • ");
+    if(id&&label)productMap.set(id,label);
+  });
+  const dates=all.map(v=>v.__date).filter(Boolean).sort();
+
+  return {
+    ok:true,origem:"ESPELHO_LOCAL",kpis,
+    dentro_fora:{
+      estado_base:"SP",dentro:inside.size,fora:outside.size,
+      dentro_pct:vendasCount?inside.size/vendasCount:0,
+      fora_pct:vendasCount?outside.size/vendasCount:0
+    },
+    filtros:{
+      datas:{min:dates[0]||"",max:dates[dates.length-1]||""},
+      segmentos_final:mapOptions("SEGMENTO_FINAL_ID","SEGMENTO_FINAL_SNAPSHOT"),
+      segmentos_neo:mapOptions("SEGMENTO_NEO_ID","SEGMENTO_NEO_SNAPSHOT"),
+      clientes:mapOptions("CLIENTE_ID","CLIENTE_NOME_SNAPSHOT"),
+      produtos:[...productMap.entries()].map(([id,label])=>({id,label})).sort((a,b)=>a.label.localeCompare(b.label,"pt-BR")),
+      modalidades:uniqueOptions("MODALIDADE"),
+      ufs:uniqueOptions("UF_DESTINO")
+    },
+    mensal,anual,segmentos_final,segmentos_neo,clientes,produtos,produtos_geral,cliente_mensal,estados
+  };
+}
+
+async function loadDashboardMirror(params={},force=false){
+  if(!SALES_MIRROR_CACHE||force){
+    const j=await fetchMirrorJson("vendas.json",force);
+    SALES_MIRROR_CACHE=Array.isArray(j.dados)?j.dados:[];
+  }
+  return buildDashboardFromSales(SALES_MIRROR_CACHE,params);
+}
+
 function dashboardCacheKey(params){
   const qs=Object.keys(params||{}).sort().map(k=>k+"="+String(params[k]??"")).join("&");
   return DASHBOARD_CACHE_PREFIX+(qs||"__all__");
@@ -2785,6 +3003,7 @@ async function loadDashboard(force=false){
     DASHBOARD_DRILLDOWN_SEGMENT=null;
     DASHBOARD_SELECTED_CLIENT="";
   }
+
   const params={};
   const pairs=[
     ["dt_inicio","dStart"],["dt_fim","dEnd"],["segmento_final_id","dFinal"],
@@ -2796,7 +3015,6 @@ async function loadDashboard(force=false){
     if(el&&el.value)params[key]=el.value;
   });
 
-  // Stale-while-revalidate: mostra o último resultado imediatamente e atualiza em seguida.
   const cached=readDashboardCache(params);
   if(cached){
     DASHBOARD_DATA=cached;
@@ -2807,34 +3025,27 @@ async function loadDashboard(force=false){
     renderDashboard(cached);
   }
 
-  setDashboardLoading(true,cached?"Atualizando em segundo plano...":"Carregando...");
+  setDashboardLoading(true,cached?"Atualizando dados...":"Carregando...");
   try{
-    const j=await apiGet("dashboard",params);
+    const j=await loadDashboardMirror(params,force);
     DASHBOARD_DATA=j;
     writeDashboardCache(params,j);
-    if(!DASHBOARD_FILTERS_LOADED){
-      populateDashboardFilters(j.filtros||{});
-      DASHBOARD_FILTERS_LOADED=true;
-    }
+    populateDashboardFilters(j.filtros||{});
+    DASHBOARD_FILTERS_LOADED=true;
     renderDashboard(j);
   }catch(err){
-    console.error("Dashboard:",err);
+    console.error("Dashboard pelo espelho:",err);
     if(cached){
       const badge=document.getElementById("dashPeriodBadge");
-      if(badge)badge.textContent="Dados em cache • API lenta";
-    }
-    if(!cached){
+      if(badge)badge.textContent="Dados em cache";
+    }else{
       const seg=document.getElementById("dashboardSegmentsBody");
-      if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="8">Não foi possível carregar os indicadores agora.</td></tr>';
+      if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="8">Não foi possível carregar os indicadores.</td></tr>';
       const cli=document.getElementById("dashboardClientsBody");
-      if(cli)cli.innerHTML='<tr class="empty-row"><td colspan="7">Os filtros continuam disponíveis. Tente aplicar novamente.</td></tr>';
-      const month=document.getElementById("dashboardMonthly");
-      if(month)month.innerHTML='<div class="history-loading">Não foi possível carregar a evolução agora.</div>';
-      const annual=document.getElementById("dashboardAnnualBody");
-      if(annual)annual.innerHTML='<tr class="empty-row"><td colspan="7">Não foi possível carregar agora.</td></tr>';
+      if(cli)cli.innerHTML='<tr class="empty-row"><td colspan="7">Não foi possível carregar os indicadores.</td></tr>';
     }
   }finally{
-    if(!cached&&!DASHBOARD_DATA)setDashboardLoading(false);
+    if(!DASHBOARD_DATA)setDashboardLoading(false);
   }
 }
 
@@ -3157,13 +3368,6 @@ async function selectDashboardSegment(type,id){
   const selected=sourceRows.find(x=>String(x.id||"")===segmentId);
   const label=selected?.label||"Segmento selecionado";
 
-  const btn=document.getElementById("clearSegmentSelectionBtn");
-  if(btn){
-    btn.style.display="";
-    btn.textContent="Carregando clientes...";
-    btn.disabled=true;
-  }
-
   const params={};
   const pairs=[
     ["dt_inicio","dStart"],["dt_fim","dEnd"],["segmento_final_id","dFinal"],
@@ -3174,31 +3378,17 @@ async function selectDashboardSegment(type,id){
     const el=document.getElementById(fieldId);
     if(el&&el.value)params[key]=el.value;
   });
-
-  // Clique no ranking é drill-down: não altera os filtros globais nem o dashboard principal.
   if(segmentType==="FINAL")params.segmento_final_id=segmentId;
   else params.segmento_neo_id=segmentId;
 
   try{
-    const detail=await apiGet("dashboard",params);
-    DASHBOARD_DRILLDOWN_SEGMENT={
-      type:segmentType,
-      id:segmentId,
-      label,
-      data:detail
-    };
+    const detail=await loadDashboardMirror(params,false);
+    DASHBOARD_DRILLDOWN_SEGMENT={type:segmentType,id:segmentId,label,data:detail};
     DASHBOARD_SELECTED_CLIENT="";
     renderDashboardClients();
     document.getElementById("dashboardClientsPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
   }catch(err){
-    console.error("Drill-down do segmento:",err);
     alert("Não foi possível abrir os clientes deste segmento: "+err.message);
-  }finally{
-    if(btn){
-      btn.textContent="Voltar para todos os clientes";
-      btn.disabled=false;
-      btn.style.display=DASHBOARD_DRILLDOWN_SEGMENT?"":"none";
-    }
   }
 }
 
@@ -3667,18 +3857,18 @@ function paintOrdersPage(){
   if(document.getElementById("ordersBadge"))ordersBadge.textContent=orderCache.length+" pedidos";
 }
 
-async function refreshOrdersData(){
+async function refreshOrdersData(force=false){
   if(orderListPromise)return orderListPromise;
   orderListPromise=(async()=>{
     try{
-      const j=await apiGet("pedidos");
+      const j=await fetchMirrorJson("pedidos.json",force);
       orderCache=Array.isArray(j.dados)?j.dados:[];
       orderListLoadedAt=Date.now();
       writeAppCache("pedidos",orderCache);
       paintOrdersPage();
       return orderCache;
     }catch(err){
-      console.error("Pedidos:",err);
+      console.error("Pedidos pelo espelho:",err);
       if(!orderCache.length){
         const body=document.getElementById("ordersTableBody");
         if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Não foi possível carregar os pedidos.</td></tr>';
@@ -3708,7 +3898,7 @@ async function initOrdersPage(force=false){
     return orderCache;
   }
 
-  return await refreshOrdersData();
+  return await refreshOrdersData(force);
 }
 
 function populateOrderFilters(){
@@ -3845,24 +4035,30 @@ async function openOrder(id,force=false){
 
   const key="pedido_detalhe:"+String(id||"");
   const cached=force?null:readAppCache(key,30*60*1000);
-
   if(cached&&cached.pedido){
     paintOrderDetail(cached,id);
-    apiGet("pedido_detalhe",{id}).then(j=>writeAppCache(key,j)).catch(()=>{});
     return;
   }
 
   orderDetailTitle.textContent="Carregando pedido...";
   orderDetailSub.textContent="Aguarde um instante.";
   orderItemsBody.innerHTML='<tr class="empty-row"><td colspan="10">Carregando itens...</td></tr>';
-  odRevenue.textContent="R$ 0,00";
-  odCost.textContent="R$ 0,00";
-  odProfit.textContent="R$ 0,00";
-  odMargin.textContent="0,00%";
-  odStatusSelect.value="ABERTO";
 
   try{
-    const j=await apiGet("pedido_detalhe",{id});
+    if(!ORDER_DETAIL_MIRROR_CACHE||force){
+      ORDER_DETAIL_MIRROR_CACHE=await fetchMirrorJson("pedidos-detalhe.json",force);
+    }
+    const pedido=(ORDER_DETAIL_MIRROR_CACHE.pedidos||[]).find(x=>String(x.ID_PEDIDO||"")===String(id));
+    const itens=(ORDER_DETAIL_MIRROR_CACHE.itens||[]).filter(x=>String(x.PEDIDO_ID||"")===String(id));
+    if(!pedido)throw new Error("Pedido não encontrado no espelho.");
+
+    const resumo={
+      faturamento:itens.reduce((s,x)=>s+Number(x.VALOR_TOTAL||0),0),
+      custo:itens.reduce((s,x)=>s+Number(x.CUSTO_TOTAL_SNAPSHOT||0),0),
+      lucro:itens.reduce((s,x)=>s+Number(x.LUCRO_SNAPSHOT||0),0)
+    };
+    resumo.lucratividade=resumo.faturamento?resumo.lucro/resumo.faturamento:0;
+    const j={ok:true,pedido,itens,resumo};
     writeAppCache(key,j);
     paintOrderDetail(j,id);
   }catch(err){
