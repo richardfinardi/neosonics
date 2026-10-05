@@ -1442,6 +1442,13 @@ body.theme-light .client-evolution-card{
 @media(max-width:520px){
   .scope-main-kpis,.compare-grid{grid-template-columns:1fr}
 }
+
+/* Cadastro de clientes: não esticar o resumo até a altura do formulário */
+.clients-top-grid{align-items:start!important}
+.clients-top-grid>.panel{align-self:start!important}
+@media(max-width:1100px){
+  .clients-top-grid{grid-template-columns:1fr!important}
+}
 </style>
 </head>
 <body>
@@ -1774,7 +1781,7 @@ body.theme-light .client-evolution-card{
           <button type="button" onclick="openGuide('clients')">Ver guia</button>
         </div>
 
-        <div class="grid2eq">
+        <div class="grid2eq clients-top-grid">
           <div class="panel">
             <div class="panel-head">
               <div><div class="panel-title" id="clientFormTitle">Novo cliente</div><div class="panel-sub">Dados comerciais e de contato</div></div>
