@@ -1233,6 +1233,8 @@ function criarPedidoRapido_(pedido) {
 
       const segFinal = segFinalId ? segmentoPorId(segFinalId, 'FINAL') : null;
       const segNeo = segNeoId ? segmentoPorId(segNeoId, 'NEO') : null;
+      if (!segFinal) throw new Error('Item ' + (idx + 1) + ': selecione a Segmentação FINAL.');
+      if (!segNeo) throw new Error('Item ' + (idx + 1) + ': selecione a Segmentação NEO.');
 
       const segFinalSnapshot = String(
         item.SEGMENTO_FINAL_SNAPSHOT ||
