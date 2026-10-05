@@ -1684,7 +1684,41 @@ function normalizarTexto_(v) {
 }
 
 function getDashboardVendas_(params) {
+  const p = params || {};
+  const cacheKey = [
+    'neosonics-dashboard-v4',
+    String(p.dt_inicio || ''),
+    String(p.dt_fim || ''),
+    String(p.segmento_final_id || ''),
+    String(p.segmento_neo_id || ''),
+    String(p.cliente_id || ''),
+    String(p.modalidade || ''),
+    String(p.uf || '')
+  ].join('|');
+
+  try {
+    const cache = CacheService.getScriptCache();
+    const hit = cache.get(cacheKey);
+    if (hit) return JSON.parse(hit);
+
+    const result = getDashboardVendasCalculado_(p);
+    const payload = JSON.stringify(result);
+    // CacheService limita cada valor; se o dashboard crescer demais, apenas ignora o cache.
+    if (payload.length < 90000) cache.put(cacheKey, payload, 90);
+    return result;
+  } catch (cacheErr) {
+    // Falha de cache nunca pode impedir o dashboard.
+    return getDashboardVendasCalculado_(p);
+  }
+}
+
+function getDashboardVendasCalculado_(params) {
   const vendas = listarObjetos_(ABAS.VENDAS);
+  // DATA_VENDA vinha sendo convertida várias vezes por registro.
+  // Guarda a data normalizada uma única vez para filtros, mês e limites.
+  vendas.forEach(function(v) {
+    v.__DASH_DATA = normalizarDataFiltro_(v.DATA_VENDA);
+  });
   const p = params || {};
 
   const dtInicio = normalizarDataFiltro_(p.dt_inicio);
@@ -1697,7 +1731,7 @@ function getDashboardVendas_(params) {
 
   const filtradas = vendas.filter(function(v) {
     if (String(v.STATUS || '').toUpperCase() === 'CANCELADO') return false;
-    const dt = normalizarDataFiltro_(v.DATA_VENDA);
+    const dt = v.__DASH_DATA || '';
     if (dtInicio && dt && dt < dtInicio) return false;
     if (dtFim && dt && dt > dtFim) return false;
     if (filtroFinal && String(v.SEGMENTO_FINAL_ID || '') !== filtroFinal) return false;
@@ -1741,7 +1775,7 @@ function getDashboardVendas_(params) {
     if (dentroEstado) vendasDentro[chaveVenda] = true;
     else vendasFora[chaveVenda] = true;
 
-    const dt = normalizarDataFiltro_(v.DATA_VENDA);
+    const dt = v.__DASH_DATA || '';
     const mesKey = dt ? dt.substring(0,7) : ((v.ANO || '') + '-' + String(v.MES || ''));
     agregarDashboard_(porMes, mesKey, fat, custo, dv, df, lucro, qtde, {
       label: mesKey
@@ -1921,7 +1955,7 @@ function normalizarDataFiltro_(v) {
 function menorDataVendas_(dados) {
   let min = '';
   dados.forEach(function(v) {
-    const d = normalizarDataFiltro_(v.DATA_VENDA);
+    const d = v.__DASH_DATA || normalizarDataFiltro_(v.DATA_VENDA);
     if (d && (!min || d < min)) min = d;
   });
   return min;
@@ -1930,7 +1964,7 @@ function menorDataVendas_(dados) {
 function maiorDataVendas_(dados) {
   let max = '';
   dados.forEach(function(v) {
-    const d = normalizarDataFiltro_(v.DATA_VENDA);
+    const d = v.__DASH_DATA || normalizarDataFiltro_(v.DATA_VENDA);
     if (d && (!max || d > max)) max = d;
   });
   return max;
