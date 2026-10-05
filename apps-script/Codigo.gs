@@ -180,6 +180,10 @@ function doPost(e) {
         resultado = alterarStatusPedido_(body.id_pedido, body.status);
         break;
 
+      case 'criar_pedido_rapido':
+        resultado = criarPedidoRapido_(body.pedido || {});
+        break;
+
       case 'sincronizar_parametros_custos':
         resultado = sincronizarParametrosCustos_();
         break;
@@ -1135,6 +1139,244 @@ function getPedidoDetalhe_(idPedido) {
   resumo.lucratividade = resumo.faturamento ? resumo.lucro / resumo.faturamento : 0;
 
   return { ok:true, pedido:pedido, itens:itens, resumo:resumo };
+}
+
+function criarPedidoRapido_(pedido) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const p = pedido || {};
+    const clienteId = String(p.CLIENTE_ID || '').trim();
+    if (!clienteId) throw new Error('Selecione o cliente.');
+
+    const cliente = getClientePorId_(clienteId);
+    if (!cliente) throw new Error('Cliente não encontrado.');
+
+    const itensEntrada = Array.isArray(p.itens) ? p.itens : [];
+    if (!itensEntrada.length) throw new Error('Inclua pelo menos um item no pedido.');
+
+    const tipoVenda = normalizarTipoVendaComercial_(p.TIPO_VENDA || 'VENDA');
+    const uf = String(cliente.UF || '').trim().toUpperCase();
+    if (!uf) throw new Error('O cliente precisa ter UF cadastrada para calcular os impostos.');
+
+    const destino = destinoPorUf_(uf);
+    const enquadramento = 'NORMAL';
+    const impostosPct = getImpostoPct_(enquadramento, destino, tipoVenda);
+    const versao = getVersaoParametrosAtiva_();
+    if (!versao) throw new Error('Não existe versão ativa dos parâmetros de custos.');
+
+    const despesaFixaPct = numero_(versao.DESPESA_FIXA_PCT);
+    const produtos = dadosAbaCacheados_(ABAS.PRODUTOS, 300);
+    const segmentos = dadosAbaCacheados_(ABAS.SEGMENTOS, 300);
+
+    function segmentoPorId(id, tipo) {
+      const seg = segmentos.find(function(s) {
+        return String(s.ID_SEGMENTO || '') === String(id || '') &&
+               String(s.TIPO || '').toUpperCase() === String(tipo || '').toUpperCase();
+      });
+      return seg || null;
+    }
+
+    const linhasItens = [];
+    let valorTotalPedido = 0;
+    const agora = isoAgora_();
+    const dataPedido = normalizarDataFiltro_(p.DATA_PEDIDO) || agora.substring(0, 10);
+    const idPedido = novoId_('PED');
+    const numeroPedido = proximoNumeroPedido_();
+
+    itensEntrada.forEach(function(item, idx) {
+      const produtoId = String(item.PRODUTO_ID || '').trim();
+      const produto = produtoId
+        ? produtos.find(function(x) { return String(x.ID_PRODUTO || '') === produtoId; }) || null
+        : null;
+
+      const qtde = numero_(item.QTDE);
+      if (!(qtde > 0)) throw new Error('Quantidade inválida no item ' + (idx + 1) + '.');
+
+      const descricao = String(
+        item.DESCRICAO ||
+        (produto ? produto.DESCRICAO : '') ||
+        ''
+      ).trim();
+      if (!descricao) throw new Error('Informe a descrição do item ' + (idx + 1) + '.');
+
+      const sku = String(item.SKU || (produto ? produto.SKU : '') || '').trim();
+      const ncm = String(item.NCM || (produto ? produto.NCM : '') || '').trim();
+
+      const precoUnit = numero_(
+        item.PRECO_UNITARIO !== undefined && item.PRECO_UNITARIO !== ''
+          ? item.PRECO_UNITARIO
+          : (produto ? produto.PRECO_ULTIMA_VENDA : 0)
+      );
+      if (!(precoUnit > 0)) throw new Error('Informe o preço unitário do item ' + (idx + 1) + '.');
+
+      const custoUnit = numero_(
+        item.CUSTO_UNITARIO !== undefined && item.CUSTO_UNITARIO !== ''
+          ? item.CUSTO_UNITARIO
+          : (produto ? produto.CUSTO_PADRAO : 0)
+      );
+      if (custoUnit < 0) throw new Error('Custo inválido no item ' + (idx + 1) + '.');
+
+      let segFinalId = String(
+        item.SEGMENTO_FINAL_ID ||
+        (produto ? produto.SEGMENTO_FINAL_ID : '') ||
+        cliente.SEGMENTO_FINAL_ID ||
+        ''
+      );
+      let segNeoId = String(
+        item.SEGMENTO_NEO_ID ||
+        (produto ? produto.SEGMENTO_NEO_ID : '') ||
+        cliente.SEGMENTO_NEO_ID ||
+        ''
+      );
+
+      const segFinal = segFinalId ? segmentoPorId(segFinalId, 'FINAL') : null;
+      const segNeo = segNeoId ? segmentoPorId(segNeoId, 'NEO') : null;
+
+      const segFinalSnapshot = String(
+        item.SEGMENTO_FINAL_SNAPSHOT ||
+        (produto ? produto.SEGMENTO_FINAL_SNAPSHOT : '') ||
+        (segFinal ? segFinal.SEGMENTO : '') ||
+        ''
+      );
+      const segNeoSnapshot = String(
+        item.SEGMENTO_NEO_SNAPSHOT ||
+        (produto ? produto.SEGMENTO_NEO_SNAPSHOT : '') ||
+        (segNeo ? segNeo.SEGMENTO : '') ||
+        ''
+      );
+
+      const valorTotal = qtde * precoUnit;
+      const custoTotal = qtde * custoUnit;
+      const dvValor = valorTotal * impostosPct;
+      const dfValor = valorTotal * despesaFixaPct;
+      const lucro = valorTotal - custoTotal - dvValor - dfValor;
+      const margem = valorTotal ? lucro / valorTotal : 0;
+
+      valorTotalPedido += valorTotal;
+
+      linhasItens.push({
+        ID_PEDIDO_ITEM: novoId_('PEDI'),
+        PEDIDO_ID: idPedido,
+        ORCAMENTO_ITEM_ID_ORIGEM: '',
+        SEQ: idx + 1,
+        SKU: sku,
+        NCM: ncm,
+        PRODUTO_ID: produto ? produto.ID_PRODUTO : '',
+        SEGMENTO_FINAL_ID: segFinalId,
+        SEGMENTO_FINAL_SNAPSHOT: segFinalSnapshot,
+        SEGMENTO_NEO_ID: segNeoId,
+        SEGMENTO_NEO_SNAPSHOT: segNeoSnapshot,
+        DESCRICAO: descricao,
+        QTDE: qtde,
+        PRECO_UNITARIO: precoUnit,
+        VALOR_TOTAL: valorTotal,
+        CUSTO_UNIT_SNAPSHOT: custoUnit,
+        CUSTO_TOTAL_SNAPSHOT: custoTotal,
+        DV_PCT_SNAPSHOT: impostosPct,
+        DV_VALOR_SNAPSHOT: dvValor,
+        DF_PCT_SNAPSHOT: despesaFixaPct,
+        DF_VALOR_SNAPSHOT: dfValor,
+        LUCRO_BRUTO_SNAPSHOT: valorTotal - custoTotal,
+        MARGEM_BRUTA_PCT_SNAPSHOT: valorTotal ? (valorTotal - custoTotal) / valorTotal : 0,
+        LUCRO_SNAPSHOT: lucro,
+        MARGEM_PCT_SNAPSHOT: margem,
+        STATUS: 'ABERTO',
+        OBS: '',
+        ORIGEM: 'RAPIDO',
+        VENDA_ID_ORIGEM: '',
+        RAW_ID: ''
+      });
+    });
+
+    const nomeCliente = String(cliente.NOME_FANTASIA || cliente.RAZAO_SOCIAL || '').trim();
+
+    appendObjeto_(ABAS.PEDIDOS, {
+      ID_PEDIDO: idPedido,
+      NUMERO_PEDIDO: numeroPedido,
+      DATA_PEDIDO: dataPedido,
+      ORCAMENTO_ID_ORIGEM: '',
+      NUMERO_ORCAMENTO_ORIGEM: '',
+      CLIENTE_ID: clienteId,
+      CLIENTE_NOME_SNAPSHOT: nomeCliente,
+      CONTATO: String(p.CONTATO || cliente.CONTATO || '').trim(),
+      VENDEDOR: String(p.VENDEDOR || cliente.VENDEDOR || '').trim(),
+      COND_PAGAMENTO: String(p.COND_PAGAMENTO || '').trim(),
+      PRAZO_ENTREGA: String(p.PRAZO_ENTREGA || '').trim(),
+      VALOR_TOTAL: valorTotalPedido,
+      STATUS: 'ABERTO',
+      DT_CONVERSAO: '',
+      DT_CRIACAO: agora,
+      DT_ATUALIZACAO: agora,
+      OBS: String(p.OBS || '').trim(),
+      ORIGEM: 'RAPIDO',
+      ANO_ORIGEM: Number(dataPedido.substring(0, 4)),
+      CHAVE_HISTORICA: ''
+    });
+
+    appendObjetos_(ABAS.PEDIDO_ITENS, linhasItens);
+
+    const linhasVendas = linhasItens.map(function(item) {
+      return {
+        ID_VENDA: novoId_('VEN'),
+        DATA_VENDA: dataPedido,
+        ANO: Number(dataPedido.substring(0, 4)),
+        MES: Number(dataPedido.substring(5, 7)),
+        PEDIDO_ORIGEM: numeroPedido,
+        PEDIDO_ID: idPedido,
+        ORCAMENTO_ID: '',
+        CLIENTE_ID: clienteId,
+        CLIENTE_COD_ORIGEM: cliente.COD_CLIENTE_ORIGEM || '',
+        CLIENTE_NOME_SNAPSHOT: nomeCliente,
+        SEGMENTO_FINAL_ID: item.SEGMENTO_FINAL_ID || '',
+        SEGMENTO_FINAL_SNAPSHOT: item.SEGMENTO_FINAL_SNAPSHOT || '',
+        SEGMENTO_NEO_ID: item.SEGMENTO_NEO_ID || '',
+        SEGMENTO_NEO_SNAPSHOT: item.SEGMENTO_NEO_SNAPSHOT || '',
+        SKU: item.SKU || '',
+        PRODUTO_ID: item.PRODUTO_ID || '',
+        DESCRICAO: item.DESCRICAO || '',
+        QTDE: numero_(item.QTDE),
+        CUSTO_UNIT: numero_(item.CUSTO_UNIT_SNAPSHOT),
+        CUSTO_TOTAL: numero_(item.CUSTO_TOTAL_SNAPSHOT),
+        VALOR_UNIT: numero_(item.PRECO_UNITARIO),
+        VALOR_TOTAL: numero_(item.VALOR_TOTAL),
+        LUCRO_BRUTO: numero_(item.VALOR_TOTAL) - numero_(item.CUSTO_TOTAL_SNAPSHOT),
+        MARGEM_BRUTA_PCT: numero_(item.VALOR_TOTAL)
+          ? (numero_(item.VALOR_TOTAL) - numero_(item.CUSTO_TOTAL_SNAPSHOT)) / numero_(item.VALOR_TOTAL)
+          : 0,
+        ENQUADRAMENTO: enquadramento,
+        TIPO_VENDA: tipoVenda,
+        DESTINO: destino,
+        DV_PCT: numero_(item.DV_PCT_SNAPSHOT),
+        DV_VALOR: numero_(item.DV_VALOR_SNAPSHOT),
+        DF_PCT: numero_(item.DF_PCT_SNAPSHOT),
+        DF_VALOR: numero_(item.DF_VALOR_SNAPSHOT),
+        LUCRO: numero_(item.LUCRO_SNAPSHOT),
+        LUCRO_PCT: numero_(item.MARGEM_PCT_SNAPSHOT),
+        MODALIDADE: tipoVenda,
+        UF_DESTINO: uf,
+        STATUS: 'ABERTO',
+        ORIGEM: 'PEDIDO_RAPIDO',
+        PARAMETRO_RENTABILIDADE_ID: versao.ID_VERSAO || '',
+        RAW_ID: '',
+        DT_IMPORTACAO: agora
+      };
+    });
+
+    appendObjetos_(ABAS.VENDAS, linhasVendas);
+    SpreadsheetApp.flush();
+
+    return {
+      ok: true,
+      id_pedido: idPedido,
+      numero_pedido: numeroPedido,
+      valor_total: valorTotalPedido,
+      itens: linhasItens.length
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function alterarStatusPedido_(idPedido, novoStatus) {
