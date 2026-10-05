@@ -1393,43 +1393,49 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
       <section id="overview" class="page active">
         <div class="hero executive-hero">
           <div>
-            <h2>Indicadores</h2>
-            <p>Participação e lucratividade por segmento, cliente, produto e região.</p>
+            <h2>Indicadores comerciais</h2>
+            <p>Faturamento, custos, lucro, lucratividade, evolução, rankings e participação por segmento, cliente, produto e estado.</p>
           </div>
           <div class="badge" id="dashPeriodBadge">Carregando...</div>
         </div>
 
         <div class="panel dashboard-filters">
           <div class="panel-head">
-            <div><div class="panel-title">Filtros</div><div class="panel-sub">Defina o período e, se quiser, refine por cliente, modalidade ou UF.</div></div>
+            <div><div class="panel-title">Filtros globais</div><div class="panel-sub">Todos os indicadores abaixo respeitam os mesmos filtros.</div></div>
             <div class="panel-head-actions">
               <button class="secondary" onclick="clearDashboardFilters()">Limpar</button>
-              <button class="primary" onclick="loadDashboard()">Aplicar</button>
+              <button class="primary" onclick="loadDashboard(true)">Aplicar</button>
             </div>
           </div>
           <div class="panel-body">
-            <div class="dashboard-filter-grid">
+            <div class="dashboard-filter-grid scope-filter-grid">
               <div class="field"><label>Data inicial</label><input type="date" id="dStart"></div>
               <div class="field"><label>Data final</label><input type="date" id="dEnd"></div>
+              <div class="field"><label>Segmentação FINAL</label><select id="dFinal"><option value="">Todas</option></select></div>
+              <div class="field"><label>Segmentação NEO</label><select id="dNeo"><option value="">Todas</option></select></div>
               <div class="field"><label>Cliente</label><select id="dClient"><option value="">Todos</option></select></div>
+              <div class="field"><label>Produto</label><select id="dProduct"><option value="">Todos</option></select></div>
               <div class="field"><label>Modalidade</label><select id="dModality"><option value="">Todas</option></select></div>
               <div class="field"><label>UF</label><select id="dUf"><option value="">Todas</option></select></div>
-              <input type="hidden" id="dFinal">
-              <input type="hidden" id="dNeo">
             </div>
           </div>
         </div>
 
-        <div class="indicator-main-kpis">
+        <div class="indicator-main-kpis scope-main-kpis">
           <div class="indicator-main-card">
             <span>Faturamento</span>
             <strong id="dKpiRevenue">R$ 0,00</strong>
             <small id="dKpiRows">0 vendas</small>
           </div>
           <div class="indicator-main-card">
+            <span>Custo total</span>
+            <strong id="dKpiCost">R$ 0,00</strong>
+            <small>custo dos itens vendidos</small>
+          </div>
+          <div class="indicator-main-card">
             <span>Lucro</span>
             <strong id="dKpiProfit">R$ 0,00</strong>
-            <small>após todas as despesas</small>
+            <small>após custo, DV e DF</small>
           </div>
           <div class="indicator-main-card">
             <span>Lucratividade</span>
@@ -1437,9 +1443,9 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
             <small>lucro sobre faturamento</small>
           </div>
           <div class="indicator-main-card">
-            <span>Custo total</span>
-            <strong id="dKpiCost">R$ 0,00</strong>
-            <small>custo dos itens vendidos</small>
+            <span>Ticket médio</span>
+            <strong id="dKpiTicket">R$ 0,00</strong>
+            <small>faturamento por venda</small>
           </div>
         </div>
 
@@ -1448,11 +1454,54 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
           <div><span>Despesa fixa</span><strong id="dKpiDf">R$ 0,00</strong><small id="dKpiDfPct">0,00% do faturamento</small></div>
         </div>
 
+        <div class="panel indicator-section compare-panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Comparativo entre períodos</div>
+              <div class="panel-sub" id="comparePeriodLabel">Período atual contra período anterior equivalente.</div>
+            </div>
+          </div>
+          <div class="compare-grid">
+            <div class="compare-card"><span>Faturamento</span><strong id="cmpRevenue">—</strong><small id="cmpRevenuePrev">Anterior: —</small></div>
+            <div class="compare-card"><span>Lucro</span><strong id="cmpProfit">—</strong><small id="cmpProfitPrev">Anterior: —</small></div>
+            <div class="compare-card"><span>Lucratividade</span><strong id="cmpMargin">—</strong><small id="cmpMarginPrev">Anterior: —</small></div>
+            <div class="compare-card"><span>Vendas</span><strong id="cmpSales">—</strong><small id="cmpSalesPrev">Anterior: —</small></div>
+            <div class="compare-card"><span>Ticket médio</span><strong id="cmpTicket">—</strong><small id="cmpTicketPrev">Anterior: —</small></div>
+          </div>
+        </div>
+
+        <div class="scope-evolution-grid">
+          <div class="panel indicator-section">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Evolução mensal</div>
+                <div class="panel-sub">Faturamento, lucro e lucratividade ao longo do tempo.</div>
+              </div>
+            </div>
+            <div class="panel-body" id="dashboardMonthly"><div class="history-loading">Carregando evolução...</div></div>
+          </div>
+
+          <div class="panel indicator-section">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Evolução anual</div>
+                <div class="panel-sub">Comparativo consolidado por ano.</div>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="indicator-table">
+                <thead><tr><th>Ano</th><th>Vendas</th><th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Lucratividade</th><th>Ticket médio</th></tr></thead>
+                <tbody id="dashboardAnnualBody"><tr class="empty-row"><td colspan="7">Carregando...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div class="panel indicator-section">
           <div class="panel-head">
             <div>
               <div class="panel-title">Participação e lucratividade por segmento</div>
-              <div class="panel-sub">Selecione FINAL ou NEO e clique em um segmento para abrir os clientes dentro dele.</div>
+              <div class="panel-sub">FINAL ou NEO, com faturamento, custo, clientes, lucro e participação.</div>
             </div>
             <div class="segment-view-switch">
               <button class="active" id="segmentViewFinalBtn" onclick="setSegmentView('FINAL')">FINAL</button>
@@ -1463,15 +1512,11 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
             <table class="indicator-table">
               <thead>
                 <tr>
-                  <th>Segmento</th>
-                  <th>Faturamento</th>
-                  <th>Participação</th>
-                  <th>Lucro</th>
-                  <th>Lucratividade</th>
-                  <th></th>
+                  <th>Segmento</th><th>Clientes</th><th>Faturamento</th><th>Participação</th>
+                  <th>Custo</th><th>Lucro</th><th>Lucratividade</th><th></th>
                 </tr>
               </thead>
-              <tbody id="dashboardSegmentsBody"><tr class="empty-row"><td colspan="6">Carregando...</td></tr></tbody>
+              <tbody id="dashboardSegmentsBody"><tr class="empty-row"><td colspan="8">Carregando...</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1491,40 +1536,37 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
             <table class="indicator-table">
               <thead>
                 <tr>
-                  <th>Cliente</th>
-                  <th id="dashboardClientParticipationHeader">Participação</th>
-                  <th>Faturamento</th>
-                  <th>Lucro</th>
-                  <th>Lucratividade</th>
-                  <th></th>
+                  <th>Cliente</th><th id="dashboardClientParticipationHeader">Participação</th><th>Faturamento</th>
+                  <th>Custo</th><th>Lucro</th><th>Lucratividade</th><th></th>
                 </tr>
               </thead>
-              <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="6">Carregando...</td></tr></tbody>
+              <tbody id="dashboardClientsBody"><tr class="empty-row"><td colspan="7">Carregando...</td></tr></tbody>
             </table>
           </div>
         </div>
 
         <div class="product-modal-bg" id="dashboardProductsPanel" style="display:none" onclick="closeDashboardProducts(event)">
-          <div class="product-modal-card" onclick="event.stopPropagation()">
+          <div class="product-modal-card scope-product-modal" onclick="event.stopPropagation()">
             <div class="product-modal-head">
               <div>
                 <div class="product-modal-kicker">Detalhamento do cliente</div>
-                <div class="product-modal-title" id="dashboardProductsTitle">Lucratividade por produto</div>
-                <div class="product-modal-sub">Produtos vendidos para o cliente selecionado.</div>
+                <div class="product-modal-title" id="dashboardProductsTitle">Produtos e evolução</div>
+                <div class="product-modal-sub">Mix vendido, custos, lucro e evolução mensal do cliente.</div>
               </div>
               <button class="close product-modal-close" onclick="closeDashboardProducts()">×</button>
             </div>
             <div class="product-modal-body">
+              <div class="client-evolution-box">
+                <div class="mini-section-title">Evolução mensal do cliente</div>
+                <div id="dashboardClientEvolution"></div>
+              </div>
+              <div class="mini-section-title">Mix de produtos</div>
               <div class="table-wrap product-modal-table">
                 <table class="indicator-table">
                   <thead>
                     <tr>
-                      <th>Produto</th>
-                      <th>SKU</th>
-                      <th>Quantidade</th>
-                      <th>Faturamento</th>
-                      <th>Lucro</th>
-                      <th>Lucratividade</th>
+                      <th>Produto</th><th>SKU</th><th>Quantidade</th><th>Mix</th>
+                      <th>Faturamento</th><th>Custo</th><th>Lucro</th><th>Lucratividade</th>
                     </tr>
                   </thead>
                   <tbody id="dashboardProductsBody"></tbody>
@@ -1534,31 +1576,60 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
           </div>
         </div>
 
+        <div class="dashboard-rank-grid scope-rank-grid indicator-section">
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title" id="dashboardSegmentRankTitle">Ranking de segmentos FINAL</div><div class="panel-sub">Top 10 por faturamento.</div></div></div>
+            <div class="panel-body"><div class="rank-list" id="dashboardSegmentRank"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Ranking de clientes</div><div class="panel-sub">Top 10 por faturamento.</div></div></div>
+            <div class="panel-body"><div class="rank-list" id="dashboardClientRank"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Ranking de produtos</div><div class="panel-sub">Produtos consolidados entre todos os clientes.</div></div></div>
+            <div class="panel-body"><div class="rank-list" id="dashboardProductRank"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><div><div class="panel-title">Ranking de estados</div><div class="panel-sub">Top UFs por faturamento.</div></div></div>
+            <div class="panel-body"><div class="rank-list" id="dashboardStateRank"></div></div>
+          </div>
+        </div>
+
         <div class="panel indicator-section">
           <div class="panel-head">
             <div>
-              <div class="panel-title">Vendas dentro e fora do estado</div>
-              <div class="panel-sub">Quantidade e percentual de vendas em São Paulo e nos demais estados.</div>
+              <div class="panel-title">Análise por estado</div>
+              <div class="panel-sub">Quantidade de vendas, clientes atendidos, faturamento, custo, participação e lucro por UF.</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="indicator-table">
+              <thead>
+                <tr><th>UF</th><th>Vendas</th><th>Clientes</th><th>Faturamento</th><th>Participação</th><th>Custo</th><th>Lucro</th><th>Lucratividade</th></tr>
+              </thead>
+              <tbody id="dashboardStatesBody"><tr class="empty-row"><td colspan="8">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel indicator-section">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Dentro e fora do estado</div>
+              <div class="panel-sub">Visão complementar: São Paulo contra demais estados.</div>
             </div>
           </div>
           <div class="panel-body">
             <div class="inside-outside-summary">
               <div class="inside-outside-card inside">
-                <span>Dentro do estado</span>
-                <strong id="dInsideCount">0 vendas</strong>
-                <b id="dInsidePct">0,00%</b>
-                <small>São Paulo</small>
+                <span>Dentro do estado</span><strong id="dInsideCount">0 vendas</strong><b id="dInsidePct">0,00%</b><small>São Paulo</small>
               </div>
               <div class="inside-outside-card outside">
-                <span>Fora do estado</span>
-                <strong id="dOutsideCount">0 vendas</strong>
-                <b id="dOutsidePct">0,00%</b>
-                <small>Demais estados</small>
+                <span>Fora do estado</span><strong id="dOutsideCount">0 vendas</strong><b id="dOutsidePct">0,00%</b><small>Demais estados</small>
               </div>
             </div>
             <div class="inside-outside-bar" title="Distribuição das vendas">
-              <div class="inside-part" id="insideStateBar"></div>
-              <div class="outside-part" id="outsideStateBar"></div>
+              <div class="inside-part" id="insideStateBar"></div><div class="outside-part" id="outsideStateBar"></div>
             </div>
           </div>
         </div>
