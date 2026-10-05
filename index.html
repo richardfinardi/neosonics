@@ -2711,7 +2711,7 @@ function renderSegmentTable(){
   const total=Number(DASHBOARD_DATA.kpis?.faturamento||0)||1;
 
   if(!rows.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum segmento encontrado.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum segmento encontrado.</td></tr>';
     return;
   }
 
@@ -2719,8 +2719,10 @@ function renderSegmentTable(){
     const participation=Number(x.faturamento||0)/total;
     return '<tr class="indicator-click-row" onclick="selectDashboardSegment(\''+DASHBOARD_SEGMENT_VIEW+'\',\''+escapeJs(x.id||"")+'\')">'+
       '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
+      '<td>'+Number(x.clientes||0).toLocaleString("pt-BR")+'</td>'+
       '<td>'+formatBRL(x.faturamento)+'</td>'+
       '<td><b>'+formatPct(participation)+'</b></td>'+
+      '<td>'+formatBRL(x.custo)+'</td>'+
       '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
       '<td><b>'+formatPct(x.margem)+'</b></td>'+
       '<td><button class="secondary indicator-open-btn" onclick="event.stopPropagation();selectDashboardSegment(\''+DASHBOARD_SEGMENT_VIEW+'\',\''+escapeJs(x.id||"")+'\')">Ver clientes</button></td>'+
@@ -2733,7 +2735,7 @@ function clearDashboardSegment(){
   dNeo.value="";
   DASHBOARD_SELECTED_CLIENT="";
   document.getElementById("dashboardProductsPanel").style.display="none";
-  loadDashboard();
+  loadDashboard(true);
 }
 
 
@@ -2803,11 +2805,17 @@ function renderRankList(id,items,limit){
     const participation=revenue/totalRevenue;
     const width=Math.max(1,participation*100);
 
-    const segmentType=id==="dashboardFinal"?"FINAL":id==="dashboardNeo"?"NEO":"";
-    const clickAttr=segmentType&&x.id
-      ? ' onclick="selectDashboardSegment(\''+segmentType+'\',\''+escapeJs(x.id)+'\')"'
-      : '';
-    const clickClass=segmentType&&x.id?' clickable':'';
+    let clickAttr="", clickClass="";
+    if(id==="dashboardSegmentRank"&&x.id){
+      clickAttr=' onclick="selectDashboardSegment(\''+DASHBOARD_SEGMENT_VIEW+'\',\''+escapeJs(x.id)+'\')"';
+      clickClass=" clickable";
+    }else if(id==="dashboardClientRank"&&(x.id||x.chave)){
+      clickAttr=' onclick="showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')"';
+      clickClass=" clickable";
+    }else if(id==="dashboardStateRank"&&x.label){
+      clickAttr=' onclick="selectDashboardState(\''+escapeJs(x.label)+'\')"';
+      clickClass=" clickable";
+    }
 
     return '<div class="rank-card'+clickClass+'"'+clickAttr+'>'+
       '<div class="rank-card-head">'+
@@ -2816,7 +2824,7 @@ function renderRankList(id,items,limit){
       '</div>'+
       '<div class="rank-track" title="Participação no faturamento: '+escapeHtml(formatPct(participation))+'"><div class="rank-fill" style="width:'+width+'%"></div></div>'+
       '<div class="rank-metrics">'+
-        '<div><span>Participação no faturamento</span><strong>'+formatPct(participation)+'</strong></div>'+
+        '<div><span>Participação</span><strong>'+formatPct(participation)+'</strong></div>'+
         '<div><span>Lucro</span><strong class="'+(profit>=0?'profit-positive':'profit-negative')+'">'+formatBRL(profit)+'</strong></div>'+
         '<div><span>Lucratividade</span><strong class="'+(profit>=0?'profit-positive':'profit-negative')+'">'+formatPct(x.margem)+'</strong></div>'+
       '</div>'+
@@ -2837,7 +2845,7 @@ function selectDashboardSegment(type,id){
   }
   DASHBOARD_SELECTED_CLIENT="";
   dashboardProductsPanel.style.display="none";
-  loadDashboard().then(()=>{
+  loadDashboard(true).then(()=>{
     document.getElementById("dashboardClientsPanel")?.scrollIntoView({behavior:"smooth",block:"start"});
   }).finally(()=>{
     const b=document.getElementById("clearSegmentSelectionBtn");
@@ -2881,7 +2889,7 @@ function renderDashboardClients(){
   clearSegmentSelectionBtn.style.display=selectedSegment?"":"none";
 
   if(!rows.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum cliente encontrado.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum cliente encontrado.</td></tr>';
     return;
   }
 
@@ -2891,11 +2899,35 @@ function renderDashboardClients(){
       '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
       '<td><b>'+formatPct(participation)+'</b></td>'+
       '<td>'+formatBRL(x.faturamento)+'</td>'+
+      '<td>'+formatBRL(x.custo)+'</td>'+
       '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
       '<td><b>'+formatPct(x.margem)+'</b></td>'+
-      '<td><button class="secondary indicator-open-btn" onclick="event.stopPropagation();showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">Ver produtos</button></td>'+
+      '<td><button class="secondary indicator-open-btn" onclick="event.stopPropagation();showClientProducts(\''+escapeJs(x.id||x.chave)+'\',\''+escapeJs(x.label||"")+'\')">Detalhar</button></td>'+
     '</tr>';
   }).join("");
+}
+
+function renderClientEvolution(clientId){
+  const el=document.getElementById("dashboardClientEvolution");if(!el)return;
+  const rows=(DASHBOARD_DATA?.cliente_mensal||[])
+    .filter(x=>String(x.cliente_id||"")===String(clientId||""))
+    .slice()
+    .sort((a,b)=>String(a.mes||a.label||"").localeCompare(String(b.mes||b.label||"")))
+    .slice(-12);
+
+  if(!rows.length){
+    el.innerHTML='<div class="history-loading">Sem evolução mensal para este cliente.</div>';
+    return;
+  }
+
+  el.innerHTML='<div class="client-evolution-grid">'+rows.map(x=>
+    '<div class="client-evolution-card">'+
+      '<span>'+escapeHtml(formatMonthLabel(x.mes||x.label))+'</span>'+
+      '<strong>'+formatBRL(x.faturamento)+'</strong>'+
+      '<small>Custo '+formatBRL(x.custo)+'</small>'+
+      '<b class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'">'+formatBRL(x.lucro)+' • '+formatPct(x.margem)+'</b>'+
+    '</div>'
+  ).join("")+'</div>';
 }
 
 function showClientProducts(clientId,label){
@@ -2903,23 +2935,30 @@ function showClientProducts(clientId,label){
   const modal=document.getElementById("dashboardProductsPanel");
   if(!modal||!DASHBOARD_DATA)return;
 
-  dashboardProductsTitle.textContent="Produtos do cliente • "+(label||dashboardClientLabel(clientId));
+  dashboardProductsTitle.textContent="Cliente • "+(label||dashboardClientLabel(clientId));
+  renderClientEvolution(clientId);
+
   const body=document.getElementById("dashboardProductsBody");
   const rows=(DASHBOARD_DATA.produtos||[]).filter(x=>String(x.cliente_id||"")===String(clientId||""));
+  const fatCliente=rows.reduce((s,x)=>s+Number(x.faturamento||0),0)||1;
 
   if(!rows.length){
-    body.innerHTML='<tr class="empty-row"><td colspan="6">Nenhum produto encontrado para este cliente.</td></tr>';
+    body.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum produto encontrado para este cliente.</td></tr>';
   }else{
-    body.innerHTML=rows.map(x=>
-      '<tr>'+
+    body.innerHTML=rows.map(x=>{
+      const mix=Number(x.participacao_cliente);
+      const participation=Number.isFinite(mix)&&mix>0?mix:Number(x.faturamento||0)/fatCliente;
+      return '<tr>'+
         '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
         '<td>'+escapeHtml(x.sku||"—")+'</td>'+
         '<td>'+Number(x.qtde||0).toLocaleString("pt-BR")+'</td>'+
+        '<td><b>'+formatPct(participation)+'</b></td>'+
         '<td>'+formatBRL(x.faturamento)+'</td>'+
+        '<td>'+formatBRL(x.custo)+'</td>'+
         '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
         '<td><b>'+formatPct(x.margem)+'</b></td>'+
-      '</tr>'
-    ).join("");
+      '</tr>';
+    }).join("");
   }
 
   modal.style.display="flex";
@@ -2934,6 +2973,8 @@ function closeDashboardProducts(event){
   document.body.classList.remove("modal-open");
   const body=document.getElementById("dashboardProductsBody");
   if(body)body.innerHTML="";
+  const evolution=document.getElementById("dashboardClientEvolution");
+  if(evolution)evolution.innerHTML="";
 }
 
 
