@@ -24,43 +24,96 @@ const ABAS = Object.freeze({
   IMPORT_LOG: 'IMPORT_LOG'
 });
 
+function cacheEpoch_() {
+  return PropertiesService.getScriptProperties().getProperty('NEOSONICS_CACHE_EPOCH') || '1';
+}
+
+function bumpCacheEpoch_() {
+  const epoch = String(Date.now());
+  PropertiesService.getScriptProperties().setProperty('NEOSONICS_CACHE_EPOCH', epoch);
+  return epoch;
+}
+
+function cacheLeitura_(chave, ttlSegundos, produtor) {
+  const fullKey = 'ns5:' + cacheEpoch_() + ':' + String(chave || '');
+  let cache = null;
+
+  try {
+    cache = CacheService.getScriptCache();
+    const hit = cache.get(fullKey);
+    if (hit) return JSON.parse(hit);
+  } catch (cacheReadErr) {}
+
+  const dados = produtor();
+
+  try {
+    if (cache) {
+      const payload = JSON.stringify(dados);
+      if (payload.length < 90000) cache.put(fullKey, payload, ttlSegundos || 120);
+    }
+  } catch (cacheWriteErr) {}
+
+  return dados;
+}
+
 function doGet(e) {
   try {
-    const acao = String((e && e.parameter && e.parameter.acao) || 'ping').toLowerCase();
+    const p = (e && e.parameter) || {};
+    const acao = String(p.acao || 'ping').toLowerCase();
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.3.2' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.4.0' });
 
       case 'bootstrap':
-        return json_(getBootstrap_());
+        return json_(cacheLeitura_('bootstrap', 300, function() {
+          return getBootstrap_();
+        }));
 
       case 'clientes':
-        return json_({ ok: true, dados: listarClientes_() });
+        return json_(cacheLeitura_('clientes', 300, function() {
+          return { ok: true, dados: listarClientes_() };
+        }));
 
       case 'consultar_cnpj':
-        return json_(consultarCnpj_((e && e.parameter && e.parameter.cnpj) || ''));
+        return json_(consultarCnpj_(p.cnpj || ''));
 
       case 'map_clientes':
-        return json_({ ok: true, dados: listarMapClientes_() });
+        return json_(cacheLeitura_('map_clientes', 180, function() {
+          return { ok: true, dados: listarMapClientes_() };
+        }));
 
       case 'segmentos':
-        return json_({ ok: true, dados: listarSegmentos_() });
+        return json_(cacheLeitura_('segmentos', 300, function() {
+          return { ok: true, dados: listarSegmentos_() };
+        }));
 
       case 'orcamentos':
-        return json_({ ok: true, dados: listarOrcamentosResumo_() });
+        return json_(cacheLeitura_('orcamentos', 120, function() {
+          return { ok: true, dados: listarOrcamentosResumo_() };
+        }));
 
-      case 'orcamento_detalhe':
-        return json_(getOrcamentoDetalhe_((e && e.parameter && e.parameter.id) || ''));
+      case 'orcamento_detalhe': {
+        const idOrc = String(p.id || '');
+        return json_(cacheLeitura_('orcamento_detalhe:' + idOrc, 300, function() {
+          return getOrcamentoDetalhe_(idOrc);
+        }));
+      }
 
       case 'pedidos':
-        return json_({ ok: true, dados: listarPedidosResumo_() });
+        return json_(cacheLeitura_('pedidos', 120, function() {
+          return { ok: true, dados: listarPedidosResumo_() };
+        }));
 
-      case 'pedido_detalhe':
-        return json_(getPedidoDetalhe_((e && e.parameter && e.parameter.id) || ''));
+      case 'pedido_detalhe': {
+        const idPed = String(p.id || '');
+        return json_(cacheLeitura_('pedido_detalhe:' + idPed, 300, function() {
+          return getPedidoDetalhe_(idPed);
+        }));
+      }
 
       case 'dashboard':
-        return json_(getDashboardVendas_((e && e.parameter) || {}));
+        return json_(getDashboardVendas_(p));
 
       default:
         return json_({ ok: false, erro: 'Ação GET inválida: ' + acao });
@@ -74,47 +127,63 @@ function doPost(e) {
   try {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const acao = String(body.acao || '').toLowerCase();
+    let resultado;
 
     switch (acao) {
       case 'salvar_cliente':
-        return json_(salvarCliente_(body.cliente || {}));
+        resultado = salvarCliente_(body.cliente || {});
+        break;
 
       case 'salvar_segmento':
-        return json_(salvarSegmento_(body.segmento || {}));
+        resultado = salvarSegmento_(body.segmento || {});
+        break;
 
       case 'salvar_mapeamento_cliente':
-        return json_(salvarMapeamentoCliente_(body.chave_origem, body.id_cliente_oficial));
+        resultado = salvarMapeamentoCliente_(body.chave_origem, body.id_cliente_oficial);
+        break;
 
       case 'criar_cliente_mapeamento':
-        return json_(criarClienteDoMapeamento_(body.chave_origem));
+        resultado = criarClienteDoMapeamento_(body.chave_origem);
+        break;
 
       case 'resolver_grupo_cliente':
-        return json_(resolverGrupoCliente_(body.cod_cliente_origem, body.modo, body.nome_oficial, body.id_cliente_oficial));
+        resultado = resolverGrupoCliente_(body.cod_cliente_origem, body.modo, body.nome_oficial, body.id_cliente_oficial);
+        break;
 
       case 'salvar_orcamento':
-        return json_(salvarOrcamento_(body.orcamento || {}));
+        resultado = salvarOrcamento_(body.orcamento || {});
+        break;
 
       case 'enviar_orcamento':
-        return json_(alterarStatusOrcamento_(body.id_orcamento, 'ENVIADO'));
+        resultado = alterarStatusOrcamento_(body.id_orcamento, 'ENVIADO');
+        break;
 
       case 'aprovar_orcamento':
-        return json_(aprovarOrcamentoEGerarPedido_(body.id_orcamento));
+        resultado = aprovarOrcamentoEGerarPedido_(body.id_orcamento);
+        break;
 
       case 'recusar_orcamento':
-        return json_(alterarStatusOrcamento_(body.id_orcamento, 'RECUSADO'));
+        resultado = alterarStatusOrcamento_(body.id_orcamento, 'RECUSADO');
+        break;
 
       case 'converter_orcamento_pedido':
-        return json_(converterOrcamentoEmPedido_(body.id_orcamento));
+        resultado = converterOrcamentoEmPedido_(body.id_orcamento);
+        break;
 
       case 'alterar_status_pedido':
-        return json_(alterarStatusPedido_(body.id_pedido, body.status));
+        resultado = alterarStatusPedido_(body.id_pedido, body.status);
+        break;
 
       case 'sincronizar_parametros_custos':
-        return json_(sincronizarParametrosCustos_());
+        resultado = sincronizarParametrosCustos_();
+        break;
 
       default:
         return json_({ ok: false, erro: 'Ação POST inválida: ' + acao });
     }
+
+    if (!resultado || resultado.ok !== false) bumpCacheEpoch_();
+    return json_(resultado);
   } catch (err) {
     return json_({ ok: false, erro: err.message, stack: err.stack });
   }
@@ -127,11 +196,9 @@ function getBootstrap_() {
     segmentos: listarObjetos_(ABAS.SEGMENTOS),
     segmento_relacoes: listarObjetos_(ABAS.SEGMENTO_RELACOES),
     produtos: listarObjetos_(ABAS.PRODUTOS),
-    processos: listarObjetos_(ABAS.PROCESSOS_CUSTO),
     impostos: listarObjetos_(ABAS.TABELA_IMPOSTOS),
     parametro_versao_ativa: getVersaoParametrosAtiva_(),
-    custos_hora_ativos: getCustosHoraVersaoAtiva_(),
-    config: listarObjetos_(ABAS.CONFIG)
+    custos_hora_ativos: getCustosHoraVersaoAtiva_()
   };
 }
 
@@ -1686,7 +1753,8 @@ function normalizarTexto_(v) {
 function getDashboardVendas_(params) {
   const p = params || {};
   const cacheKey = [
-    'neosonics-dashboard-v4',
+    'neosonics-dashboard-v5',
+    cacheEpoch_(),
     String(p.dt_inicio || ''),
     String(p.dt_fim || ''),
     String(p.segmento_final_id || ''),
