@@ -2105,6 +2105,16 @@ let orderCache=[];
 let currentOrderId="";
 let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[],products:[]};
 let currentPage="overview";
+let BOOTSTRAP_DATA=null;
+let bootstrapPromise=null;
+let bootstrapLoadedAt=0;
+let quoteListPromise=null;
+let quoteListLoadedAt=0;
+let orderListPromise=null;
+let orderListLoadedAt=0;
+const APP_CACHE_PREFIX="neosonics_app_v6:";
+const APP_CACHE_MAX_AGE=24*60*60*1000;
+const APP_REVALIDATE_MS=60*1000;
 
 let PROCESS_COSTS=[
   ["ENGENHARIA DE APLICAÇÃO",174.9593757254843],
@@ -2337,11 +2347,11 @@ function closeGuide(e){if(e.target.id==="guideBg")forceCloseGuide()}
 function forceCloseGuide(){guideBg.classList.remove("open")}
 function refreshCurrentPage(btn){
   refreshBtn(btn);
-  if(currentPage==="overview")initOverviewPage();
-  else if(currentPage==="clients")initClientsPage();
-  else if(currentPage==="segments")initSegmentsPage();
-  else if(currentPage==="quotes")initQuotesPage();
-  else if(currentPage==="orders")initOrdersPage();
+  if(currentPage==="overview")initOverviewPage(true);
+  else if(currentPage==="clients")initClientsPage(true);
+  else if(currentPage==="segments")initSegmentsPage(true);
+  else if(currentPage==="quotes")initQuotesPage(true);
+  else if(currentPage==="orders")initOrdersPage(true);
 }
 
 function toggleMobileMenu(){
@@ -2357,8 +2367,8 @@ function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transiti
 const DASHBOARD_CACHE_PREFIX="neosonics_dashboard_v4:";
 const DASHBOARD_CACHE_MAX_AGE=24*60*60*1000;
 
-async function initOverviewPage(){
-  await loadDashboard();
+async function initOverviewPage(force=false){
+  await loadDashboard(force);
 }
 
 function dashboardCacheKey(params){
@@ -2387,7 +2397,7 @@ function writeDashboardCache(params,data){
   }
 }
 
-async function loadDashboard(){
+async function loadDashboard(force=false){
   const params={};
   const pairs=[
     ["dt_inicio","dStart"],["dt_fim","dEnd"],["segmento_final_id","dFinal"],
@@ -2399,7 +2409,7 @@ async function loadDashboard(){
   });
 
   // Stale-while-revalidate: mostra o último resultado imediatamente e atualiza em seguida.
-  const cached=readDashboardCache(params);
+  const cached=force?null:readDashboardCache(params);
   if(cached){
     DASHBOARD_DATA=cached;
     if(!DASHBOARD_FILTERS_LOADED){
@@ -3050,8 +3060,8 @@ function populateClientSelectors(){
   if(iNeo)iNeo.innerHTML=segmentOptions("NEO","Selecione...");
 }
 
-async function initClientsPage(){
-  await loadBootstrap();
+async function initClientsPage(force=false){
+  await loadBootstrap(force);
   populateClientSelectors();
   renderClientsTable();
   updateClientKpis();
@@ -3452,8 +3462,8 @@ function syncItemNeoFromFinal(clearWhenAmbiguous=true){
   }
 }
 
-async function initSegmentsPage(){
-  await loadBootstrap();
+async function initSegmentsPage(force=false){
+  await loadBootstrap(force);
   renderSegmentsTable();
   updateSegmentKpis();
 }
@@ -3561,9 +3571,12 @@ async function saveSegment(){
   }
 }
 
-async function initQuotesPage(){
+async function initQuotesPage(force=false){
   document.getElementById("quoteParamBadge").textContent="Custos vigentes";
-  await loadBootstrap();
+  const bootstrapTask=loadBootstrap(force);
+  renderQuoteHistory(force);
+
+  await bootstrapTask;
 
   if(document.getElementById("mpRows")?.children.length===0) addCostRow("mp");
   if(document.getElementById("ferrRows")?.children.length===0) addCostRow("ferr");
@@ -3574,8 +3587,32 @@ async function initQuotesPage(){
   document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
   syncTaxRule();
   if(document.getElementById("qClauses")&&!qClauses.value.trim())applyClauseTemplate(false);
-  await renderQuoteHistory();
   recalculateItem();
+}
+
+function appCacheKey(key){return APP_CACHE_PREFIX+String(key||"")}
+
+function readAppCache(key,maxAge=APP_CACHE_MAX_AGE){
+  try{
+    const raw=localStorage.getItem(appCacheKey(key));
+    if(!raw)return null;
+    const saved=JSON.parse(raw);
+    if(!saved||!saved.ts||saved.data===undefined)return null;
+    if(Date.now()-Number(saved.ts)>maxAge)return null;
+    return saved.data;
+  }catch(e){
+    return null;
+  }
+}
+
+function writeAppCache(key,data){
+  try{
+    localStorage.setItem(appCacheKey(key),JSON.stringify({ts:Date.now(),data}));
+  }catch(e){}
+}
+
+function removeAppCache(key){
+  try{localStorage.removeItem(appCacheKey(key));}catch(e){}
 }
 
 async function apiGet(acao, params={}){
@@ -3590,41 +3627,85 @@ async function apiGet(acao, params={}){
   return j;
 }
 
-async function loadBootstrap(){
-  try{
-    const j=await apiGet("bootstrap");
-    apiOnline=true;
-    APP_DATA.clients=Array.isArray(j.clientes)?j.clientes:[];
-    APP_DATA.segments=Array.isArray(j.segmentos)?j.segmentos:[];
-    APP_DATA.segmentRelations=Array.isArray(j.segmento_relacoes)?j.segmento_relacoes:[];
-    APP_DATA.products=Array.isArray(j.produtos)?j.produtos:[];
-    populateClientSelectors();
-    populateApprovedProducts();
+function applyBootstrapData(j,fromNetwork=false){
+  if(!j)return;
+  BOOTSTRAP_DATA=j;
+  APP_DATA.clients=Array.isArray(j.clientes)?j.clientes:[];
+  APP_DATA.segments=Array.isArray(j.segmentos)?j.segmentos:[];
+  APP_DATA.segmentRelations=Array.isArray(j.segmento_relacoes)?j.segmento_relacoes:[];
+  APP_DATA.products=Array.isArray(j.produtos)?j.produtos:[];
+  populateClientSelectors();
+  populateApprovedProducts();
 
-    if(j.parametro_versao_ativa){
-      PARAM_VERSION=j.parametro_versao_ativa.ID_VERSAO||PARAM_VERSION;
-      FIXED_EXPENSE=Number(j.parametro_versao_ativa.DESPESA_FIXA_PCT||FIXED_EXPENSE);
-    }
-
-    if(Array.isArray(j.custos_hora_ativos)&&j.custos_hora_ativos.length){
-      PROCESS_COSTS=j.custos_hora_ativos
-        .filter(x=>x.PROCESSO)
-        .map(x=>[String(x.PROCESSO),Number(x.CUSTO_HORA||0)]);
-    }
-
-    if(Array.isArray(j.impostos)&&j.impostos.length){
-      const regras={};
-      j.impostos.forEach(x=>{
-        if(x.ATIVO===false)return;
-        const key=[x.ENQUADRAMENTO,x.DESTINO,x.TIPO_VENDA].map(v=>String(v||"").trim()).join("|");
-        if(key!=="||")regras[key]=Number(x.IMPOSTOS_PCT||0);
-      });
-      if(Object.keys(regras).length)TAX_RULES=regras;
-    }
-  }catch(e){
-    apiOnline=false;
-    console.warn("Bootstrap Neosonics:",e);
+  if(j.parametro_versao_ativa){
+    PARAM_VERSION=j.parametro_versao_ativa.ID_VERSAO||PARAM_VERSION;
+    FIXED_EXPENSE=Number(j.parametro_versao_ativa.DESPESA_FIXA_PCT||FIXED_EXPENSE);
   }
+
+  if(Array.isArray(j.custos_hora_ativos)&&j.custos_hora_ativos.length){
+    PROCESS_COSTS=j.custos_hora_ativos
+      .filter(x=>x.PROCESSO)
+      .map(x=>[String(x.PROCESSO),Number(x.CUSTO_HORA||0)]);
+  }
+
+  if(Array.isArray(j.impostos)&&j.impostos.length){
+    const regras={};
+    j.impostos.forEach(x=>{
+      if(x.ATIVO===false)return;
+      const key=[x.ENQUADRAMENTO,x.DESTINO,x.TIPO_VENDA].map(v=>String(v||"").trim()).join("|");
+      if(key!=="||")regras[key]=Number(x.IMPOSTOS_PCT||0);
+    });
+    if(Object.keys(regras).length)TAX_RULES=regras;
+  }
+
+  if(fromNetwork)bootstrapLoadedAt=Date.now();
+}
+
+function persistBootstrapCache(){
+  if(!BOOTSTRAP_DATA)return;
+  BOOTSTRAP_DATA.clientes=APP_DATA.clients;
+  BOOTSTRAP_DATA.segmentos=APP_DATA.segments;
+  BOOTSTRAP_DATA.segmento_relacoes=APP_DATA.segmentRelations;
+  BOOTSTRAP_DATA.produtos=APP_DATA.products;
+  writeAppCache("bootstrap",BOOTSTRAP_DATA);
+}
+
+async function refreshBootstrap(){
+  if(bootstrapPromise)return bootstrapPromise;
+  bootstrapPromise=(async()=>{
+    try{
+      const j=await apiGet("bootstrap");
+      apiOnline=true;
+      applyBootstrapData(j,true);
+      writeAppCache("bootstrap",j);
+      return j;
+    }catch(e){
+      apiOnline=false;
+      console.warn("Bootstrap Neosonics:",e);
+      return BOOTSTRAP_DATA;
+    }finally{
+      bootstrapPromise=null;
+    }
+  })();
+  return bootstrapPromise;
+}
+
+async function loadBootstrap(force=false){
+  if(!force&&BOOTSTRAP_DATA){
+    if(Date.now()-bootstrapLoadedAt>APP_REVALIDATE_MS&&!bootstrapPromise)void refreshBootstrap();
+    return BOOTSTRAP_DATA;
+  }
+
+  if(!force){
+    const cached=readAppCache("bootstrap");
+    if(cached){
+      applyBootstrapData(cached,false);
+      if(!bootstrapPromise)void refreshBootstrap();
+      return cached;
+    }
+  }
+
+  return await refreshBootstrap();
 }
 
 function applyClauseTemplate(force){
