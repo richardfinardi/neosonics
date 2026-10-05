@@ -2058,7 +2058,7 @@ body.theme-light .product-modal-table{border-color:#dce2e9!important}
         <div class="panel quote-history-panel">
           <div class="panel-head">
             <div><div class="panel-title">Orçamentos salvos</div><div class="panel-sub">Pesquisar, reabrir e reenviar sem depender de PDF armazenado</div></div>
-            <button class="secondary" onclick="renderQuoteHistory()">Atualizar</button>
+            <button class="secondary" onclick="renderQuoteHistory(true)">Atualizar</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -2748,22 +2748,54 @@ function dashboardClientLabel(id){
   return x?.label||"Cliente";
 }
 
-async function initOrdersPage(){
-  const body=document.getElementById("ordersTableBody");
-  if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Carregando pedidos...</td></tr>';
+function paintOrdersPage(){
+  populateOrderFilters();
+  renderOrdersTable();
+  if(document.getElementById("ordersBadge"))ordersBadge.textContent=orderCache.length+" pedidos";
+}
 
-  try{
-    const j=await apiGet("pedidos");
-    orderCache=Array.isArray(j.dados)?j.dados:[];
-    populateOrderFilters();
-    renderOrdersTable();
-    if(document.getElementById("ordersBadge"))ordersBadge.textContent=orderCache.length+" pedidos";
-  }catch(err){
-    console.error("Pedidos:",err);
-    orderCache=[];
-    if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Não foi possível carregar os pedidos.</td></tr>';
-    if(document.getElementById("ordersBadge"))ordersBadge.textContent="Erro ao carregar";
+async function refreshOrdersData(){
+  if(orderListPromise)return orderListPromise;
+  orderListPromise=(async()=>{
+    try{
+      const j=await apiGet("pedidos");
+      orderCache=Array.isArray(j.dados)?j.dados:[];
+      orderListLoadedAt=Date.now();
+      writeAppCache("pedidos",orderCache);
+      paintOrdersPage();
+      return orderCache;
+    }catch(err){
+      console.error("Pedidos:",err);
+      if(!orderCache.length){
+        const body=document.getElementById("ordersTableBody");
+        if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Não foi possível carregar os pedidos.</td></tr>';
+        if(document.getElementById("ordersBadge"))ordersBadge.textContent="Erro ao carregar";
+      }
+      return orderCache;
+    }finally{
+      orderListPromise=null;
+    }
+  })();
+  return orderListPromise;
+}
+
+async function initOrdersPage(force=false){
+  const body=document.getElementById("ordersTableBody");
+
+  if(!force&&!orderCache.length){
+    const cached=readAppCache("pedidos");
+    if(Array.isArray(cached))orderCache=cached;
   }
+
+  if(orderCache.length)paintOrdersPage();
+  else if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Carregando pedidos...</td></tr>';
+
+  if(!force&&orderCache.length){
+    if(Date.now()-orderListLoadedAt>APP_REVALIDATE_MS&&!orderListPromise)void refreshOrdersData();
+    return orderCache;
+  }
+
+  return await refreshOrdersData();
 }
 
 function populateOrderFilters(){
@@ -2849,13 +2881,56 @@ function renderOrdersTable(){
   }).join("");
 }
 
-async function openOrder(id){
+function paintOrderDetail(j,id){
+  const p=j.pedido||{}, r=j.resumo||{}, items=j.itens||[];
+  currentOrderId=String(p.ID_PEDIDO||id);
+
+  orderDetailTitle.textContent="Pedido "+(p.NUMERO_PEDIDO||"");
+  orderDetailSub.textContent=[
+    p.CLIENTE_NOME_SNAPSHOT||"",
+    formatDateBR(p.DATA_PEDIDO),
+    String(p.ORIGEM)==="HISTORICO"?"Histórico":"Gerado pelo orçamento "+(p.NUMERO_ORCAMENTO_ORIGEM||"")
+  ].filter(Boolean).join(" • ");
+
+  odStatusSelect.value=String(p.STATUS||"ABERTO").toUpperCase();
+  odRevenue.textContent=formatBRL(r.faturamento);
+  odCost.textContent=formatBRL(r.custo);
+  odProfit.textContent=formatBRL(r.lucro);
+  odMargin.textContent=formatPct(r.lucratividade);
+
+  orderItemsBody.innerHTML=items.length?items.map((x,i)=>
+    '<tr>'+
+      '<td>'+(i+1)+'</td>'+
+      '<td><b>'+escapeHtml(x.DESCRICAO||"")+'</b></td>'+
+      '<td>'+escapeHtml(x.SKU||"—")+'</td>'+
+      '<td>'+escapeHtml(x.SEGMENTO_FINAL_SNAPSHOT||"—")+'</td>'+
+      '<td>'+escapeHtml(x.SEGMENTO_NEO_SNAPSHOT||"—")+'</td>'+
+      '<td>'+Number(x.QTDE||0).toLocaleString("pt-BR")+'</td>'+
+      '<td>'+formatBRL(x.PRECO_UNITARIO)+'</td>'+
+      '<td>'+formatBRL(x.VALOR_TOTAL)+'</td>'+
+      '<td class="'+(Number(x.LUCRO_SNAPSHOT||0)>=0?"profit-positive":"profit-negative")+'">'+formatBRL(x.LUCRO_SNAPSHOT)+'</td>'+
+      '<td>'+formatPct(x.MARGEM_PCT_SNAPSHOT)+'</td>'+
+    '</tr>'
+  ).join(""):'<tr class="empty-row"><td colspan="10">Pedido sem itens.</td></tr>';
+}
+
+async function openOrder(id,force=false){
   currentOrderId=String(id||"");
   const modal=document.getElementById("orderDetailPanel");
   if(!modal)return;
 
   modal.style.display="flex";
   document.body.classList.add("modal-open");
+
+  const key="pedido_detalhe:"+String(id||"");
+  const cached=force?null:readAppCache(key,30*60*1000);
+
+  if(cached&&cached.pedido){
+    paintOrderDetail(cached,id);
+    apiGet("pedido_detalhe",{id}).then(j=>writeAppCache(key,j)).catch(()=>{});
+    return;
+  }
+
   orderDetailTitle.textContent="Carregando pedido...";
   orderDetailSub.textContent="Aguarde um instante.";
   orderItemsBody.innerHTML='<tr class="empty-row"><td colspan="10">Carregando itens...</td></tr>';
@@ -2867,36 +2942,8 @@ async function openOrder(id){
 
   try{
     const j=await apiGet("pedido_detalhe",{id});
-    const p=j.pedido||{}, r=j.resumo||{}, items=j.itens||[];
-    currentOrderId=String(p.ID_PEDIDO||id);
-
-    orderDetailTitle.textContent="Pedido "+(p.NUMERO_PEDIDO||"");
-    orderDetailSub.textContent=[
-      p.CLIENTE_NOME_SNAPSHOT||"",
-      formatDateBR(p.DATA_PEDIDO),
-      String(p.ORIGEM)==="HISTORICO"?"Histórico":"Gerado pelo orçamento "+(p.NUMERO_ORCAMENTO_ORIGEM||"")
-    ].filter(Boolean).join(" • ");
-
-    odStatusSelect.value=String(p.STATUS||"ABERTO").toUpperCase();
-    odRevenue.textContent=formatBRL(r.faturamento);
-    odCost.textContent=formatBRL(r.custo);
-    odProfit.textContent=formatBRL(r.lucro);
-    odMargin.textContent=formatPct(r.lucratividade);
-
-    orderItemsBody.innerHTML=items.length?items.map((x,i)=>
-      '<tr>'+
-        '<td>'+(i+1)+'</td>'+
-        '<td><b>'+escapeHtml(x.DESCRICAO||"")+'</b></td>'+
-        '<td>'+escapeHtml(x.SKU||"—")+'</td>'+
-        '<td>'+escapeHtml(x.SEGMENTO_FINAL_SNAPSHOT||"—")+'</td>'+
-        '<td>'+escapeHtml(x.SEGMENTO_NEO_SNAPSHOT||"—")+'</td>'+
-        '<td>'+Number(x.QTDE||0).toLocaleString("pt-BR")+'</td>'+
-        '<td>'+formatBRL(x.PRECO_UNITARIO)+'</td>'+
-        '<td>'+formatBRL(x.VALOR_TOTAL)+'</td>'+
-        '<td class="'+(Number(x.LUCRO_SNAPSHOT||0)>=0?"profit-positive":"profit-negative")+'">'+formatBRL(x.LUCRO_SNAPSHOT)+'</td>'+
-        '<td>'+formatPct(x.MARGEM_PCT_SNAPSHOT)+'</td>'+
-      '</tr>'
-    ).join(""):'<tr class="empty-row"><td colspan="10">Pedido sem itens.</td></tr>';
+    writeAppCache(key,j);
+    paintOrderDetail(j,id);
   }catch(err){
     orderDetailTitle.textContent="Erro ao abrir pedido";
     orderDetailSub.textContent=err.message;
@@ -2938,8 +2985,16 @@ async function saveOrderStatus(){
 
     const cached=orderCache.find(x=>String(x.ID_PEDIDO)===String(currentOrderId));
     if(cached)cached.STATUS=status;
+    writeAppCache("pedidos",orderCache);
     renderOrdersTable();
-    await openOrder(currentOrderId);
+
+    const detailKey="pedido_detalhe:"+String(currentOrderId);
+    const detail=readAppCache(detailKey,30*60*1000);
+    if(detail&&detail.pedido){
+      detail.pedido.STATUS=status;
+      writeAppCache(detailKey,detail);
+    }
+    odStatusSelect.value=status;
   }catch(err){
     alert("Não foi possível alterar o status: "+err.message);
   }finally{
@@ -3395,8 +3450,17 @@ async function saveClient(){
     if(!r.ok)throw new Error("HTTP "+r.status);
     const j=await r.json();
     if(!j.ok)throw new Error(j.erro||"Erro ao salvar");
-    await initClientsPage();
+    const saved=j.cliente||cliente;
+    const idx=APP_DATA.clients.findIndex(x=>String(x.ID_CLIENTE)===String(saved.ID_CLIENTE));
+    if(idx>=0)APP_DATA.clients[idx]=Object.assign({},APP_DATA.clients[idx],saved);
+    else APP_DATA.clients.push(saved);
+    APP_DATA.clients.sort((a,b)=>clientName(a).localeCompare(clientName(b),"pt-BR"));
+    persistBootstrapCache();
+    populateClientSelectors();
+    renderClientsTable();
+    updateClientKpis();
     clearClientForm();
+    void refreshBootstrap();
   }catch(err){
     alert("Não foi possível salvar o cliente: "+err.message);
   }finally{
@@ -3559,10 +3623,16 @@ async function saveSegment(){
     const j=await r.json();
     if(!j.ok)throw new Error(j.erro||"Erro ao salvar");
 
-    await loadBootstrap();
+    const saved=j.segmento||segmento;
+    const idx=APP_DATA.segments.findIndex(x=>String(x.ID_SEGMENTO)===String(saved.ID_SEGMENTO));
+    if(idx>=0)APP_DATA.segments[idx]=Object.assign({},APP_DATA.segments[idx],saved);
+    else APP_DATA.segments.push(saved);
+    persistBootstrapCache();
+    populateClientSelectors();
     renderSegmentsTable();
     updateSegmentKpis();
     clearSegmentForm();
+    void refreshBootstrap();
   }catch(e){
     alert("Não foi possível salvar a segmentação: "+e.message);
   }finally{
@@ -4291,20 +4361,8 @@ async function persistQuote(payload){
   }
 }
 
-async function renderQuoteHistory(){
+function paintQuoteHistory(){
   const body=document.getElementById("quoteHistoryBody");if(!body)return;
-  body.innerHTML='<tr class="empty-row"><td colspan="7">Carregando orçamentos...</td></tr>';
-
-  try{
-    const j=await apiGet("orcamentos");
-    apiOnline=true;
-    quoteHistoryCache=Array.isArray(j.dados)?j.dados:[];
-  }catch(e){
-    apiOnline=false;
-    quoteHistoryCache=[];
-    body.innerHTML='<tr class="empty-row"><td colspan="7">Não foi possível carregar os orçamentos.</td></tr>';
-    return;
-  }
 
   if(!quoteHistoryCache.length){
     body.innerHTML='<tr class="empty-row"><td colspan="7">Nenhum orçamento salvo ainda.</td></tr>';
@@ -4324,9 +4382,64 @@ async function renderQuoteHistory(){
   document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
 }
 
-async function openQuote(id){
+async function refreshQuoteHistory(){
+  if(quoteListPromise)return quoteListPromise;
+  quoteListPromise=(async()=>{
+    try{
+      const j=await apiGet("orcamentos");
+      apiOnline=true;
+      quoteHistoryCache=Array.isArray(j.dados)?j.dados:[];
+      quoteListLoadedAt=Date.now();
+      writeAppCache("orcamentos",quoteHistoryCache);
+      paintQuoteHistory();
+      return quoteHistoryCache;
+    }catch(e){
+      apiOnline=false;
+      console.warn("Orçamentos:",e);
+      if(!quoteHistoryCache.length){
+        const body=document.getElementById("quoteHistoryBody");
+        if(body)body.innerHTML='<tr class="empty-row"><td colspan="7">Não foi possível carregar os orçamentos.</td></tr>';
+      }
+      return quoteHistoryCache;
+    }finally{
+      quoteListPromise=null;
+    }
+  })();
+  return quoteListPromise;
+}
+
+async function renderQuoteHistory(force=false){
+  const body=document.getElementById("quoteHistoryBody");if(!body)return;
+
+  if(!force&&!quoteHistoryCache.length){
+    const cached=readAppCache("orcamentos");
+    if(Array.isArray(cached))quoteHistoryCache=cached;
+  }
+
+  if(quoteHistoryCache.length)paintQuoteHistory();
+  else body.innerHTML='<tr class="empty-row"><td colspan="7">Carregando orçamentos...</td></tr>';
+
+  if(!force&&quoteHistoryCache.length){
+    if(Date.now()-quoteListLoadedAt>APP_REVALIDATE_MS&&!quoteListPromise)void refreshQuoteHistory();
+    return quoteHistoryCache;
+  }
+
+  return await refreshQuoteHistory();
+}
+
+async function openQuote(id,force=false){
+  const key="orcamento_detalhe:"+String(id||"");
+  const cached=force?null:readAppCache(key,30*60*1000);
+
+  if(cached&&cached.orcamento){
+    applyQuoteToForm(cached.orcamento);
+    apiGet("orcamento_detalhe",{id}).then(j=>writeAppCache(key,j)).catch(()=>{});
+    return;
+  }
+
   try{
     const j=await apiGet("orcamento_detalhe",{id});
+    writeAppCache(key,j);
     applyQuoteToForm(j.orcamento);
   }catch(e){
     alert("Não foi possível abrir o orçamento: "+e.message);
@@ -4369,7 +4482,7 @@ function applyQuoteToForm(q){
 
 function searchQuote(){
   const term=quoteSearchInput.value.trim().toUpperCase();
-  if(!term){renderQuoteHistory();return}
+  if(!term){paintQuoteHistory();return}
   const q=quoteHistoryCache.find(x=>
     String(x.NUMERO_ORCAMENTO||"").toUpperCase().includes(term)||
     String(x.CLIENTE_NOME_SNAPSHOT||"").toUpperCase().includes(term)
