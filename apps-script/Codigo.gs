@@ -1764,6 +1764,7 @@ function getDashboardVendas_(params) {
     String(p.segmento_final_id || ''),
     String(p.segmento_neo_id || ''),
     String(p.cliente_id || ''),
+    String(p.produto_id || ''),
     String(p.modalidade || ''),
     String(p.uf || '')
   ].join('|');
@@ -1786,42 +1787,35 @@ function getDashboardVendas_(params) {
 
 function getDashboardVendasCalculado_(params) {
   const vendas = listarObjetos_(ABAS.VENDAS);
-  // DATA_VENDA vinha sendo convertida várias vezes por registro.
-  // Guarda a data normalizada uma única vez para filtros, mês e limites.
   vendas.forEach(function(v) {
     v.__DASH_DATA = normalizarDataFiltro_(v.DATA_VENDA);
+    v.__DASH_PRODUTO = chaveProdutoDashboard_(v);
   });
-  const p = params || {};
 
+  const p = params || {};
   const dtInicio = normalizarDataFiltro_(p.dt_inicio);
   const dtFim = normalizarDataFiltro_(p.dt_fim);
-  const filtroFinal = String(p.segmento_final_id || '').trim();
-  const filtroNeo = String(p.segmento_neo_id || '').trim();
-  const filtroCliente = String(p.cliente_id || '').trim();
-  const filtroModalidade = String(p.modalidade || '').trim();
-  const filtroUf = String(p.uf || '').trim().toUpperCase();
 
-  const filtradas = vendas.filter(function(v) {
-    if (String(v.STATUS || '').toUpperCase() === 'CANCELADO') return false;
+  const baseSemData = vendas.filter(function(v) {
+    return vendaPassaFiltrosDashboard_(v, p, false);
+  });
+
+  const filtradas = baseSemData.filter(function(v) {
     const dt = v.__DASH_DATA || '';
     if (dtInicio && dt && dt < dtInicio) return false;
     if (dtFim && dt && dt > dtFim) return false;
-    if (filtroFinal && String(v.SEGMENTO_FINAL_ID || '') !== filtroFinal) return false;
-    if (filtroNeo && String(v.SEGMENTO_NEO_ID || '') !== filtroNeo) return false;
-    if (filtroCliente && String(v.CLIENTE_ID || '') !== filtroCliente) return false;
-    if (filtroModalidade && String(v.MODALIDADE || '') !== filtroModalidade) return false;
-    if (filtroUf && String(v.UF_DESTINO || '').toUpperCase() !== filtroUf) return false;
     return true;
   });
 
-  const kpis = { faturamento:0, custo:0, dv:0, df:0, lucro:0, qtde:0, registros:0 };
+  const kpis = resumirKpisDashboard_(filtradas);
   const porMes = {};
+  const porAno = {};
   const porFinal = {};
   const porNeo = {};
   const porCliente = {};
   const porProduto = {};
   const porEstado = {};
-  const vendasUnicas = {};
+  const porClienteMes = {};
   const vendasDentro = {};
   const vendasFora = {};
 
@@ -1832,64 +1826,71 @@ function getDashboardVendasCalculado_(params) {
     const df = numero_(v.DF_VALOR);
     const lucro = numero_(v.LUCRO);
     const qtde = numero_(v.QTDE);
-
-    kpis.faturamento += fat;
-    kpis.custo += custo;
-    kpis.dv += dv;
-    kpis.df += df;
-    kpis.lucro += lucro;
-    kpis.qtde += qtde;
-    kpis.registros++;
-
     const chaveVenda = chaveVendaDashboard_(v);
-    vendasUnicas[chaveVenda] = true;
-    const dentroEstado = normalizarTexto_(v.DESTINO) === 'INTERNA' || String(v.UF_DESTINO || '').toUpperCase() === 'SP';
+    const clienteId = String(v.CLIENTE_ID || v.CLIENTE_NOME_SNAPSHOT || 'N/I');
+    const dt = v.__DASH_DATA || '';
+    const mesKey = dt ? dt.substring(0, 7) : ((v.ANO || '') + '-' + String(v.MES || ''));
+    const anoKey = dt ? dt.substring(0, 4) : String(v.ANO || 'N/I');
+
+    const dentroEstado = normalizarTexto_(v.DESTINO) === 'INTERNA' ||
+      String(v.UF_DESTINO || '').toUpperCase() === 'SP';
     if (dentroEstado) vendasDentro[chaveVenda] = true;
     else vendasFora[chaveVenda] = true;
 
-    const dt = v.__DASH_DATA || '';
-    const mesKey = dt ? dt.substring(0,7) : ((v.ANO || '') + '-' + String(v.MES || ''));
-    agregarDashboard_(porMes, mesKey, fat, custo, dv, df, lucro, qtde, {
-      label: mesKey
-    });
+    agregarDashboard_(porMes, mesKey, fat, custo, dv, df, lucro, qtde, { label: mesKey });
+    registrarUnicosAgregado_(porMes, mesKey, chaveVenda, clienteId);
+
+    agregarDashboard_(porAno, anoKey, fat, custo, dv, df, lucro, qtde, { label: anoKey });
+    registrarUnicosAgregado_(porAno, anoKey, chaveVenda, clienteId);
 
     const finalKey = String(v.SEGMENTO_FINAL_ID || v.SEGMENTO_FINAL_SNAPSHOT || 'N/I');
     agregarDashboard_(porFinal, finalKey, fat, custo, dv, df, lucro, qtde, {
       label: String(v.SEGMENTO_FINAL_SNAPSHOT || 'N/I'),
       id: String(v.SEGMENTO_FINAL_ID || '')
     });
+    registrarUnicosAgregado_(porFinal, finalKey, chaveVenda, clienteId);
 
     const neoKey = String(v.SEGMENTO_NEO_ID || v.SEGMENTO_NEO_SNAPSHOT || 'N/I');
     agregarDashboard_(porNeo, neoKey, fat, custo, dv, df, lucro, qtde, {
       label: String(v.SEGMENTO_NEO_SNAPSHOT || 'N/I'),
       id: String(v.SEGMENTO_NEO_ID || '')
     });
+    registrarUnicosAgregado_(porNeo, neoKey, chaveVenda, clienteId);
 
     const cliKey = String(v.CLIENTE_ID || v.CLIENTE_NOME_SNAPSHOT || 'N/I');
     agregarDashboard_(porCliente, cliKey, fat, custo, dv, df, lucro, qtde, {
       label: String(v.CLIENTE_NOME_SNAPSHOT || 'N/I'),
       id: String(v.CLIENTE_ID || '')
     });
+    registrarUnicosAgregado_(porCliente, cliKey, chaveVenda, cliKey);
 
-    const produtoKey = [String(v.CLIENTE_ID || ''), String(v.SKU || ''), String(v.DESCRICAO || '')].join('|');
+    const produtoBaseKey = v.__DASH_PRODUTO || chaveProdutoDashboard_(v);
+    const produtoKey = [String(v.CLIENTE_ID || ''), produtoBaseKey].join('|');
     agregarDashboard_(porProduto, produtoKey, fat, custo, dv, df, lucro, qtde, {
       label: String(v.DESCRICAO || v.SKU || 'N/I'),
       sku: String(v.SKU || ''),
+      produto_id: produtoBaseKey,
       cliente_id: String(v.CLIENTE_ID || ''),
       cliente: String(v.CLIENTE_NOME_SNAPSHOT || '')
     });
+    registrarUnicosAgregado_(porProduto, produtoKey, chaveVenda, clienteId);
 
     const uf = String(v.UF_DESTINO || 'N/I').toUpperCase();
     agregarDashboard_(porEstado, uf, fat, custo, dv, df, lucro, qtde, {
-      label: uf
+      label: uf,
+      id: uf
     });
-  });
+    registrarUnicosAgregado_(porEstado, uf, chaveVenda, clienteId);
 
-  kpis.margem_lucro = kpis.faturamento ? kpis.lucro / kpis.faturamento : 0;
-  kpis.margem_bruta = kpis.faturamento ? (kpis.faturamento - kpis.custo) / kpis.faturamento : 0;
-  kpis.dv_pct = kpis.faturamento ? kpis.dv / kpis.faturamento : 0;
-  kpis.df_pct = kpis.faturamento ? kpis.df / kpis.faturamento : 0;
-  kpis.vendas = Object.keys(vendasUnicas).length;
+    const clienteMesKey = [cliKey, mesKey].join('|');
+    agregarDashboard_(porClienteMes, clienteMesKey, fat, custo, dv, df, lucro, qtde, {
+      label: mesKey,
+      mes: mesKey,
+      cliente_id: String(v.CLIENTE_ID || ''),
+      cliente: String(v.CLIENTE_NOME_SNAPSHOT || 'N/I')
+    });
+    registrarUnicosAgregado_(porClienteMes, clienteMesKey, chaveVenda, cliKey);
+  });
 
   const qtdDentro = Object.keys(vendasDentro).length;
   const qtdFora = Object.keys(vendasFora).length;
@@ -1902,32 +1903,262 @@ function getDashboardVendasCalculado_(params) {
     fora_pct: totalVendas ? qtdFora / totalVendas : 0
   };
 
-  const todas = vendas;
+  const mensal = ordenarAgregados_(porMes, 'label', false);
+  const anual = ordenarAgregados_(porAno, 'label', false);
+  const segmentosFinal = ordenarAgregados_(porFinal, 'faturamento', true);
+  const segmentosNeo = ordenarAgregados_(porNeo, 'faturamento', true);
+  const clientes = ordenarAgregados_(porCliente, 'faturamento', true);
+  const produtos = ordenarAgregados_(porProduto, 'faturamento', true);
+  const estados = ordenarAgregados_(porEstado, 'faturamento', true);
+  const clienteMensal = ordenarAgregados_(porClienteMes, 'mes', false);
+
+  const fatPorCliente = {};
+  clientes.forEach(function(x) {
+    fatPorCliente[String(x.id || x.chave)] = numero_(x.faturamento);
+    x.participacao_total = kpis.faturamento ? numero_(x.faturamento) / kpis.faturamento : 0;
+  });
+  produtos.forEach(function(x) {
+    const fatCliente = fatPorCliente[String(x.cliente_id || '')] || 0;
+    x.participacao_cliente = fatCliente ? numero_(x.faturamento) / fatCliente : 0;
+    x.participacao_total = kpis.faturamento ? numero_(x.faturamento) / kpis.faturamento : 0;
+  });
+  estados.forEach(function(x) {
+    x.participacao_total = kpis.faturamento ? numero_(x.faturamento) / kpis.faturamento : 0;
+  });
+  segmentosFinal.forEach(function(x) {
+    x.participacao_total = kpis.faturamento ? numero_(x.faturamento) / kpis.faturamento : 0;
+  });
+  segmentosNeo.forEach(function(x) {
+    x.participacao_total = kpis.faturamento ? numero_(x.faturamento) / kpis.faturamento : 0;
+  });
+
+  const todasValidas = vendas.filter(function(v) {
+    return String(v.STATUS || '').toUpperCase() !== 'CANCELADO';
+  });
+
   const filtros = {
     datas: {
-      min: menorDataVendas_(todas),
-      max: maiorDataVendas_(todas)
+      min: menorDataVendas_(todasValidas),
+      max: maiorDataVendas_(todasValidas)
     },
-    segmentos_final: opcoesFiltro_(todas, 'SEGMENTO_FINAL_ID', 'SEGMENTO_FINAL_SNAPSHOT'),
-    segmentos_neo: opcoesFiltro_(todas, 'SEGMENTO_NEO_ID', 'SEGMENTO_NEO_SNAPSHOT'),
-    clientes: opcoesFiltro_(todas, 'CLIENTE_ID', 'CLIENTE_NOME_SNAPSHOT'),
-    modalidades: valoresUnicos_(todas, 'MODALIDADE'),
-    ufs: valoresUnicos_(todas, 'UF_DESTINO')
+    segmentos_final: opcoesFiltro_(todasValidas, 'SEGMENTO_FINAL_ID', 'SEGMENTO_FINAL_SNAPSHOT'),
+    segmentos_neo: opcoesFiltro_(todasValidas, 'SEGMENTO_NEO_ID', 'SEGMENTO_NEO_SNAPSHOT'),
+    clientes: opcoesFiltro_(todasValidas, 'CLIENTE_ID', 'CLIENTE_NOME_SNAPSHOT'),
+    produtos: opcoesProdutoFiltro_(todasValidas),
+    modalidades: valoresUnicos_(todasValidas, 'MODALIDADE'),
+    ufs: valoresUnicos_(todasValidas, 'UF_DESTINO')
   };
 
   return {
     ok: true,
     origem: 'VENDAS',
     kpis: kpis,
+    comparativo: calcularComparativoDashboard_(baseSemData, dtInicio, dtFim),
     dentro_fora: dentro_fora,
     filtros: filtros,
-    mensal: ordenarAgregados_(porMes, 'label', false),
-    segmentos_final: ordenarAgregados_(porFinal, 'faturamento', true),
-    segmentos_neo: ordenarAgregados_(porNeo, 'faturamento', true),
-    clientes: ordenarAgregados_(porCliente, 'faturamento', true),
-    produtos: ordenarAgregados_(porProduto, 'faturamento', true),
-    estados: ordenarAgregados_(porEstado, 'faturamento', true)
+    mensal: mensal,
+    anual: anual,
+    segmentos_final: segmentosFinal,
+    segmentos_neo: segmentosNeo,
+    clientes: clientes,
+    produtos: produtos,
+    cliente_mensal: clienteMensal,
+    estados: estados
   };
+}
+
+function vendaPassaFiltrosDashboard_(v, p, considerarData) {
+  if (String(v.STATUS || '').toUpperCase() === 'CANCELADO') return false;
+
+  const filtroFinal = String(p.segmento_final_id || '').trim();
+  const filtroNeo = String(p.segmento_neo_id || '').trim();
+  const filtroCliente = String(p.cliente_id || '').trim();
+  const filtroProduto = String(p.produto_id || '').trim();
+  const filtroModalidade = String(p.modalidade || '').trim();
+  const filtroUf = String(p.uf || '').trim().toUpperCase();
+
+  if (filtroFinal && String(v.SEGMENTO_FINAL_ID || '') !== filtroFinal) return false;
+  if (filtroNeo && String(v.SEGMENTO_NEO_ID || '') !== filtroNeo) return false;
+  if (filtroCliente && String(v.CLIENTE_ID || '') !== filtroCliente) return false;
+  if (filtroProduto && String(v.__DASH_PRODUTO || chaveProdutoDashboard_(v)) !== filtroProduto) return false;
+  if (filtroModalidade && String(v.MODALIDADE || '') !== filtroModalidade) return false;
+  if (filtroUf && String(v.UF_DESTINO || '').toUpperCase() !== filtroUf) return false;
+
+  if (considerarData) {
+    const dt = v.__DASH_DATA || '';
+    const ini = normalizarDataFiltro_(p.dt_inicio);
+    const fim = normalizarDataFiltro_(p.dt_fim);
+    if (ini && dt && dt < ini) return false;
+    if (fim && dt && dt > fim) return false;
+  }
+
+  return true;
+}
+
+function chaveProdutoDashboard_(v) {
+  const sku = String(v.SKU || '').trim();
+  const desc = String(v.DESCRICAO || '').trim();
+  return [sku, desc].join('|');
+}
+
+function opcoesProdutoFiltro_(dados) {
+  const mapa = {};
+  dados.forEach(function(v) {
+    const id = chaveProdutoDashboard_(v);
+    const sku = String(v.SKU || '').trim();
+    const desc = String(v.DESCRICAO || '').trim();
+    if (!sku && !desc) return;
+    mapa[id] = [sku, desc].filter(String).join(' • ');
+  });
+
+  return Object.keys(mapa).map(function(id) {
+    return { id: id, label: mapa[id] };
+  }).sort(function(a, b) {
+    return a.label.localeCompare(b.label, 'pt-BR');
+  });
+}
+
+function resumirKpisDashboard_(dados) {
+  const k = {
+    faturamento:0, custo:0, dv:0, df:0, lucro:0, qtde:0,
+    registros:0, vendas:0, ticket_medio:0, lucro_bruto:0,
+    margem_bruta:0, margem_lucro:0, dv_pct:0, df_pct:0
+  };
+  const vendas = {};
+
+  (dados || []).forEach(function(v) {
+    k.faturamento += numero_(v.VALOR_TOTAL);
+    k.custo += numero_(v.CUSTO_TOTAL);
+    k.dv += numero_(v.DV_VALOR);
+    k.df += numero_(v.DF_VALOR);
+    k.lucro += numero_(v.LUCRO);
+    k.qtde += numero_(v.QTDE);
+    k.registros++;
+    vendas[chaveVendaDashboard_(v)] = true;
+  });
+
+  k.vendas = Object.keys(vendas).length;
+  k.ticket_medio = k.vendas ? k.faturamento / k.vendas : 0;
+  k.lucro_bruto = k.faturamento - k.custo;
+  k.margem_bruta = k.faturamento ? k.lucro_bruto / k.faturamento : 0;
+  k.margem_lucro = k.faturamento ? k.lucro / k.faturamento : 0;
+  k.dv_pct = k.faturamento ? k.dv / k.faturamento : 0;
+  k.df_pct = k.faturamento ? k.df / k.faturamento : 0;
+  return k;
+}
+
+function registrarUnicosAgregado_(mapa, chave, chaveVenda, clienteId) {
+  const k = String(chave || 'N/I');
+  const item = mapa[k];
+  if (!item) return;
+  if (!item.__vendas) item.__vendas = {};
+  if (!item.__clientes) item.__clientes = {};
+  if (chaveVenda) item.__vendas[String(chaveVenda)] = true;
+  if (clienteId) item.__clientes[String(clienteId)] = true;
+}
+
+function calcularComparativoDashboard_(baseSemData, dtInicio, dtFim) {
+  const dados = baseSemData || [];
+  if (!dados.length) {
+    return {
+      atual: resumirKpisDashboard_([]),
+      anterior: resumirKpisDashboard_([]),
+      deltas: {},
+      periodo_atual: '',
+      periodo_anterior: ''
+    };
+  }
+
+  let inicioAtual = dtInicio;
+  let fimAtual = dtFim;
+  let inicioAnterior = '';
+  let fimAnterior = '';
+
+  if (inicioAtual && fimAtual) {
+    const dias = diasEntreIso_(inicioAtual, fimAtual) + 1;
+    fimAnterior = adicionarDiasIso_(inicioAtual, -1);
+    inicioAnterior = adicionarDiasIso_(fimAnterior, -(dias - 1));
+  } else {
+    const max = maiorDataVendas_(dados);
+    if (!max) {
+      return {
+        atual: resumirKpisDashboard_(dados),
+        anterior: resumirKpisDashboard_([]),
+        deltas: {},
+        periodo_atual: '',
+        periodo_anterior: ''
+      };
+    }
+    inicioAtual = inicioMesIso_(max);
+    fimAtual = fimMesIso_(max);
+    fimAnterior = adicionarDiasIso_(inicioAtual, -1);
+    inicioAnterior = inicioMesIso_(fimAnterior);
+  }
+
+  const atualDados = dados.filter(function(v) {
+    const d = v.__DASH_DATA || '';
+    return d && d >= inicioAtual && d <= fimAtual;
+  });
+  const anteriorDados = dados.filter(function(v) {
+    const d = v.__DASH_DATA || '';
+    return d && d >= inicioAnterior && d <= fimAnterior;
+  });
+
+  const atual = resumirKpisDashboard_(atualDados);
+  const anterior = resumirKpisDashboard_(anteriorDados);
+
+  return {
+    atual: atual,
+    anterior: anterior,
+    deltas: {
+      faturamento: deltaDashboard_(atual.faturamento, anterior.faturamento),
+      lucro_bruto: deltaDashboard_(atual.lucro_bruto, anterior.lucro_bruto),
+      lucro: deltaDashboard_(atual.lucro, anterior.lucro),
+      margem_bruta_pp: atual.margem_bruta - anterior.margem_bruta,
+      margem_lucro_pp: atual.margem_lucro - anterior.margem_lucro,
+      vendas: deltaDashboard_(atual.vendas, anterior.vendas),
+      ticket_medio: deltaDashboard_(atual.ticket_medio, anterior.ticket_medio)
+    },
+    periodo_atual: inicioAtual + '|' + fimAtual,
+    periodo_anterior: inicioAnterior + '|' + fimAnterior
+  };
+}
+
+function deltaDashboard_(atual, anterior) {
+  const a = numero_(atual);
+  const b = numero_(anterior);
+  if (!b) return a ? null : 0;
+  return (a - b) / Math.abs(b);
+}
+
+function adicionarDiasIso_(iso, dias) {
+  const p = String(iso || '').split('-');
+  if (p.length !== 3) return '';
+  const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), 12, 0, 0);
+  d.setDate(d.getDate() + Number(dias || 0));
+  return Utilities.formatDate(d, 'America/Sao_Paulo', 'yyyy-MM-dd');
+}
+
+function diasEntreIso_(a, b) {
+  const pa = String(a || '').split('-');
+  const pb = String(b || '').split('-');
+  if (pa.length !== 3 || pb.length !== 3) return 0;
+  const da = new Date(Number(pa[0]), Number(pa[1]) - 1, Number(pa[2]), 12, 0, 0);
+  const db = new Date(Number(pb[0]), Number(pb[1]) - 1, Number(pb[2]), 12, 0, 0);
+  return Math.max(0, Math.round((db.getTime() - da.getTime()) / 86400000));
+}
+
+function inicioMesIso_(iso) {
+  const p = String(iso || '').split('-');
+  if (p.length < 2) return '';
+  return p[0] + '-' + p[1] + '-01';
+}
+
+function fimMesIso_(iso) {
+  const p = String(iso || '').split('-');
+  if (p.length < 2) return '';
+  const d = new Date(Number(p[0]), Number(p[1]), 0, 12, 0, 0);
+  return Utilities.formatDate(d, 'America/Sao_Paulo', 'yyyy-MM-dd');
 }
 
 function chaveVendaDashboard_(v) {
@@ -1967,8 +2198,15 @@ function agregarDashboard_(mapa, chave, faturamento, custo, dv, df, lucro, qtde,
 function ordenarAgregados_(mapa, campo, desc) {
   return Object.keys(mapa).map(function(k) {
     const x = mapa[k];
+    x.vendas = x.__vendas ? Object.keys(x.__vendas).length : x.registros;
+    x.clientes = x.__clientes ? Object.keys(x.__clientes).length : 0;
+    x.ticket_medio = x.vendas ? x.faturamento / x.vendas : 0;
+    x.lucro_bruto = x.faturamento - x.custo;
+    x.margem_bruta = x.faturamento ? x.lucro_bruto / x.faturamento : 0;
     x.margem = x.faturamento ? x.lucro / x.faturamento : 0;
     x.participacao = 0;
+    delete x.__vendas;
+    delete x.__clientes;
     return x;
   }).sort(function(a,b) {
     const av = a[campo];
