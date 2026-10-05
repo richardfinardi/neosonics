@@ -2472,7 +2472,8 @@ async function loadDashboard(force=false){
   const params={};
   const pairs=[
     ["dt_inicio","dStart"],["dt_fim","dEnd"],["segmento_final_id","dFinal"],
-    ["segmento_neo_id","dNeo"],["cliente_id","dClient"],["modalidade","dModality"],["uf","dUf"]
+    ["segmento_neo_id","dNeo"],["cliente_id","dClient"],["produto_id","dProduct"],
+    ["modalidade","dModality"],["uf","dUf"]
   ];
   pairs.forEach(([key,id])=>{
     const el=document.getElementById(id);
@@ -2521,11 +2522,16 @@ function setDashboardLoading(active,text){
 function populateDashboardFilters(f){
   const fill=(id,items,placeholder,getValue,getLabel)=>{
     const el=document.getElementById(id);if(!el)return;
+    const current=el.value;
     el.innerHTML='<option value="">'+placeholder+'</option>'+
       (items||[]).map(x=>'<option value="'+escapeHtml(getValue(x))+'">'+escapeHtml(getLabel(x))+'</option>').join("");
+    if([...el.options].some(o=>o.value===current))el.value=current;
   };
 
+  fill("dFinal",f.segmentos_final,"Todas",x=>x.id,x=>x.label);
+  fill("dNeo",f.segmentos_neo,"Todas",x=>x.id,x=>x.label);
   fill("dClient",f.clientes,"Todos",x=>x.id,x=>x.label);
+  fill("dProduct",f.produtos,"Todos",x=>x.id,x=>x.label);
   fill("dModality",f.modalidades,"Todas",x=>x,x=>x);
   fill("dUf",f.ufs,"Todas",x=>x,x=>x);
 
@@ -2534,7 +2540,7 @@ function populateDashboardFilters(f){
 }
 
 function clearDashboardFilters(){
-  ["dStart","dEnd","dFinal","dNeo","dClient","dModality","dUf"].forEach(id=>{
+  ["dStart","dEnd","dFinal","dNeo","dClient","dProduct","dModality","dUf"].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value="";
   });
   DASHBOARD_FILTERS_LOADED=false;
@@ -2550,6 +2556,7 @@ function renderDashboard(j){
   dKpiDf.textContent=formatBRL(k.df);
   dKpiProfit.textContent=formatBRL(k.lucro);
   dKpiMargin.textContent=formatPct(k.margem_lucro);
+  dKpiTicket.textContent=formatBRL(k.ticket_medio);
   dKpiDvPct.textContent=formatPct(k.dv_pct)+" do faturamento";
   dKpiDfPct.textContent=formatPct(k.df_pct)+" do faturamento";
 
@@ -2568,9 +2575,124 @@ function renderDashboard(j){
   const end=document.getElementById("dEnd")?.value||j.filtros?.datas?.max||"";
   dashPeriodBadge.textContent=(start?formatDateBR(start):"Início")+" → "+(end?formatDateBR(end):"Hoje");
 
+  renderComparison(j.comparativo||{});
+  renderMonthChart(j.mensal||[]);
+  renderAnnualTable(j.anual||[]);
   renderSegmentTable();
   renderDashboardClients();
+  renderStateTable(j.estados||[]);
+  renderExecutiveRankings();
   if(DASHBOARD_SELECTED_CLIENT)showClientProducts(DASHBOARD_SELECTED_CLIENT);
+}
+
+function formatDashboardDelta(v,suffix=""){
+  if(v===null||v===undefined||Number.isNaN(Number(v)))return "sem base";
+  const n=Number(v);
+  const signal=n>0?"+":"";
+  return signal+(n*100).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%"+suffix;
+}
+
+function formatDashboardPp(v){
+  if(v===null||v===undefined||Number.isNaN(Number(v)))return "sem base";
+  const n=Number(v)*100;
+  const signal=n>0?"+":"";
+  return signal+n.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" p.p.";
+}
+
+function compareClass(v){
+  if(v===null||v===undefined||Number(v)===0)return "";
+  return Number(v)>0?"profit-positive":"profit-negative";
+}
+
+function comparePeriodText(v){
+  const parts=String(v||"").split("|");
+  if(parts.length!==2||!parts[0]||!parts[1])return "";
+  return formatDateBR(parts[0])+" → "+formatDateBR(parts[1]);
+}
+
+function renderComparison(cmp){
+  const atual=cmp.atual||{}, anterior=cmp.anterior||{}, d=cmp.deltas||{};
+  const atualLabel=comparePeriodText(cmp.periodo_atual);
+  const anteriorLabel=comparePeriodText(cmp.periodo_anterior);
+  if(document.getElementById("comparePeriodLabel")){
+    comparePeriodLabel.textContent=(atualLabel&&anteriorLabel)
+      ? atualLabel+" comparado com "+anteriorLabel
+      : "Período atual contra período anterior equivalente.";
+  }
+
+  const set=(id,delta,prevText,isPp=false)=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.textContent=isPp?formatDashboardPp(delta):formatDashboardDelta(delta);
+    el.className=compareClass(delta);
+    const prev=document.getElementById(id+"Prev");
+    if(prev)prev.textContent="Anterior: "+prevText;
+  };
+
+  set("cmpRevenue",d.faturamento,formatBRL(anterior.faturamento));
+  set("cmpProfit",d.lucro,formatBRL(anterior.lucro));
+  set("cmpMargin",d.margem_lucro_pp,formatPct(anterior.margem_lucro),true);
+  set("cmpSales",d.vendas,Number(anterior.vendas||0).toLocaleString("pt-BR")+" vendas");
+  set("cmpTicket",d.ticket_medio,formatBRL(anterior.ticket_medio));
+}
+
+function renderAnnualTable(rows){
+  const body=document.getElementById("dashboardAnnualBody");if(!body)return;
+  if(!rows.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="7">Sem dados anuais.</td></tr>';
+    return;
+  }
+  body.innerHTML=rows.map(x=>
+    '<tr>'+
+      '<td><b>'+escapeHtml(x.label||"")+'</b></td>'+
+      '<td>'+Number(x.vendas||0).toLocaleString("pt-BR")+'</td>'+
+      '<td>'+formatBRL(x.faturamento)+'</td>'+
+      '<td>'+formatBRL(x.custo)+'</td>'+
+      '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
+      '<td><b>'+formatPct(x.margem)+'</b></td>'+
+      '<td>'+formatBRL(x.ticket_medio)+'</td>'+
+    '</tr>'
+  ).join("");
+}
+
+function renderStateTable(rows){
+  const body=document.getElementById("dashboardStatesBody");if(!body)return;
+  const total=Number(DASHBOARD_DATA?.kpis?.faturamento||0)||1;
+  if(!rows.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="8">Nenhum estado encontrado.</td></tr>';
+    return;
+  }
+  body.innerHTML=rows.map(x=>{
+    const participation=Number(x.faturamento||0)/total;
+    return '<tr class="indicator-click-row" onclick="selectDashboardState(\''+escapeJs(x.label||x.id||"")+'\')">'+
+      '<td><b>'+escapeHtml(x.label||"N/I")+'</b></td>'+
+      '<td>'+Number(x.vendas||0).toLocaleString("pt-BR")+'</td>'+
+      '<td>'+Number(x.clientes||0).toLocaleString("pt-BR")+'</td>'+
+      '<td>'+formatBRL(x.faturamento)+'</td>'+
+      '<td><b>'+formatPct(participation)+'</b></td>'+
+      '<td>'+formatBRL(x.custo)+'</td>'+
+      '<td class="'+(Number(x.lucro||0)>=0?'profit-positive':'profit-negative')+'"><b>'+formatBRL(x.lucro)+'</b></td>'+
+      '<td><b>'+formatPct(x.margem)+'</b></td>'+
+    '</tr>';
+  }).join("");
+}
+
+function selectDashboardState(uf){
+  const el=document.getElementById("dUf");if(!el)return;
+  el.value=String(uf||"");
+  loadDashboard(true);
+}
+
+function renderExecutiveRankings(){
+  const segmentRows=DASHBOARD_SEGMENT_VIEW==="NEO"
+    ? (DASHBOARD_DATA?.segmentos_neo||[])
+    : (DASHBOARD_DATA?.segmentos_final||[]);
+  if(document.getElementById("dashboardSegmentRankTitle")){
+    dashboardSegmentRankTitle.textContent="Ranking de segmentos "+DASHBOARD_SEGMENT_VIEW;
+  }
+  renderRankList("dashboardSegmentRank",segmentRows,10);
+  renderRankList("dashboardClientRank",DASHBOARD_DATA?.clientes||[],10);
+  renderRankList("dashboardProductRank",DASHBOARD_DATA?.produtos_geral||[],10);
+  renderRankList("dashboardStateRank",DASHBOARD_DATA?.estados||[],10);
 }
 
 function setSegmentView(type){
@@ -2578,6 +2700,7 @@ function setSegmentView(type){
   segmentViewFinalBtn.classList.toggle("active",DASHBOARD_SEGMENT_VIEW==="FINAL");
   segmentViewNeoBtn.classList.toggle("active",DASHBOARD_SEGMENT_VIEW==="NEO");
   renderSegmentTable();
+  renderExecutiveRankings();
 }
 
 function renderSegmentTable(){
