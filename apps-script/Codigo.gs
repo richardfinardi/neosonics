@@ -34,6 +34,12 @@ function bumpCacheEpoch_() {
   return epoch;
 }
 
+function dadosAbaCacheados_(nomeAba, ttlSegundos) {
+  return cacheLeitura_('aba:' + String(nomeAba || ''), ttlSegundos || 300, function() {
+    return listarObjetos_(nomeAba);
+  });
+}
+
 function cacheLeitura_(chave, ttlSegundos, produtor) {
   const fullKey = 'ns5:' + cacheEpoch_() + ':' + String(chave || '');
   let cache = null;
@@ -1043,24 +1049,25 @@ function listarOrcamentosResumo_() {
 function getOrcamentoDetalhe_(idOrcamento) {
   if (!idOrcamento) return { ok: false, erro: 'ID do orçamento não informado.' };
 
-  const orcamentos = listarObjetos_(ABAS.ORCAMENTOS);
-  const orc = orcamentos.find(function(x) {
-    return String(x.ID_ORCAMENTO) === String(idOrcamento) ||
-           String(x.NUMERO_ORCAMENTO) === String(idOrcamento);
-  });
+  const orc = objetoPorValor_(ABAS.ORCAMENTOS, 'ID_ORCAMENTO', idOrcamento) ||
+              objetoPorValor_(ABAS.ORCAMENTOS, 'NUMERO_ORCAMENTO', idOrcamento);
 
   if (!orc) return { ok: false, erro: 'Orçamento não encontrado.' };
 
-  const itens = listarObjetos_(ABAS.ORCAMENTO_ITENS)
-    .filter(function(x) { return String(x.ORCAMENTO_ID) === String(orc.ID_ORCAMENTO); })
+  const itens = listarObjetosPorValor_(ABAS.ORCAMENTO_ITENS, 'ORCAMENTO_ID', orc.ID_ORCAMENTO)
     .sort(function(a,b) { return numero_(a.SEQ) - numero_(b.SEQ); });
 
-  const componentes = listarObjetos_(ABAS.ORCAMENTO_COMPONENTES)
-    .filter(function(x) { return String(x.ORCAMENTO_ID) === String(orc.ID_ORCAMENTO); });
+  const componentes = listarObjetosPorValor_(ABAS.ORCAMENTO_COMPONENTES, 'ORCAMENTO_ID', orc.ID_ORCAMENTO);
+
+  const compsPorItem = {};
+  componentes.forEach(function(comp) {
+    const itemId = String(comp.ITEM_ID || '');
+    if (!compsPorItem[itemId]) compsPorItem[itemId] = [];
+    compsPorItem[itemId].push(comp);
+  });
 
   itens.forEach(function(item) {
-    item.componentes = componentes
-      .filter(function(c) { return String(c.ITEM_ID) === String(item.ID_ITEM); })
+    item.componentes = (compsPorItem[String(item.ID_ITEM || '')] || [])
       .sort(function(a,b) { return numero_(a.ORDEM) - numero_(b.ORDEM); });
   });
 
@@ -1110,13 +1117,10 @@ function listarPedidosResumo_() {
 function getPedidoDetalhe_(idPedido) {
   if (!idPedido) throw new Error('ID do pedido não informado.');
 
-  const pedido = listarObjetos_(ABAS.PEDIDOS).find(function(p) {
-    return String(p.ID_PEDIDO) === String(idPedido);
-  });
+  const pedido = objetoPorValor_(ABAS.PEDIDOS, 'ID_PEDIDO', idPedido);
   if (!pedido) throw new Error('Pedido não encontrado.');
 
-  const itens = listarObjetos_(ABAS.PEDIDO_ITENS)
-    .filter(function(i) { return String(i.PEDIDO_ID) === String(idPedido); })
+  const itens = listarObjetosPorValor_(ABAS.PEDIDO_ITENS, 'PEDIDO_ID', idPedido)
     .sort(function(a,b) { return numero_(a.SEQ) - numero_(b.SEQ); });
 
   const resumo = itens.reduce(function(a,item) {
@@ -1440,7 +1444,7 @@ function sincronizarStatusPedidoEmVendas_(idPedido, status) {
 
 function getClientePorId_(idCliente) {
   if (!idCliente) return null;
-  const clientes = listarObjetos_(ABAS.CLIENTES);
+  const clientes = dadosAbaCacheados_(ABAS.CLIENTES, 300);
   return clientes.find(function(c) {
     return String(c.ID_CLIENTE) === String(idCliente);
   }) || null;
@@ -1469,7 +1473,7 @@ function destinoPorUf_(uf) {
 }
 
 function getImpostoPct_(enquadramento, destino, tipoTributario) {
-  const regras = listarObjetos_(ABAS.TABELA_IMPOSTOS);
+  const regras = dadosAbaCacheados_(ABAS.TABELA_IMPOSTOS, 300);
   const e = normalizarTexto_(enquadramento);
   const d = normalizarTexto_(destino);
   const t = normalizarTexto_(tipoTributario);
@@ -1489,7 +1493,7 @@ function getImpostoPct_(enquadramento, destino, tipoTributario) {
 }
 
 function validarSegmentoTipo_(idSegmento, tipoEsperado) {
-  const segmentos = listarObjetos_(ABAS.SEGMENTOS);
+  const segmentos = dadosAbaCacheados_(ABAS.SEGMENTOS, 300);
   const segmento = segmentos.find(function(s) {
     return String(s.ID_SEGMENTO) === String(idSegmento) &&
            String(s.TIPO || '').toUpperCase() === String(tipoEsperado || '').toUpperCase() &&
@@ -2051,6 +2055,53 @@ function listarObjetos_(nomeAba) {
       headers.forEach(function(h, i) { o[h] = r[i]; });
       return o;
     });
+}
+
+function listarObjetosPorValor_(nomeAba, nomeColuna, valor) {
+  const sh = aba_(nomeAba);
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return [];
+
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  const col = headers.indexOf(String(nomeColuna)) + 1;
+  if (!col) return [];
+
+  const alvo = String(valor == null ? '' : valor);
+  const ids = sh.getRange(2, col, lastRow - 1, 1).getValues();
+  const linhas = [];
+  ids.forEach(function(r, i) {
+    if (String(r[0] == null ? '' : r[0]) === alvo) linhas.push(i + 2);
+  });
+  if (!linhas.length) return [];
+
+  const blocos = [];
+  let ini = linhas[0];
+  let fim = linhas[0];
+  for (let i = 1; i < linhas.length; i++) {
+    if (linhas[i] === fim + 1) fim = linhas[i];
+    else {
+      blocos.push([ini, fim]);
+      ini = fim = linhas[i];
+    }
+  }
+  blocos.push([ini, fim]);
+
+  const objetos = [];
+  blocos.forEach(function(b) {
+    const vals = sh.getRange(b[0], 1, b[1] - b[0] + 1, lastCol).getValues();
+    vals.forEach(function(r) {
+      const o = {};
+      headers.forEach(function(h, i) { o[h] = r[i]; });
+      objetos.push(o);
+    });
+  });
+  return objetos;
+}
+
+function objetoPorValor_(nomeAba, nomeColuna, valor) {
+  const lista = listarObjetosPorValor_(nomeAba, nomeColuna, valor);
+  return lista.length ? lista[0] : null;
 }
 
 function appendObjeto_(nomeAba, obj) {
