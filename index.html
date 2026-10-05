@@ -2354,8 +2354,37 @@ function closeMobileMenu(){
 }
 function refreshBtn(btn){btn.style.transform="rotate(360deg)";btn.style.transition=".6s";setTimeout(()=>btn.style.transform="",650)}
 
+const DASHBOARD_CACHE_PREFIX="neosonics_dashboard_v4:";
+const DASHBOARD_CACHE_MAX_AGE=24*60*60*1000;
+
 async function initOverviewPage(){
   await loadDashboard();
+}
+
+function dashboardCacheKey(params){
+  const qs=Object.keys(params||{}).sort().map(k=>k+"="+String(params[k]??"")).join("&");
+  return DASHBOARD_CACHE_PREFIX+(qs||"__all__");
+}
+
+function readDashboardCache(params){
+  try{
+    const raw=localStorage.getItem(dashboardCacheKey(params));
+    if(!raw)return null;
+    const saved=JSON.parse(raw);
+    if(!saved||!saved.data||!saved.ts)return null;
+    if(Date.now()-Number(saved.ts)>DASHBOARD_CACHE_MAX_AGE)return null;
+    return saved.data;
+  }catch(e){
+    return null;
+  }
+}
+
+function writeDashboardCache(params,data){
+  try{
+    localStorage.setItem(dashboardCacheKey(params),JSON.stringify({ts:Date.now(),data}));
+  }catch(e){
+    // Se o navegador estiver sem espaço, o dashboard continua funcionando sem cache.
+  }
 }
 
 async function loadDashboard(){
@@ -2369,10 +2398,22 @@ async function loadDashboard(){
     if(el&&el.value)params[key]=el.value;
   });
 
-  setDashboardLoading(true);
+  // Stale-while-revalidate: mostra o último resultado imediatamente e atualiza em seguida.
+  const cached=readDashboardCache(params);
+  if(cached){
+    DASHBOARD_DATA=cached;
+    if(!DASHBOARD_FILTERS_LOADED){
+      populateDashboardFilters(cached.filtros||{});
+      DASHBOARD_FILTERS_LOADED=true;
+    }
+    renderDashboard(cached);
+  }
+
+  setDashboardLoading(true,cached?"Atualizando em segundo plano...":"Carregando...");
   try{
     const j=await apiGet("dashboard",params);
     DASHBOARD_DATA=j;
+    writeDashboardCache(params,j);
     if(!DASHBOARD_FILTERS_LOADED){
       populateDashboardFilters(j.filtros||{});
       DASHBOARD_FILTERS_LOADED=true;
@@ -2380,19 +2421,20 @@ async function loadDashboard(){
     renderDashboard(j);
   }catch(err){
     console.error("Dashboard:",err);
-    const msg='<div class="history-loading">Não foi possível carregar a análise.</div>';
-    const seg=document.getElementById("dashboardSegmentsBody");
-    if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
-    const cli=document.getElementById("dashboardClientsBody");
-    if(cli)cli.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
+    if(!cached){
+      const seg=document.getElementById("dashboardSegmentsBody");
+      if(seg)seg.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
+      const cli=document.getElementById("dashboardClientsBody");
+      if(cli)cli.innerHTML='<tr class="empty-row"><td colspan="6">Não foi possível carregar os indicadores.</td></tr>';
+    }
   }finally{
-    setDashboardLoading(false);
+    if(!cached)setDashboardLoading(false);
   }
 }
 
-function setDashboardLoading(active){
+function setDashboardLoading(active,text){
   const badge=document.getElementById("dashPeriodBadge");
-  if(active&&badge)badge.textContent="Atualizando...";
+  if(active&&badge)badge.textContent=text||"Atualizando...";
 }
 
 function populateDashboardFilters(f){
