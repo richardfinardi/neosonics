@@ -1903,15 +1903,18 @@ body.theme-light .client-evolution-card{
         <div class="hero">
           <div>
             <h2>Pedidos</h2>
-            <p>Pedidos históricos e pedidos gerados a partir de orçamentos aprovados.</p>
+            <p>Pedidos históricos, pedidos gerados por orçamento e inclusão rápida direta.</p>
           </div>
-          <div class="badge" id="ordersBadge">Carregando...</div>
+          <div class="orders-hero-actions">
+            <button class="primary" type="button" onclick="openQuickOrder()">+ Pedido rápido</button>
+            <div class="badge" id="ordersBadge">Carregando...</div>
+          </div>
         </div>
 
         <div class="guide-strip">
           <b>Como funciona:</b>
           <span>1. Consulte os pedidos históricos</span>
-          <span>2. Aprove um orçamento para gerar um novo pedido</span>
+          <span>2. Aprove um orçamento ou use Pedido rápido</span>
           <span>3. Abra o pedido para conferir itens e lucratividade</span>
           <button type="button" onclick="openGuide('orders')">Ver guia</button>
         </div>
@@ -1919,7 +1922,8 @@ body.theme-light .client-evolution-card{
         <div class="dashboard-kpis orders-kpis">
           <div class="kpi"><div class="label">Pedidos</div><div class="value" id="oKpiTotal">0</div><div class="delta">total cadastrado</div></div>
           <div class="kpi"><div class="label">Históricos</div><div class="value" id="oKpiHistorical">0</div><div class="delta">importados da planilha</div></div>
-          <div class="kpi"><div class="label">Gerados por orçamento</div><div class="value" id="oKpiNew">0</div><div class="delta">novos pedidos</div></div>
+          <div class="kpi"><div class="label">Gerados por orçamento</div><div class="value" id="oKpiNew">0</div><div class="delta">via proposta aprovada</div></div>
+          <div class="kpi"><div class="label">Pedidos rápidos</div><div class="value" id="oKpiQuick">0</div><div class="delta">incluídos direto</div></div>
           <div class="kpi"><div class="label">Valor total</div><div class="value" id="oKpiValue">R$ 0,00</div><div class="delta">pedidos filtrados</div></div>
         </div>
 
@@ -1941,6 +1945,81 @@ body.theme-light .client-evolution-card{
               </thead>
               <tbody id="ordersTableBody"><tr class="empty-row"><td colspan="10">Carregando pedidos...</td></tr></tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="order-modal-bg" id="quickOrderPanel" onclick="closeQuickOrder(event)" style="display:none">
+          <div class="order-modal-card quick-order-card" onclick="event.stopPropagation()">
+            <div class="order-modal-head">
+              <div>
+                <div class="order-modal-kicker">Inclusão rápida</div>
+                <div class="order-modal-title">Novo pedido</div>
+                <div class="order-modal-sub">Sem orçamento. Usa os mesmos custos, impostos, DF, lucro e lucratividade da carteira.</div>
+              </div>
+              <button class="close order-modal-close" onclick="closeQuickOrder()">×</button>
+            </div>
+
+            <div class="quick-order-body">
+              <div class="quick-order-header">
+                <div class="field qo-client-field">
+                  <label>Cliente *</label>
+                  <select id="qoClient" onchange="syncQuickOrderClient()"><option value="">Selecione o cliente</option></select>
+                </div>
+                <div class="field">
+                  <label>Data *</label>
+                  <input type="date" id="qoDate">
+                </div>
+                <div class="field">
+                  <label>Tipo de venda *</label>
+                  <select id="qoSaleType" onchange="recalculateQuickOrder()">
+                    <option value="VENDA">Venda</option>
+                    <option value="REVENDA">Revenda</option>
+                    <option value="SERVICO_8_02">Serviço 8.02</option>
+                    <option value="SERVICO_14_01">Serviço 14.01</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Vendedor</label>
+                  <input id="qoSeller" placeholder="Responsável comercial">
+                </div>
+                <div class="field">
+                  <label>Condição de pagamento</label>
+                  <input id="qoPayment" placeholder="Ex.: 28/56 dias">
+                </div>
+                <div class="field">
+                  <label>Prazo de entrega</label>
+                  <input id="qoDelivery" placeholder="Ex.: 20 dias">
+                </div>
+                <div class="field full">
+                  <label>Observações</label>
+                  <input id="qoObs" placeholder="Observação do pedido">
+                </div>
+              </div>
+
+              <div class="quick-order-rule" id="qoRuleInfo">Selecione o cliente para calcular impostos.</div>
+
+              <div class="quick-order-items-head">
+                <div>
+                  <b>Itens do pedido</b>
+                  <span>Escolha um produto já cadastrado ou digite um item manual.</span>
+                </div>
+                <button class="secondary" type="button" onclick="addQuickOrderItem()">+ Adicionar item</button>
+              </div>
+
+              <div class="quick-order-items" id="quickOrderItems"></div>
+
+              <div class="quick-order-summary">
+                <div><span>Faturamento</span><strong id="qoRevenue">R$ 0,00</strong></div>
+                <div><span>Custo</span><strong id="qoCost">R$ 0,00</strong></div>
+                <div><span>Lucro</span><strong id="qoProfit">R$ 0,00</strong></div>
+                <div><span>Lucratividade</span><strong id="qoMargin">0,00%</strong></div>
+              </div>
+            </div>
+
+            <div class="quick-order-footer">
+              <button class="secondary" type="button" onclick="closeQuickOrder()">Cancelar</button>
+              <button class="primary" id="quickOrderSaveBtn" type="button" onclick="saveQuickOrder()">Salvar pedido</button>
+            </div>
           </div>
         </div>
 
