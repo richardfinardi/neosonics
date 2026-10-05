@@ -1814,6 +1814,7 @@ function getDashboardVendasCalculado_(params) {
   const porNeo = {};
   const porCliente = {};
   const porProduto = {};
+  const porProdutoGeral = {};
   const porEstado = {};
   const porClienteMes = {};
   const vendasDentro = {};
@@ -1875,6 +1876,13 @@ function getDashboardVendasCalculado_(params) {
     });
     registrarUnicosAgregado_(porProduto, produtoKey, chaveVenda, clienteId);
 
+    agregarDashboard_(porProdutoGeral, produtoBaseKey, fat, custo, dv, df, lucro, qtde, {
+      label: String(v.DESCRICAO || v.SKU || 'N/I'),
+      sku: String(v.SKU || ''),
+      produto_id: produtoBaseKey
+    });
+    registrarUnicosAgregado_(porProdutoGeral, produtoBaseKey, chaveVenda, clienteId);
+
     const uf = String(v.UF_DESTINO || 'N/I').toUpperCase();
     agregarDashboard_(porEstado, uf, fat, custo, dv, df, lucro, qtde, {
       label: uf,
@@ -1909,6 +1917,7 @@ function getDashboardVendasCalculado_(params) {
   const segmentosNeo = ordenarAgregados_(porNeo, 'faturamento', true);
   const clientes = ordenarAgregados_(porCliente, 'faturamento', true);
   const produtos = ordenarAgregados_(porProduto, 'faturamento', true);
+  const produtosGeral = ordenarAgregados_(porProdutoGeral, 'faturamento', true);
   const estados = ordenarAgregados_(porEstado, 'faturamento', true);
   const clienteMensal = ordenarAgregados_(porClienteMes, 'mes', false);
 
@@ -1920,6 +1929,9 @@ function getDashboardVendasCalculado_(params) {
   produtos.forEach(function(x) {
     const fatCliente = fatPorCliente[String(x.cliente_id || '')] || 0;
     x.participacao_cliente = fatCliente ? numero_(x.faturamento) / fatCliente : 0;
+    x.participacao_total = kpis.faturamento ? numero_(x.faturamento) / kpis.faturamento : 0;
+  });
+  produtosGeral.forEach(function(x) {
     x.participacao_total = kpis.faturamento ? numero_(x.faturamento) / kpis.faturamento : 0;
   });
   estados.forEach(function(x) {
@@ -1962,6 +1974,7 @@ function getDashboardVendasCalculado_(params) {
     segmentos_neo: segmentosNeo,
     clientes: clientes,
     produtos: produtos,
+    produtos_geral: produtosGeral,
     cliente_mensal: clienteMensal,
     estados: estados
   };
@@ -2021,8 +2034,7 @@ function opcoesProdutoFiltro_(dados) {
 function resumirKpisDashboard_(dados) {
   const k = {
     faturamento:0, custo:0, dv:0, df:0, lucro:0, qtde:0,
-    registros:0, vendas:0, ticket_medio:0, lucro_bruto:0,
-    margem_bruta:0, margem_lucro:0, dv_pct:0, df_pct:0
+    registros:0, vendas:0, ticket_medio:0, margem_lucro:0, dv_pct:0, df_pct:0
   };
   const vendas = {};
 
@@ -2039,8 +2051,6 @@ function resumirKpisDashboard_(dados) {
 
   k.vendas = Object.keys(vendas).length;
   k.ticket_medio = k.vendas ? k.faturamento / k.vendas : 0;
-  k.lucro_bruto = k.faturamento - k.custo;
-  k.margem_bruta = k.faturamento ? k.lucro_bruto / k.faturamento : 0;
   k.margem_lucro = k.faturamento ? k.lucro / k.faturamento : 0;
   k.dv_pct = k.faturamento ? k.dv / k.faturamento : 0;
   k.df_pct = k.faturamento ? k.df / k.faturamento : 0;
@@ -2112,9 +2122,7 @@ function calcularComparativoDashboard_(baseSemData, dtInicio, dtFim) {
     anterior: anterior,
     deltas: {
       faturamento: deltaDashboard_(atual.faturamento, anterior.faturamento),
-      lucro_bruto: deltaDashboard_(atual.lucro_bruto, anterior.lucro_bruto),
       lucro: deltaDashboard_(atual.lucro, anterior.lucro),
-      margem_bruta_pp: atual.margem_bruta - anterior.margem_bruta,
       margem_lucro_pp: atual.margem_lucro - anterior.margem_lucro,
       vendas: deltaDashboard_(atual.vendas, anterior.vendas),
       ticket_medio: deltaDashboard_(atual.ticket_medio, anterior.ticket_medio)
@@ -2201,8 +2209,6 @@ function ordenarAgregados_(mapa, campo, desc) {
     x.vendas = x.__vendas ? Object.keys(x.__vendas).length : x.registros;
     x.clientes = x.__clientes ? Object.keys(x.__clientes).length : 0;
     x.ticket_medio = x.vendas ? x.faturamento / x.vendas : 0;
-    x.lucro_bruto = x.faturamento - x.custo;
-    x.margem_bruta = x.faturamento ? x.lucro_bruto / x.faturamento : 0;
     x.margem = x.faturamento ? x.lucro / x.faturamento : 0;
     x.participacao = 0;
     delete x.__vendas;
