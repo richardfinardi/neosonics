@@ -2,6 +2,12 @@ name: Atualizar dados Neosonics
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/snapshot-data.yml"
+      - "apps-script/Codigo.gs"
   schedule:
     - cron: "*/5 * * * *"
 
