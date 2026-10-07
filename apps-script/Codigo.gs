@@ -885,8 +885,8 @@ function salvarOrcamento_(orcamento) {
 
   if (existente) {
     const statusAtual = String(existente.STATUS || '').toUpperCase();
-    if (statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO') {
-      throw new Error('Orçamento aprovado está congelado e não pode mais ser alterado.');
+    if (statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO' || statusAtual === 'PERDIDO') {
+      throw new Error('Orçamento encerrado está congelado e não pode mais ser alterado.');
     }
   }
 
@@ -1636,8 +1636,8 @@ function alterarStatusOrcamento_(idOrcamento, novoStatus) {
 
   const atual = objetoDaLinha_(sh, row);
   const statusAtual = String(atual.STATUS || '').toUpperCase();
-  if ((statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO') && status !== statusAtual) {
-    throw new Error('Orçamento aprovado está congelado e não pode mais mudar de status.');
+  if ((statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO' || statusAtual === 'PERDIDO') && status !== statusAtual) {
+    throw new Error('Orçamento encerrado está congelado e não pode mais mudar de status.');
   }
 
   setCelulaPorHeader_(sh, headers, row, 'STATUS', status);
