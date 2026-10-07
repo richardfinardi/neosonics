@@ -1594,6 +1594,7 @@ body.theme-light .origin-chip.quick{
     <div class="group-title">Comercial</div>
     <div class="nav">
       <button data-page="quotes"><span class="ico">R$</span><span class="nav-text">Orçamentos</span></button>
+      <button data-page="proposalTerms"><span class="ico">§</span><span class="nav-text">Termos da proposta</span></button>
       <button data-page="orders"><span class="ico">▤</span><span class="nav-text">Pedidos</span></button>
     </div>
 
@@ -2031,6 +2032,77 @@ body.theme-light .origin-chip.quick{
         </div>
       </section>
 
+
+      <section id="proposalTerms" class="page">
+        <div class="hero">
+          <div>
+            <h2>Termos da proposta</h2>
+            <p>Edite os modelos usados nas propostas e crie novos termos comerciais sem alterar propostas antigas.</p>
+          </div>
+          <div class="badge">Modelos comerciais</div>
+        </div>
+
+        <div class="guide-strip">
+          <b>Como funciona:</b>
+          <span>1. Abra um modelo existente ou crie um novo</span>
+          <span>2. Edite o texto e salve</span>
+          <span>3. O modelo passa a aparecer no orçamento</span>
+          <button type="button" onclick="openGuide('proposalTerms')">Ver guia</button>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title">Modelos cadastrados</div>
+                <div class="panel-sub">Os modelos padrão podem ser editados normalmente.</div>
+              </div>
+              <button class="secondary" type="button" onclick="newProposalTerm()">+ Novo modelo</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Modelo</th><th>Status</th><th>Origem</th><th></th></tr></thead>
+                <tbody id="proposalTermsBody"><tr class="empty-row"><td colspan="4">Carregando modelos...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="panel-title" id="proposalTermEditorTitle">Novo modelo</div>
+                <div class="panel-sub">Variáveis disponíveis: {{CLIENTE}}, {{VALOR}} e {{PRAZO}}</div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <input type="hidden" id="proposalTermId">
+              <input type="hidden" id="proposalTermCode">
+              <div class="form-grid">
+                <div class="field full">
+                  <label>Nome do modelo *</label>
+                  <input id="proposalTermName" placeholder="Ex.: Venda de equipamentos">
+                </div>
+                <div class="field">
+                  <label>Status</label>
+                  <select id="proposalTermActive">
+                    <option value="true">Ativo</option>
+                    <option value="false">Inativo</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label>Texto dos termos *</label>
+                  <textarea id="proposalTermText" style="min-height:430px" placeholder="Digite aqui as cláusulas e condições da proposta"></textarea>
+                </div>
+              </div>
+              <div class="quote-item-actions" style="margin-top:14px">
+                <button class="secondary" type="button" onclick="newProposalTerm()">Limpar</button>
+                <button class="primary" id="proposalTermSaveBtn" type="button" onclick="saveProposalTerm()">Salvar modelo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="orders" class="page">
         <div class="hero">
           <div>
@@ -2178,6 +2250,7 @@ body.theme-light .origin-chip.quick{
                   <option value="FATURADO">FATURADO</option>
                   <option value="CANCELADO">CANCELADO</option>
                 </select>
+                <button class="secondary" id="odDeleteBtn" onclick="deleteCurrentOrder()" style="display:none">Excluir pedido</button>
                 <button class="primary" id="odStatusSaveBtn" onclick="saveOrderStatus()">Salvar status</button>
               </div>
             </div>
@@ -2222,8 +2295,8 @@ body.theme-light .origin-chip.quick{
         <div class="quote-frozen-notice" id="quoteFrozenNotice" style="display:none">
           <div class="quote-frozen-icon">✓</div>
           <div>
-            <b>Orçamento aprovado e congelado</b>
-            <span>Os dados deste orçamento não podem mais ser alterados. O pedido gerado preserva exatamente os valores aprovados.</span>
+            <b id="quoteFrozenTitle">Orçamento encerrado</b>
+            <span id="quoteFrozenText">Os dados deste orçamento não podem mais ser alterados.</span>
           </div>
         </div>
 
@@ -2425,6 +2498,7 @@ body.theme-light .origin-chip.quick{
               <button class="secondary" onclick="saveQuoteDraft()">Salvar rascunho</button>
               <button class="secondary" onclick="printCurrentQuoteProposal()">Imprimir proposta</button>
               <button class="secondary" onclick="approveCurrentQuote()">Aprovar e gerar pedido</button>
+              <button class="secondary" onclick="loseCurrentQuote()">Perder orçamento</button>
               <button class="primary" onclick="sendQuote()">Definir como enviado</button>
             </div>
           </div>
@@ -2469,7 +2543,7 @@ body.theme-light .origin-chip.quick{
 </div>
 
 <script>
-const names={overview:"Indicadores",clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos",orders:"Pedidos"};
+const names={overview:"Indicadores",clients:"Clientes",segments:"Segmentações",quotes:"Orçamentos",proposalTerms:"Termos da proposta",orders:"Pedidos"};
 
 const NEOSONICS_API_URL="https://script.google.com/macros/s/AKfycbzIK1DMOScjbly8BguctT2-1fiZYTIOOa0nVEAvHKCkvFnCFNd9tgO3wZTwBSAlp9kT/exec";
 let PARAM_VERSION="PV-20260924-001";
@@ -2478,7 +2552,8 @@ let apiOnline=false;
 let quoteHistoryCache=[];
 let orderCache=[];
 let currentOrderId="";
-let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[],products:[]};
+let currentOrderOrigin="";
+let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[],products:[],proposalTerms:[]};
 let currentPage="overview";
 let BOOTSTRAP_DATA=null;
 let bootstrapPromise=null;
@@ -2487,7 +2562,7 @@ let quoteListPromise=null;
 let quoteListLoadedAt=0;
 let orderListPromise=null;
 let orderListLoadedAt=0;
-const APP_CACHE_PREFIX="neosonics_app_v7:";
+const APP_CACHE_PREFIX="neosonics_app_v8:";
 const APP_CACHE_MAX_AGE=24*60*60*1000;
 const APP_REVALIDATE_MS=60*1000;
 
@@ -2648,6 +2723,7 @@ document.querySelectorAll(".nav button").forEach(btn=>{
     window.scrollTo({top:0,behavior:"smooth"});
     if(id==="overview") initOverviewPage();
     if(id==="quotes") initQuotesPage();
+    if(id==="proposalTerms") initProposalTermsPage();
     if(id==="orders") initOrdersPage();
     if(id==="clients") initClientsPage();
     if(id==="segments") initSegmentsPage();
@@ -2669,6 +2745,11 @@ const GUIDES={
     ["Escolha o tipo","FINAL e NEO são cadastros separados."],
     ["Corrija ou crie","Edite nomes digitados errado ou crie novas opções."],
     ["Inative em vez de apagar","Uma opção inativa deixa de aparecer para novos lançamentos, sem quebrar o histórico."]
+  ]},
+  proposalTerms:{title:"Termos da proposta",steps:[
+    ["Edite o padrão","Abra Padrão completo ou Comercial simplificado e altere o texto."],
+    ["Crie novos","Use Novo modelo para cadastrar outras condições comerciais."],
+    ["Use no orçamento","Todo modelo ativo fica disponível automaticamente no seletor de cláusulas."]
   ]},
   orders:{title:"Pedidos",steps:[
     ["Histórico","Os pedidos antigos foram reconstruídos a partir das vendas históricas."],
@@ -2727,6 +2808,7 @@ function refreshCurrentPage(btn){
   else if(currentPage==="clients")initClientsPage(true);
   else if(currentPage==="segments")initSegmentsPage(true);
   else if(currentPage==="quotes")initQuotesPage(true);
+  else if(currentPage==="proposalTerms")initProposalTermsPage(true);
   else if(currentPage==="orders")initOrdersPage(true);
 }
 
@@ -4012,6 +4094,9 @@ function paintOrderDetail(j,id){
 
   orderDetailTitle.textContent="Pedido "+(p.NUMERO_PEDIDO||"");
   const origin=String(p.ORIGEM||"").toUpperCase();
+  currentOrderOrigin=origin;
+  const deleteBtn=document.getElementById("odDeleteBtn");
+  if(deleteBtn)deleteBtn.style.display=(origin==="ORCAMENTO"||origin==="RAPIDO")?"":"none";
   const originText=origin==="HISTORICO"
     ?"Histórico"
     :origin==="RAPIDO"
@@ -4121,6 +4206,7 @@ function closeOrderDetail(){
   if(p)p.style.display="none";
   document.body.classList.remove("modal-open");
   currentOrderId="";
+  currentOrderOrigin="";
 }
 
 async function saveOrderStatus(){
@@ -4161,6 +4247,55 @@ async function saveOrderStatus(){
     hideActionLoading();
     btn.disabled=false;
     btn.textContent=oldText;
+  }
+}
+
+
+async function deleteCurrentOrder(){
+  const id=String(currentOrderId||"");
+  if(!id)return;
+  if(currentOrderOrigin!=="ORCAMENTO" && currentOrderOrigin!=="RAPIDO"){
+    alert("Somente pedidos gerados pelo sistema podem ser excluídos.");
+    return;
+  }
+  if(!confirm("Excluir este pedido definitivamente? Os lançamentos dele também serão removidos dos indicadores."))return;
+
+  showActionLoading("Excluindo pedido","Removendo pedido, itens e lançamentos vinculados...");
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"excluir_pedido",id_pedido:id})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Falha ao excluir pedido");
+
+    orderCache=orderCache.filter(x=>String(x.ID_PEDIDO)!==id);
+    writeAppCache("pedidos",orderCache);
+    removeAppCache("pedido_detalhe:"+id);
+
+    if(j.orcamento_id){
+      markQuoteHistoryStatus(j.orcamento_id,"ENVIADO");
+      if(String(quoteState.id||"")===String(j.orcamento_id)){
+        quoteState.status="ENVIADO";
+        quoteStatusNote.textContent="Enviado • pedido excluído";
+        applyQuoteFreezeState();
+      }
+    }
+
+    closeOrderDetail();
+    orderListLoadedAt=0;
+    quoteListLoadedAt=0;
+    DASHBOARD_DATA=null;
+    paintOrdersPage();
+    void refreshOrdersData(true);
+    void refreshQuoteHistory();
+    alert("Pedido excluído.");
+  }catch(err){
+    alert("Não foi possível excluir o pedido: "+err.message);
+  }finally{
+    hideActionLoading();
   }
 }
 
@@ -4949,8 +5084,11 @@ function applyBootstrapData(j,fromNetwork=false){
   APP_DATA.segments=Array.isArray(j.segmentos)?j.segmentos:[];
   APP_DATA.segmentRelations=Array.isArray(j.segmento_relacoes)?j.segmento_relacoes:[];
   APP_DATA.products=Array.isArray(j.produtos)?j.produtos:[];
+  APP_DATA.proposalTerms=Array.isArray(j.termos_proposta)?j.termos_proposta:[];
   populateClientSelectors();
   populateApprovedProducts();
+  refreshClauseModelOptions();
+  if(document.getElementById("proposalTermsBody"))renderProposalTerms();
 
   if(j.parametro_versao_ativa){
     PARAM_VERSION=j.parametro_versao_ativa.ID_VERSAO||PARAM_VERSION;
@@ -4983,6 +5121,7 @@ function persistBootstrapCache(){
   BOOTSTRAP_DATA.segmentos=APP_DATA.segments;
   BOOTSTRAP_DATA.segmento_relacoes=APP_DATA.segmentRelations;
   BOOTSTRAP_DATA.produtos=APP_DATA.products;
+  BOOTSTRAP_DATA.termos_proposta=APP_DATA.proposalTerms;
   writeAppCache("bootstrap",BOOTSTRAP_DATA);
 }
 
@@ -5026,15 +5165,173 @@ async function loadBootstrap(force=false){
   return await refreshBootstrap();
 }
 
+function proposalTermIsActive(v){
+  return !(v===false || String(v).toLowerCase()==="false" || String(v)==="0");
+}
+
+function proposalTermModels(includeInactive=false){
+  const fallback=[
+    {CODIGO:"PADRAO_COMPLETO",NOME:"Padrão completo",TEXTO:CLAUSE_TEMPLATES.PADRAO_COMPLETO,ATIVO:true,ORDEM:1,ORIGEM_MODELO:"PADRÃO"},
+    {CODIGO:"COMERCIAL_SIMPLES",NOME:"Comercial simplificado",TEXTO:CLAUSE_TEMPLATES.COMERCIAL_SIMPLES,ATIVO:true,ORDEM:2,ORIGEM_MODELO:"PADRÃO"}
+  ];
+  const backend=Array.isArray(APP_DATA.proposalTerms)?APP_DATA.proposalTerms:[];
+  const byCode=new Map(backend.map(x=>[String(x.CODIGO||"").toUpperCase(),x]));
+  const out=[];
+
+  fallback.forEach(base=>{
+    const saved=byCode.get(base.CODIGO);
+    const active=saved?proposalTermIsActive(saved.ATIVO):true;
+    if(active||includeInactive){
+      out.push(Object.assign({},base,saved||{},{
+        CODIGO:base.CODIGO,
+        NOME:(saved&&saved.NOME)||base.NOME,
+        TEXTO:(saved&&saved.TEXTO)||base.TEXTO,
+        ATIVO:active,
+        ORIGEM_MODELO:saved?"CADASTRO":"PADRÃO"
+      }));
+    }
+  });
+
+  backend.forEach(x=>{
+    const code=String(x.CODIGO||"").toUpperCase();
+    if(!code || code==="PADRAO_COMPLETO" || code==="COMERCIAL_SIMPLES")return;
+    const active=proposalTermIsActive(x.ATIVO);
+    if(active||includeInactive)out.push(Object.assign({},x,{CODIGO:code,ATIVO:active,ORIGEM_MODELO:"CADASTRO"}));
+  });
+
+  return out.sort((a,b)=>{
+    const oa=Number(a.ORDEM||9999),ob=Number(b.ORDEM||9999);
+    if(oa!==ob)return oa-ob;
+    return String(a.NOME||"").localeCompare(String(b.NOME||""),"pt-BR");
+  });
+}
+
+function getClauseTemplateText(code){
+  const c=String(code||"").toUpperCase();
+  if(c==="SEM_CLAUSULAS")return "";
+  if(c==="PERSONALIZADO")return document.getElementById("qClauses")?.value||"";
+  const model=proposalTermModels(true).find(x=>String(x.CODIGO||"").toUpperCase()===c);
+  return model?String(model.TEXTO||""):String(CLAUSE_TEMPLATES[c]||"");
+}
+
+function refreshClauseModelOptions(selectedValue){
+  const el=document.getElementById("qClauseModel");
+  if(!el)return;
+  const selected=String(selectedValue||el.value||"PADRAO_COMPLETO");
+  const models=proposalTermModels(false);
+  el.innerHTML=models.map(x=>'<option value="'+escapeHtml(x.CODIGO)+'">'+escapeHtml(x.NOME||x.CODIGO)+'</option>').join("")+
+    '<option value="SEM_CLAUSULAS">Sem cláusulas</option>'+
+    '<option value="PERSONALIZADO">Personalizado</option>';
+
+  if(![...el.options].some(o=>o.value===selected)){
+    const historic=proposalTermModels(true).find(x=>String(x.CODIGO)===selected);
+    if(historic){
+      el.insertAdjacentHTML("beforeend",'<option value="'+escapeHtml(selected)+'">'+escapeHtml((historic.NOME||selected)+" (inativo)")+'</option>');
+    }else if(selected){
+      el.insertAdjacentHTML("beforeend",'<option value="'+escapeHtml(selected)+'">'+escapeHtml(selected)+'</option>');
+    }
+  }
+  el.value=selected;
+}
+
 function applyClauseTemplate(force){
   const model=document.getElementById("qClauseModel")?.value||"PADRAO_COMPLETO";
   const box=document.getElementById("qClauses");
   if(!box)return;
-  if(force || !box.value.trim()) box.value=CLAUSE_TEMPLATES[model]??box.value;
+  if(model==="PERSONALIZADO")return;
+  const text=getClauseTemplateText(model);
+  if(force || !box.value.trim())box.value=text;
 }
+
 function markClausesCustom(){
   const model=document.getElementById("qClauseModel");
   if(model && model.value!=="PERSONALIZADO")model.value="PERSONALIZADO";
+}
+
+async function initProposalTermsPage(force=false){
+  await loadBootstrap(force);
+  renderProposalTerms();
+}
+
+function renderProposalTerms(){
+  const body=document.getElementById("proposalTermsBody");
+  if(!body)return;
+  const rows=proposalTermModels(true);
+  if(!rows.length){
+    body.innerHTML='<tr class="empty-row"><td colspan="4">Nenhum modelo cadastrado.</td></tr>';
+    return;
+  }
+
+  body.innerHTML=rows.map(x=>
+    '<tr>'+
+      '<td><b>'+escapeHtml(x.NOME||x.CODIGO)+'</b><small class="table-sub">'+escapeHtml(x.CODIGO||"")+'</small></td>'+
+      '<td><span class="status '+(x.ATIVO?"good":"low")+'">'+(x.ATIVO?"ATIVO":"INATIVO")+'</span></td>'+
+      '<td>'+escapeHtml(x.ORIGEM_MODELO||"CADASTRO")+'</td>'+
+      '<td><button class="secondary" style="height:30px" onclick="editProposalTerm(\''+escapeJs(x.CODIGO)+'\')">Editar</button></td>'+
+    '</tr>'
+  ).join("");
+}
+
+function newProposalTerm(){
+  proposalTermId.value="";
+  proposalTermCode.value="";
+  proposalTermName.value="";
+  proposalTermActive.value="true";
+  proposalTermText.value="";
+  proposalTermEditorTitle.textContent="Novo modelo";
+  proposalTermName.focus();
+}
+
+function editProposalTerm(code){
+  const x=proposalTermModels(true).find(t=>String(t.CODIGO)===String(code));
+  if(!x)return;
+  proposalTermId.value=x.ID_TERMO||"";
+  proposalTermCode.value=x.CODIGO||"";
+  proposalTermName.value=x.NOME||"";
+  proposalTermActive.value=x.ATIVO?"true":"false";
+  proposalTermText.value=x.TEXTO||"";
+  proposalTermEditorTitle.textContent="Editar • "+(x.NOME||x.CODIGO||"modelo");
+  proposalTermName.focus();
+}
+
+async function saveProposalTerm(){
+  const nome=String(proposalTermName.value||"").trim();
+  const texto=String(proposalTermText.value||"").trim();
+  if(!nome){alert("Informe o nome do modelo.");proposalTermName.focus();return}
+  if(!texto){alert("Informe o texto dos termos.");proposalTermText.focus();return}
+
+  const btn=document.getElementById("proposalTermSaveBtn");
+  btn.disabled=true;
+  const old=btn.textContent;
+  btn.textContent="Salvando...";
+  try{
+    const payload={
+      ID_TERMO:proposalTermId.value||"",
+      CODIGO:proposalTermCode.value||"",
+      NOME:nome,
+      TEXTO:texto,
+      ATIVO:proposalTermActive.value==="true"
+    };
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"salvar_termo_proposta",termo:payload})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Não foi possível salvar o modelo");
+
+    await refreshBootstrap();
+    const saved=j.termo||{};
+    editProposalTerm(saved.CODIGO||proposalTermCode.value);
+    renderProposalTerms();
+    alert("Modelo salvo.");
+  }catch(err){
+    alert("Não foi possível salvar o modelo: "+err.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=old;
+  }
 }
 function populateApprovedProducts(){
   const el=document.getElementById("iProduct");if(!el)return;
@@ -5493,13 +5790,18 @@ function collectQuotePayload(status){
 
 function quoteIsFrozen(){
   const s=String(quoteState.status||"").toUpperCase();
-  return s==="APROVADO"||s==="CONVERTIDO";
+  return s==="APROVADO"||s==="CONVERTIDO"||s==="PERDIDO";
 }
 
 function applyQuoteFreezeState(){
   const frozen=quoteIsFrozen();
   const notice=document.getElementById("quoteFrozenNotice");
   if(notice)notice.style.display=frozen?"flex":"none";
+  const frozenTitle=document.getElementById("quoteFrozenTitle");
+  const frozenText=document.getElementById("quoteFrozenText");
+  const status=String(quoteState.status||"").toUpperCase();
+  if(frozenTitle)frozenTitle.textContent=status==="PERDIDO"?"Orçamento marcado como perdido":"Orçamento aprovado e congelado";
+  if(frozenText)frozenText.textContent=status==="PERDIDO"?"O orçamento foi encerrado como perdido e permanece disponível apenas para consulta.":"Os dados deste orçamento não podem mais ser alterados. O pedido gerado preserva exatamente os valores aprovados."; 
 
   document.querySelectorAll(
     '#quotes .quote-header-card input,'+
@@ -5513,12 +5815,12 @@ function applyQuoteFreezeState(){
 
   document.querySelectorAll("#quotes button").forEach(btn=>{
     const action=String(btn.getAttribute("onclick")||"");
-    const editAction=/saveQuoteDraft|sendQuote|approveCurrentQuote|addItemToQuote|editQuoteItem|removeQuoteItem|addCostRow|addProcessRow/.test(action);
+    const editAction=/saveQuoteDraft|sendQuote|approveCurrentQuote|loseCurrentQuote|addItemToQuote|editQuoteItem|removeQuoteItem|addCostRow|addProcessRow/.test(action);
     if(editAction)btn.disabled=frozen;
   });
 
   if(frozen && document.getElementById("quoteStatusNote")){
-    quoteStatusNote.textContent="Aprovado • orçamento congelado";
+    quoteStatusNote.textContent=String(quoteState.status||"").toUpperCase()==="PERDIDO"?"Perdido • orçamento encerrado":"Aprovado • orçamento congelado";
   }
 }
 
@@ -5634,6 +5936,52 @@ function markQuoteHistoryStatus(id,status){
   paintQuoteHistory();
 }
 
+
+async function loseQuote(id){
+  const quoteId=String(id||"");
+  if(!quoteId)return;
+  const q=quoteHistoryCache.find(x=>String(x.ID_ORCAMENTO)===quoteId);
+  const number=q?.NUMERO_ORCAMENTO||quoteState.number||"";
+  if(!confirm("Marcar o orçamento "+number+" como PERDIDO?"))return;
+
+  showActionLoading("Encerrando orçamento","Marcando a oportunidade como perdida...");
+  try{
+    const r=await fetch(NEOSONICS_API_URL,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({acao:"perder_orcamento",id_orcamento:quoteId})
+    });
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erro||"Não foi possível marcar como perdido");
+
+    markQuoteHistoryStatus(quoteId,"PERDIDO");
+    if(String(quoteState.id||"")===quoteId){
+      quoteState.status="PERDIDO";
+      quoteStatusNote.textContent="Perdido • orçamento encerrado";
+      applyQuoteFreezeState();
+    }
+    quoteListLoadedAt=0;
+    void refreshQuoteHistory();
+  }catch(err){
+    alert("Não foi possível perder o orçamento: "+err.message);
+  }finally{
+    hideActionLoading();
+  }
+}
+
+function loseCurrentQuote(){
+  if(!quoteState.id){
+    alert("Salve o orçamento antes de marcá-lo como perdido.");
+    return;
+  }
+  if(String(quoteState.status||"").toUpperCase()==="PERDIDO"){
+    alert("Este orçamento já está marcado como perdido.");
+    return;
+  }
+  loseQuote(quoteState.id);
+}
+
 async function persistQuote(payload){
   try{
     const r=await fetch(NEOSONICS_API_URL,{
@@ -5662,15 +6010,24 @@ function paintQuoteHistory(){
     return;
   }
 
-  body.innerHTML=quoteHistoryCache.map(q=>`<tr>
-    <td>${q.NUMERO_ORCAMENTO||""}</td>
-    <td>${escapeHtml(q.CLIENTE_NOME_SNAPSHOT||"")}</td>
-    <td>${formatDateBR(q.DATA_ORCAMENTO)}</td>
-    <td>${q.QTD_ITENS||0}</td>
-    <td>${formatBRL(q.VALOR_TOTAL)}</td>
-    <td><span class="status ${statusClass(q.STATUS)}">${q.STATUS||"RASCUNHO"}</span></td>
-    <td><div class="row-actions"><button class="secondary" style="height:29px" onclick="openQuote('${q.ID_ORCAMENTO}')">Abrir</button><button class="secondary" style="height:29px" onclick="printQuoteById('${q.ID_ORCAMENTO}')">Imprimir</button>${String(q.STATUS||"").toUpperCase()==="ENVIADO"?'<button class="primary" style="height:29px" onclick="approveQuoteFromHistory(\''+q.ID_ORCAMENTO+'\')">Aprovar</button>':""}</div></td>
-  </tr>`).join("");
+  body.innerHTML=quoteHistoryCache.map(q=>{
+    const status=String(q.STATUS||"RASCUNHO").toUpperCase();
+    const canLose=!["APROVADO","CONVERTIDO","PERDIDO"].includes(status);
+    return '<tr>'+
+      '<td>'+escapeHtml(q.NUMERO_ORCAMENTO||"")+'</td>'+
+      '<td>'+escapeHtml(q.CLIENTE_NOME_SNAPSHOT||"")+'</td>'+
+      '<td>'+formatDateBR(q.DATA_ORCAMENTO)+'</td>'+
+      '<td>'+Number(q.QTD_ITENS||0)+'</td>'+
+      '<td>'+formatBRL(q.VALOR_TOTAL)+'</td>'+
+      '<td><span class="status '+statusClass(status)+'">'+escapeHtml(status)+'</span></td>'+
+      '<td><div class="row-actions">'+
+        '<button class="secondary" style="height:29px" onclick="openQuote(\''+escapeJs(q.ID_ORCAMENTO)+'\')">Abrir</button>'+
+        '<button class="secondary" style="height:29px" onclick="printQuoteById(\''+escapeJs(q.ID_ORCAMENTO)+'\')">Imprimir</button>'+
+        (status==="ENVIADO"?'<button class="primary" style="height:29px" onclick="approveQuoteFromHistory(\''+escapeJs(q.ID_ORCAMENTO)+'\')">Aprovar</button>':"")+
+        (canLose?'<button class="secondary" style="height:29px" onclick="loseQuote(\''+escapeJs(q.ID_ORCAMENTO)+'\')">Perder</button>':"")+
+      '</div></td>'+
+    '</tr>';
+  }).join("");
 
   document.getElementById("quoteParamBadge").textContent="Custos vigentes • "+PARAM_VERSION;
 }
@@ -5756,8 +6113,9 @@ function applyQuoteToForm(q){
   qPayment.value=q.COND_PAGAMENTO||"";
   qDelivery.value=q.PRAZO_ENTREGA||"";
   qObs.value=q.OBS||"";
+  refreshClauseModelOptions(q.MODELO_CLAUSULAS||"PADRAO_COMPLETO");
   qClauseModel.value=q.MODELO_CLAUSULAS||"PADRAO_COMPLETO";
-  qClauses.value=q.CLAUSULAS_TEXTO||CLAUSE_TEMPLATES[qClauseModel.value]||"";
+  qClauses.value=q.CLAUSULAS_TEXTO||getClauseTemplateText(qClauseModel.value)||"";
   qFramework.value="NORMAL";
   qSaleType.value=String(q.TIPO_VENDA||"VENDA").toUpperCase();
   qDestination.value=q.DESTINO||"";
@@ -5788,7 +6146,7 @@ function statusClass(s){
   const v=String(s||"").toUpperCase();
   if(v==="APROVADO"||v==="CONVERTIDO"||v==="FATURADO")return "good";
   if(v==="ENVIADO"||v==="RASCUNHO"||v==="ABERTO")return "mid";
-  if(v==="RECUSADO"||v==="CANCELADO")return "low";
+  if(v==="RECUSADO"||v==="CANCELADO"||v==="PERDIDO")return "low";
   return "";
 }
 
@@ -5804,7 +6162,7 @@ function formatDateBR(v){
 function newQuote(){
   quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
   ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery","qObs"].forEach(id=>document.getElementById(id).value="");
-  qClauseModel.value="PADRAO_COMPLETO";qClauses.value=CLAUSE_TEMPLATES.PADRAO_COMPLETO;
+  refreshClauseModelOptions("PADRAO_COMPLETO");qClauseModel.value="PADRAO_COMPLETO";qClauses.value=getClauseTemplateText("PADRAO_COMPLETO");
   qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxes.value="";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
   quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();applyQuoteFreezeState();
 }
