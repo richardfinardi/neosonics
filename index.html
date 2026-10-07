@@ -3823,7 +3823,7 @@ async function saveQuickOrder(){
     DASHBOARD_DATA=null;
     orderCache=[];
     orderListLoadedAt=0;
-    await refreshOrdersData();
+    await refreshOrdersData(true);
 
     alert("Pedido "+j.numero_pedido+" criado com sucesso.");
     await openOrder(j.id_pedido,true);
@@ -3861,14 +3861,34 @@ async function refreshOrdersData(force=false){
   if(orderListPromise)return orderListPromise;
   orderListPromise=(async()=>{
     try{
-      const j=await fetchMirrorJson("pedidos.json",force);
+      let j=null;
+
+      if(force){
+        // Depois de gravar/alterar pedido, o espelho do GitHub pode estar até 5 min atrasado.
+        // Nesses casos a API é a fonte da verdade; o espelho fica apenas como fallback.
+        try{
+          j=await apiGet("pedidos");
+        }catch(apiErr){
+          console.warn("Pedidos ao vivo indisponíveis; usando espelho:",apiErr);
+          j=await fetchMirrorJson("pedidos.json",true);
+        }
+      }else{
+        // Carga normal continua rápida pelo espelho, evitando depender da latência do Apps Script.
+        try{
+          j=await fetchMirrorJson("pedidos.json",false);
+        }catch(mirrorErr){
+          console.warn("Espelho de pedidos indisponível; usando API:",mirrorErr);
+          j=await apiGet("pedidos");
+        }
+      }
+
       orderCache=Array.isArray(j.dados)?j.dados:[];
       orderListLoadedAt=Date.now();
       writeAppCache("pedidos",orderCache);
       paintOrdersPage();
       return orderCache;
     }catch(err){
-      console.error("Pedidos pelo espelho:",err);
+      console.error("Não foi possível carregar pedidos:",err);
       if(!orderCache.length){
         const body=document.getElementById("ordersTableBody");
         if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Não foi possível carregar os pedidos.</td></tr>';
@@ -3894,7 +3914,7 @@ async function initOrdersPage(force=false){
   else if(body)body.innerHTML='<tr class="empty-row"><td colspan="10">Carregando pedidos...</td></tr>';
 
   if(!force&&orderCache.length){
-    if(Date.now()-orderListLoadedAt>APP_REVALIDATE_MS&&!orderListPromise)void refreshOrdersData();
+    if(Date.now()-orderListLoadedAt>APP_REVALIDATE_MS&&!orderListPromise)void refreshOrdersData(true);
     return orderCache;
   }
 
@@ -4045,20 +4065,43 @@ async function openOrder(id,force=false){
   orderItemsBody.innerHTML='<tr class="empty-row"><td colspan="10">Carregando itens...</td></tr>';
 
   try{
-    if(!ORDER_DETAIL_MIRROR_CACHE||force){
-      ORDER_DETAIL_MIRROR_CACHE=await fetchMirrorJson("pedidos-detalhe.json",force);
-    }
-    const pedido=(ORDER_DETAIL_MIRROR_CACHE.pedidos||[]).find(x=>String(x.ID_PEDIDO||"")===String(id));
-    const itens=(ORDER_DETAIL_MIRROR_CACHE.itens||[]).filter(x=>String(x.PEDIDO_ID||"")===String(id));
-    if(!pedido)throw new Error("Pedido não encontrado no espelho.");
+    let j=null;
 
-    const resumo={
-      faturamento:itens.reduce((s,x)=>s+Number(x.VALOR_TOTAL||0),0),
-      custo:itens.reduce((s,x)=>s+Number(x.CUSTO_TOTAL_SNAPSHOT||0),0),
-      lucro:itens.reduce((s,x)=>s+Number(x.LUCRO_SNAPSHOT||0),0)
-    };
-    resumo.lucratividade=resumo.faturamento?resumo.lucro/resumo.faturamento:0;
-    const j={ok:true,pedido,itens,resumo};
+    if(force){
+      // Pedido recém-criado/alterado precisa vir da fonte ao vivo.
+      try{
+        j=await apiGet("pedido_detalhe",{id});
+      }catch(apiErr){
+        console.warn("Detalhe ao vivo indisponível; tentando espelho:",apiErr);
+      }
+    }
+
+    if(!j){
+      try{
+        if(!ORDER_DETAIL_MIRROR_CACHE||force){
+          ORDER_DETAIL_MIRROR_CACHE=await fetchMirrorJson("pedidos-detalhe.json",force);
+        }
+        const pedido=(ORDER_DETAIL_MIRROR_CACHE.pedidos||[]).find(x=>String(x.ID_PEDIDO||"")===String(id));
+        const itens=(ORDER_DETAIL_MIRROR_CACHE.itens||[]).filter(x=>String(x.PEDIDO_ID||"")===String(id));
+        if(pedido){
+          const resumo={
+            faturamento:itens.reduce((s,x)=>s+Number(x.VALOR_TOTAL||0),0),
+            custo:itens.reduce((s,x)=>s+Number(x.CUSTO_TOTAL_SNAPSHOT||0),0),
+            lucro:itens.reduce((s,x)=>s+Number(x.LUCRO_SNAPSHOT||0),0)
+          };
+          resumo.lucratividade=resumo.faturamento?resumo.lucro/resumo.faturamento:0;
+          j={ok:true,pedido,itens,resumo};
+        }
+      }catch(mirrorErr){
+        console.warn("Espelho de detalhe indisponível:",mirrorErr);
+      }
+    }
+
+    // Se o espelho ainda não recebeu o pedido, cai automaticamente para a API.
+    if(!j||!j.pedido){
+      j=await apiGet("pedido_detalhe",{id});
+    }
+
     writeAppCache(key,j);
     paintOrderDetail(j,id);
   }catch(err){
@@ -4168,7 +4211,7 @@ async function approveCurrentQuote(){
     orderListLoadedAt=0;
     bootstrapLoadedAt=0;
     void refreshQuoteHistory();
-    void refreshOrdersData();
+    void refreshOrdersData(true);
     void refreshBootstrap();
     const prodInfo=j.produtos&&Number(j.produtos.total||0)?(" • "+j.produtos.total+" item(ns) no cadastro de produtos"):"";
     alert("Orçamento aprovado e pedido "+(j.numero_pedido||"")+" gerado."+prodInfo);
@@ -4202,7 +4245,7 @@ async function approveQuoteFromHistory(id){
     orderListLoadedAt=0;
     bootstrapLoadedAt=0;
     void refreshQuoteHistory();
-    void refreshOrdersData();
+    void refreshOrdersData(true);
     void refreshBootstrap();
     const prodInfo=j.produtos&&Number(j.produtos.total||0)?(" • "+j.produtos.total+" item(ns) no cadastro de produtos"):"";
     alert("Pedido "+(j.numero_pedido||"")+" gerado."+prodInfo);
