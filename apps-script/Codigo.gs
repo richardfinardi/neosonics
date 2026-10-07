@@ -21,7 +21,8 @@ const ABAS = Object.freeze({
   PARAMETRO_VERSOES: 'PARAMETRO_VERSOES',
   CUSTO_HORA_VERSOES: 'CUSTO_HORA_VERSOES',
   CONFIG: 'CONFIG',
-  IMPORT_LOG: 'IMPORT_LOG'
+  IMPORT_LOG: 'IMPORT_LOG',
+  TERMOS_PROPOSTA: 'TERMOS_PROPOSTA'
 });
 
 function cacheEpoch_() {
@@ -69,7 +70,7 @@ function doGet(e) {
 
     switch (acao) {
       case 'ping':
-        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.4.0' });
+        return json_({ ok: true, sistema: 'NEOSONICS', versao: '1.5.0' });
 
       case 'bootstrap':
         return json_(cacheLeitura_('bootstrap', 300, function() {
@@ -92,6 +93,11 @@ function doGet(e) {
       case 'segmentos':
         return json_(cacheLeitura_('segmentos', 300, function() {
           return { ok: true, dados: listarSegmentos_() };
+        }));
+
+      case 'termos_proposta':
+        return json_(cacheLeitura_('termos_proposta', 300, function() {
+          return { ok: true, dados: listarTermosProposta_() };
         }));
 
       case 'orcamentos':
@@ -186,12 +192,24 @@ function doPost(e) {
         resultado = alterarStatusOrcamento_(body.id_orcamento, 'RECUSADO');
         break;
 
+      case 'perder_orcamento':
+        resultado = perderOrcamento_(body.id_orcamento);
+        break;
+
+      case 'salvar_termo_proposta':
+        resultado = salvarTermoProposta_(body.termo || {});
+        break;
+
       case 'converter_orcamento_pedido':
         resultado = converterOrcamentoEmPedido_(body.id_orcamento);
         break;
 
       case 'alterar_status_pedido':
         resultado = alterarStatusPedido_(body.id_pedido, body.status);
+        break;
+
+      case 'excluir_pedido':
+        resultado = excluirPedido_(body.id_pedido);
         break;
 
       case 'criar_pedido_rapido':
@@ -220,10 +238,90 @@ function getBootstrap_() {
     segmentos: listarObjetos_(ABAS.SEGMENTOS),
     segmento_relacoes: listarObjetos_(ABAS.SEGMENTO_RELACOES),
     produtos: listarObjetos_(ABAS.PRODUTOS),
+    termos_proposta: listarTermosProposta_(),
     impostos: listarObjetos_(ABAS.TABELA_IMPOSTOS),
     parametro_versao_ativa: getVersaoParametrosAtiva_(),
     custos_hora_ativos: getCustosHoraVersaoAtiva_()
   };
+}
+
+
+function garantirAbaTermosProposta_() {
+  const ss = db_();
+  let sh = ss.getSheetByName(ABAS.TERMOS_PROPOSTA);
+  if (sh) return sh;
+
+  sh = ss.insertSheet(ABAS.TERMOS_PROPOSTA);
+  const headers = [
+    'ID_TERMO','CODIGO','NOME','TEXTO','ATIVO','ORDEM','DT_CRIACAO','DT_ATUALIZACAO'
+  ];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.setFrozenRows(1);
+  return sh;
+}
+
+function listarTermosProposta_() {
+  garantirAbaTermosProposta_();
+  return listarObjetos_(ABAS.TERMOS_PROPOSTA)
+    .sort(function(a,b) {
+      const oa = numero_(a.ORDEM || 9999);
+      const ob = numero_(b.ORDEM || 9999);
+      if (oa !== ob) return oa - ob;
+      return String(a.NOME || '').localeCompare(String(b.NOME || ''), 'pt-BR');
+    });
+}
+
+function salvarTermoProposta_(termo) {
+  const sh = garantirAbaTermosProposta_();
+  const headers = cabecalhos_(sh);
+  const agora = isoAgora_();
+  const nome = String(termo.NOME || '').trim();
+  const texto = String(termo.TEXTO || '').trim();
+
+  if (!nome) throw new Error('Informe o nome do modelo.');
+  if (!texto) throw new Error('Informe o texto dos termos.');
+
+  let codigo = String(termo.CODIGO || '').trim().toUpperCase()
+    .replace(/[^A-Z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!codigo) codigo = 'TERMO_' + Utilities.getUuid().replace(/-/g, '').substring(0, 8).toUpperCase();
+
+  let id = String(termo.ID_TERMO || '').trim();
+  let row = id && headers.ID_TERMO ? localizarLinha_(sh, headers.ID_TERMO, id) : null;
+
+  if (!row && headers.CODIGO) {
+    row = localizarLinha_(sh, headers.CODIGO, codigo);
+    if (row) {
+      const existente = objetoDaLinha_(sh, row);
+      id = String(existente.ID_TERMO || id || novoId_('TRM'));
+    }
+  }
+
+  if (!id) id = novoId_('TRM');
+
+  let ordem = numero_(termo.ORDEM);
+  if (!ordem) {
+    ordem = listarTermosProposta_().reduce(function(max, x) {
+      return Math.max(max, numero_(x.ORDEM));
+    }, 0) + 1;
+  }
+
+  const obj = {
+    ID_TERMO: id,
+    CODIGO: codigo,
+    NOME: nome,
+    TEXTO: texto,
+    ATIVO: termo.ATIVO !== false,
+    ORDEM: ordem,
+    DT_CRIACAO: termo.DT_CRIACAO || (row ? objetoDaLinha_(sh, row).DT_CRIACAO : agora) || agora,
+    DT_ATUALIZACAO: agora
+  };
+
+  if (row) escreverObjetoNaLinha_(sh, row, obj);
+  else appendObjeto_(ABAS.TERMOS_PROPOSTA, obj);
+
+  SpreadsheetApp.flush();
+  return { ok:true, termo:obj, atualizado:!!row };
 }
 
 function listarClientes_() {
@@ -1438,6 +1536,57 @@ function alterarStatusPedido_(idPedido, novoStatus) {
   };
 }
 
+
+function excluirPedido_(idPedido) {
+  if (!idPedido) throw new Error('ID do pedido não informado.');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const sh = aba_(ABAS.PEDIDOS);
+    const headers = cabecalhos_(sh);
+    const row = localizarLinha_(sh, headers.ID_PEDIDO, idPedido);
+    if (!row) throw new Error('Pedido não encontrado.');
+
+    const pedido = objetoDaLinha_(sh, row);
+    const origem = String(pedido.ORIGEM || '').toUpperCase();
+
+    if (origem !== 'ORCAMENTO' && origem !== 'RAPIDO') {
+      throw new Error('Somente pedidos gerados pelo sistema podem ser excluídos.');
+    }
+
+    const orcamentoId = String(pedido.ORCAMENTO_ID_ORIGEM || '').trim();
+
+    deletarLinhasPorValor_(ABAS.VENDAS, 'PEDIDO_ID', idPedido);
+    deletarLinhasPorValor_(ABAS.PEDIDO_ITENS, 'PEDIDO_ID', idPedido);
+    deletarLinhasPorValor_(ABAS.PEDIDOS, 'ID_PEDIDO', idPedido);
+
+    if (origem === 'ORCAMENTO' && orcamentoId) {
+      const shOrc = aba_(ABAS.ORCAMENTOS);
+      const hOrc = cabecalhos_(shOrc);
+      const rowOrc = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, orcamentoId);
+      if (rowOrc) {
+        setCelulaPorHeader_(shOrc, hOrc, rowOrc, 'STATUS', 'ENVIADO');
+        setCelulaPorHeader_(shOrc, hOrc, rowOrc, 'CONVERTIDO_PEDIDO_ID', '');
+        setCelulaPorHeader_(shOrc, hOrc, rowOrc, 'DT_ATUALIZACAO', isoAgora_());
+      }
+    }
+
+    SpreadsheetApp.flush();
+
+    return {
+      ok:true,
+      id_pedido:idPedido,
+      origem:origem,
+      orcamento_id:orcamentoId,
+      orcamento_status:orcamentoId ? 'ENVIADO' : ''
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function aprovarOrcamentoEGerarPedido_(idOrcamento) {
   if (!idOrcamento) throw new Error('ID do orçamento não informado.');
 
@@ -1495,6 +1644,33 @@ function alterarStatusOrcamento_(idOrcamento, novoStatus) {
   setCelulaPorHeader_(sh, headers, row, 'DT_ATUALIZACAO', isoAgora_());
 
   return { ok: true, id_orcamento: idOrcamento, status: status };
+}
+
+
+function perderOrcamento_(idOrcamento) {
+  if (!idOrcamento) throw new Error('ID do orçamento não informado.');
+
+  const sh = aba_(ABAS.ORCAMENTOS);
+  const headers = cabecalhos_(sh);
+  const row = localizarLinha_(sh, headers.ID_ORCAMENTO, idOrcamento);
+  if (!row) throw new Error('Orçamento não encontrado.');
+
+  const atual = objetoDaLinha_(sh, row);
+  const statusAtual = String(atual.STATUS || '').toUpperCase();
+
+  if (statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO') {
+    throw new Error('Este orçamento já foi aprovado/convertido e não pode ser marcado como perdido.');
+  }
+  if (statusAtual === 'PERDIDO') {
+    return { ok:true, id_orcamento:idOrcamento, status:'PERDIDO', ja_perdido:true };
+  }
+
+  const agora = isoAgora_();
+  setCelulaPorHeader_(sh, headers, row, 'STATUS', 'PERDIDO');
+  setCelulaPorHeader_(sh, headers, row, 'DT_ATUALIZACAO', agora);
+  SpreadsheetApp.flush();
+
+  return { ok:true, id_orcamento:idOrcamento, status:'PERDIDO', atualizado_em:agora };
 }
 
 function converterOrcamentoEmPedido_(idOrcamento) {
