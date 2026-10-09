@@ -2355,6 +2355,8 @@ body.theme-light .origin-chip.quick{
               <div class="field"><label>Destino fiscal</label><input id="qDestinationDisplay" readonly placeholder="Definido pelo estado do cliente"></div>
               <div class="field"><label>Impostos</label><input id="qTaxes" readonly></div>
               <div class="field"><label>Despesa fixa</label><input id="qFixedExpense" value="12,7416%" readonly></div>
+              <div class="field"><label>Comissão (%)</label><input id="qCommission" value="0%" inputmode="decimal" placeholder="Ex.: 5%" oninput="refreshQuoteMarkup()"></div>
+              <div class="field"><label>Extra (%)</label><input id="qExtra" value="0%" inputmode="decimal" placeholder="Ex.: 2%" oninput="refreshQuoteMarkup()"></div>
               <div class="field"><label>Margem de referência</label><input id="qDesiredMargin" value="30%" oninput="recalculateItem()"></div>
             </div>
           </div>
@@ -2463,6 +2465,8 @@ body.theme-light .origin-chip.quick{
                 <div><span>Preço unitário</span><b id="rFinalUnit">R$ 0,00</b></div>
                 <div><span>Despesa variável / impostos</span><b id="rFinalDV">R$ 0,00</b></div>
                 <div><span>Despesa fixa</span><b id="rFinalDF">R$ 0,00</b></div>
+                <div><span>Comissão</span><b id="rFinalCommission">R$ 0,00</b></div>
+                <div><span>Extra</span><b id="rFinalExtra">R$ 0,00</b></div>
                 <div><span>Margem contribuição</span><b id="rFinalMC">R$ 0,00</b></div>
                 <div><span>Lucro</span><b id="rFinalProfit">R$ 0,00</b></div>
                 <div><span>Lucratividade</span><b id="rFinalMargin">0,00%</b></div>
@@ -5489,7 +5493,7 @@ function syncTaxRule(){
   const rate=TAX_RULES[key];
 
   qTaxes.value=rate!==undefined?formatPctInput(rate):"";
-  recalculateItem();
+  refreshQuoteMarkup();
 }
 
 function readCostRows(){
@@ -5535,24 +5539,59 @@ function calculatePriceSnapshot(){
   const costTotal=t.mp+t.ferr+t.third+t.process;
   const taxes=parsePct(document.getElementById("qTaxes")?.value);
   const fixed=parsePct(document.getElementById("qFixedExpense")?.value);
+  const commission=parsePct(document.getElementById("qCommission")?.value);
+  const extra=parsePct(document.getElementById("qExtra")?.value);
   const desired=parsePct(document.getElementById("qDesiredMargin")?.value);
   const finalPrice=parseNum(document.getElementById("iFinalPrice")?.value);
   const qty=Math.max(parseNum(document.getElementById("iQty")?.value),0);
 
-  const objectiveDen=1-taxes-fixed-desired;
-  const minDen=1-taxes-fixed;
+  const objectiveDen=1-taxes-fixed-commission-extra-desired;
+  const minDen=1-taxes-fixed-commission-extra;
   const objective=objectiveDen>0?costTotal/objectiveDen:0;
   const minimum=minDen>0?costTotal/minDen:0;
 
   const dv=finalPrice?taxes*finalPrice:0;
   const df=finalPrice?fixed*finalPrice:0;
+  const commissionValue=finalPrice?commission*finalPrice:0;
+  const extraValue=finalPrice?extra*finalPrice:0;
   const grossProfit=finalPrice?finalPrice-costTotal:0;
   const grossMargin=finalPrice?grossProfit/finalPrice:0;
-  const mc=finalPrice?finalPrice-t.mp-t.third-t.ferr-dv:0;
-  const profit=finalPrice?grossProfit-dv-df:0;
+  const mc=finalPrice?finalPrice-t.mp-t.third-t.ferr-dv-commissionValue-extraValue:0;
+  const profit=finalPrice?grossProfit-dv-df-commissionValue-extraValue:0;
   const margin=finalPrice?profit/finalPrice:0;
 
-  return {costs,taxes,fixed,desired,costTotal,objective,minimum,finalPrice,qty,dv,df,grossProfit,grossMargin,mc,profit,margin};
+  return {costs,taxes,fixed,commission,extra,desired,costTotal,objective,minimum,finalPrice,qty,dv,df,commissionValue,extraValue,grossProfit,grossMargin,mc,profit,margin};
+}
+
+// Recalcula os resultados dos itens já adicionados sem trocar o preço de venda definido.
+function refreshQuoteMarkup(){
+  const taxes=parsePct(document.getElementById("qTaxes")?.value);
+  const fixed=parsePct(document.getElementById("qFixedExpense")?.value);
+  const commission=parsePct(document.getElementById("qCommission")?.value);
+  const extra=parsePct(document.getElementById("qExtra")?.value);
+  const desired=parsePct(document.getElementById("qDesiredMargin")?.value);
+  if(typeof quoteState!=="undefined" && Array.isArray(quoteState.items) && !quoteIsFrozen()){
+    quoteState.items.forEach(item=>{
+      const price=Number(item.PRECO_FINAL_TOTAL||0);
+      const cost=Number(item.CUSTO_TOTAL||0);
+      const dv=price*taxes,df=price*fixed,comm=price*commission,ext=price*extra;
+      const tMP=Number(item.CUSTO_MP||0),tST=Number(item.CUSTO_TERCEIROS||0),tFerr=Number(item.CUSTO_FERRAMENTAL||0);
+      const minDen=1-taxes-fixed-commission-extra;
+      const objectiveDen=minDen-desired;
+      Object.assign(item,{
+        DV_PCT:taxes,DV_VALOR:dv,DF_PCT:fixed,DF_VALOR:df,
+        COMISSAO_PCT:commission,COMISSAO_VALOR:comm,
+        EXTRA_PCT:extra,EXTRA_VALOR:ext,
+        PRECO_MINIMO_TOTAL:minDen>0?cost/minDen:0,
+        PRECO_OBJETIVO_TOTAL:objectiveDen>0?cost/objectiveDen:0,
+        MC_FINAL:price-tMP-tST-tFerr-dv-comm-ext,
+        LUCRO_FINAL:price-cost-dv-df-comm-ext,
+        MARGEM_FINAL_PCT:price?(price-cost-dv-df-comm-ext)/price:0
+      });
+    });
+    renderQuoteItems();
+  }
+  recalculateItem();
 }
 
 function recalculateItem(){
@@ -5566,6 +5605,8 @@ function recalculateItem(){
   rFinalUnit.textContent=formatBRL(r.qty?r.finalPrice/r.qty:r.finalPrice);
   rFinalDV.textContent=formatBRL(r.dv);
   rFinalDF.textContent=formatBRL(r.df);
+  rFinalCommission.textContent=formatBRL(r.commissionValue);
+  rFinalExtra.textContent=formatBRL(r.extraValue);
   rFinalMC.textContent=formatBRL(r.mc);
   rFinalProfit.textContent=formatBRL(r.profit);
   rFinalMargin.textContent=formatPct(r.margin);
@@ -5584,7 +5625,7 @@ function recalculateItem(){
 function renderScenarios(r){
   const grid=document.getElementById("scenarioGrid");if(!grid)return;
   grid.innerHTML=[5,10,15,20,25,30].map(p=>{
-    const den=1-r.taxes-r.fixed-(p/100);
+    const den=1-r.taxes-r.fixed-r.commission-r.extra-(p/100);
     const price=den>0?r.costTotal/den:0;
     return `<button class="scenario-btn" type="button" onclick="useScenarioPrice(${price})"><span>${p}% lucro</span><b>${formatBRL(price)}</b></button>`;
   }).join("");
@@ -5637,6 +5678,10 @@ function collectCurrentItem(){
     DV_VALOR:r.dv,
     DF_PCT:r.fixed,
     DF_VALOR:r.df,
+    COMISSAO_PCT:r.commission,
+    COMISSAO_VALOR:r.commissionValue,
+    EXTRA_PCT:r.extra,
+    EXTRA_VALOR:r.extraValue,
     LUCRO_BRUTO:r.grossProfit,
     MARGEM_BRUTA_PCT:r.grossMargin,
     MC_FINAL:r.mc,
@@ -5781,6 +5826,8 @@ function collectQuotePayload(status){
     IMPOSTOS_PCT:parsePct(document.getElementById("qTaxes").value),
     PARAMETRO_VERSAO_ID:PARAM_VERSION,
     DESPESA_FIXA_PCT:parsePct(document.getElementById("qFixedExpense").value),
+    COMISSAO_PCT:parsePct(document.getElementById("qCommission").value),
+    EXTRA_PCT:parsePct(document.getElementById("qExtra").value),
     LUCRO_DESEJADO_PCT:parsePct(document.getElementById("qDesiredMargin").value),
     VALOR_TOTAL:quoteState.items.reduce((s,x)=>s+Number(x.PRECO_FINAL_TOTAL||0),0),
     STATUS:status,
@@ -6121,8 +6168,10 @@ function applyQuoteToForm(q){
   qDestination.value=q.DESTINO||"";
   qDestinationDisplay.value=q.DESTINO||"";
   qTaxes.value=formatPctInput(Number(q.IMPOSTOS_PCT||0));
-  qFixedExpense.value=formatPctInput(Number(q.DESPESA_FIXA_PCT||FIXED_EXPENSE));
-  qDesiredMargin.value=formatPctInput(Number(q.LUCRO_DESEJADO_PCT||.30));
+  qFixedExpense.value=formatPctInput(Number(q.DESPESA_FIXA_PCT??FIXED_EXPENSE));
+  qCommission.value=formatPctInput(Number(q.COMISSAO_PCT||0));
+  qExtra.value=formatPctInput(Number(q.EXTRA_PCT||0));
+  qDesiredMargin.value=formatPctInput(Number(q.LUCRO_DESEJADO_PCT??.30));
 
   quoteNumberChip.textContent="Orçamento #"+q.NUMERO_ORCAMENTO;
   quoteStatusNote.textContent=(q.STATUS||"RASCUNHO")+" • Orçamento carregado";
@@ -6163,7 +6212,7 @@ function newQuote(){
   quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
   ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery","qObs"].forEach(id=>document.getElementById(id).value="");
   refreshClauseModelOptions("PADRAO_COMPLETO");qClauseModel.value="PADRAO_COMPLETO";qClauses.value=getClauseTemplateText("PADRAO_COMPLETO");
-  qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxes.value="";qDesiredMargin.value="30%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
+  qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxes.value="";qDesiredMargin.value="30%";qCommission.value="0%";qExtra.value="0%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
   quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();applyQuoteFreezeState();
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
