@@ -831,6 +831,24 @@ function salvarCliente_(cliente) {
   return { ok: true, cliente: novo, atualizado: !!row };
 }
 
+// Evolução idempotente das abas existentes: preserva todas as colunas e registros anteriores.
+function garantirColunasMarkup_() {
+  [
+    [ABAS.ORCAMENTOS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR']],
+    [ABAS.ORCAMENTO_ITENS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR']],
+    [ABAS.PEDIDOS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR']],
+    [ABAS.PEDIDO_ITENS, ['COMISSAO_PCT_SNAPSHOT', 'COMISSAO_VALOR_SNAPSHOT', 'EXTRA_PCT_SNAPSHOT', 'EXTRA_VALOR_SNAPSHOT']],
+    [ABAS.VENDAS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR']]
+  ].forEach(function(config) {
+    const sh = aba_(config[0]);
+    const h = cabecalhos_(sh);
+    const faltantes = config[1].filter(function(nome) { return !h[nome]; });
+    if (faltantes.length) {
+      sh.getRange(1, sh.getLastColumn() + 1, 1, faltantes.length).setValues([faltantes]);
+    }
+  });
+}
+
 function salvarOrcamento_(orcamento) {
   const itens = Array.isArray(orcamento.itens) ? orcamento.itens : [];
   if (!orcamento.CLIENTE_ID) throw new Error('CLIENTE_ID é obrigatório.');
@@ -878,6 +896,7 @@ function salvarOrcamento_(orcamento) {
   const destino = destinoPorUf_(cliente.UF);
   const impostosPct = getImpostoPct_(enquadramento, destino, tipoVenda);
 
+  garantirColunasMarkup_();
   const shOrc = aba_(ABAS.ORCAMENTOS);
   const hOrc = cabecalhos_(shOrc);
   const rowExistente = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
@@ -893,6 +912,11 @@ function salvarOrcamento_(orcamento) {
   const despesaFixaPct = existente && existente.DESPESA_FIXA_PCT !== ''
     ? numero_(existente.DESPESA_FIXA_PCT)
     : numero_(versaoParametros.DESPESA_FIXA_PCT);
+  const comissaoPct = numero_(orcamento.COMISSAO_PCT !== undefined ? orcamento.COMISSAO_PCT : (existente ? existente.COMISSAO_PCT : 0));
+  const extraPct = numero_(orcamento.EXTRA_PCT !== undefined ? orcamento.EXTRA_PCT : (existente ? existente.EXTRA_PCT : 0));
+  if (comissaoPct < 0 || comissaoPct >= 1 || extraPct < 0 || extraPct >= 1) {
+    throw new Error('Comissão e Extra precisam estar entre 0% e 99,99%.');
+  }
 
   const cab = Object.assign({}, orcamento, {
     ID_ORCAMENTO: idOrcamento,
@@ -909,6 +933,10 @@ function salvarOrcamento_(orcamento) {
     VALOR_TOTAL: valorFinalOrcamento || numero_(orcamento.VALOR_TOTAL),
     PARAMETRO_VERSAO_ID: versaoParametros.ID_VERSAO,
     DESPESA_FIXA_PCT: despesaFixaPct,
+    COMISSAO_PCT: comissaoPct,
+    COMISSAO_VALOR: valorFinalOrcamento * comissaoPct,
+    EXTRA_PCT: extraPct,
+    EXTRA_VALOR: valorFinalOrcamento * extraPct,
     FONTE_PARAMETROS: orcamento.FONTE_PARAMETROS || versaoParametros.ORIGEM_TITULO || CUSTOS_ORIGEM_TITULO,
     DT_CRIACAO: orcamento.DT_CRIACAO || (existente ? existente.DT_CRIACAO : agora),
     DT_ATUALIZACAO: agora,
@@ -947,17 +975,21 @@ function salvarOrcamento_(orcamento) {
     const custoHoras = numero_(item.CUSTO_HORAS);
     const impostos = numero_(cab.IMPOSTOS_PCT);
     const despesaFixa = numero_(cab.DESPESA_FIXA_PCT);
+    const comissao = numero_(cab.COMISSAO_PCT);
+    const extra = numero_(cab.EXTRA_PCT);
     const custoTotal = custoMP + custoTerceiros + custoFerramental + custoHoras;
     const dvValor = precoFinalTotal * impostos;
     const dfValor = precoFinalTotal * despesaFixa;
+    const comissaoValor = precoFinalTotal * comissao;
+    const extraValor = precoFinalTotal * extra;
     const lucroBruto = precoFinalTotal - custoTotal;
     const margemBruta = precoFinalTotal ? lucroBruto / precoFinalTotal : 0;
 
     const mcFinal = precoFinalTotal
-      ? precoFinalTotal - custoMP - custoTerceiros - custoFerramental - dvValor
+      ? precoFinalTotal - custoMP - custoTerceiros - custoFerramental - dvValor - comissaoValor - extraValor
       : 0;
     const lucroFinal = precoFinalTotal
-      ? precoFinalTotal - custoTotal - dvValor - dfValor
+      ? precoFinalTotal - custoTotal - dvValor - dfValor - comissaoValor - extraValor
       : 0;
 
     const linhaItem = Object.assign({}, item, {
@@ -974,6 +1006,10 @@ function salvarOrcamento_(orcamento) {
       DV_VALOR: dvValor,
       DF_PCT: despesaFixa,
       DF_VALOR: dfValor,
+      COMISSAO_PCT: comissao,
+      COMISSAO_VALOR: comissaoValor,
+      EXTRA_PCT: extra,
+      EXTRA_VALOR: extraValor,
       LUCRO_BRUTO: lucroBruto,
       MARGEM_BRUTA_PCT: margemBruta,
       MC_FINAL: mcFinal,
@@ -1243,9 +1279,11 @@ function getPedidoDetalhe_(idPedido) {
     a.custo += numero_(item.CUSTO_TOTAL_SNAPSHOT);
     a.dv += numero_(item.DV_VALOR_SNAPSHOT);
     a.df += numero_(item.DF_VALOR_SNAPSHOT);
+    a.comissao += numero_(item.COMISSAO_VALOR_SNAPSHOT);
+    a.extra += numero_(item.EXTRA_VALOR_SNAPSHOT);
     a.lucro += numero_(item.LUCRO_SNAPSHOT);
     return a;
-  }, {custo:0,dv:0,df:0,lucro:0});
+  }, {custo:0,dv:0,df:0,comissao:0,extra:0,lucro:0});
 
   resumo.faturamento = numero_(pedido.VALOR_TOTAL);
   resumo.lucratividade = resumo.faturamento ? resumo.lucro / resumo.faturamento : 0;
@@ -1680,6 +1718,7 @@ function converterOrcamentoEmPedido_(idOrcamento) {
   try {
     if (!idOrcamento) throw new Error('ID do orçamento não informado.');
 
+    garantirColunasMarkup_();
     const shOrc = aba_(ABAS.ORCAMENTOS);
     const hOrc = cabecalhos_(shOrc);
     const row = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
@@ -1710,6 +1749,10 @@ function converterOrcamentoEmPedido_(idOrcamento) {
       COND_PAGAMENTO: orc.COND_PAGAMENTO,
       PRAZO_ENTREGA: orc.PRAZO_ENTREGA,
       VALOR_TOTAL: orc.VALOR_TOTAL,
+      COMISSAO_PCT: numero_(orc.COMISSAO_PCT),
+      COMISSAO_VALOR: numero_(orc.COMISSAO_VALOR),
+      EXTRA_PCT: numero_(orc.EXTRA_PCT),
+      EXTRA_VALOR: numero_(orc.EXTRA_VALOR),
       STATUS: 'ABERTO',
       DT_CONVERSAO: agora,
       DT_CRIACAO: agora,
@@ -1755,6 +1798,10 @@ function converterOrcamentoEmPedido_(idOrcamento) {
         DV_VALOR_SNAPSHOT: numero_(item.DV_VALOR),
         DF_PCT_SNAPSHOT: numero_(item.DF_PCT),
         DF_VALOR_SNAPSHOT: numero_(item.DF_VALOR),
+        COMISSAO_PCT_SNAPSHOT: numero_(item.COMISSAO_PCT),
+        COMISSAO_VALOR_SNAPSHOT: numero_(item.COMISSAO_VALOR),
+        EXTRA_PCT_SNAPSHOT: numero_(item.EXTRA_PCT),
+        EXTRA_VALOR_SNAPSHOT: numero_(item.EXTRA_VALOR),
         LUCRO_BRUTO_SNAPSHOT: numero_(item.LUCRO_BRUTO),
         MARGEM_BRUTA_PCT_SNAPSHOT: numero_(item.MARGEM_BRUTA_PCT),
         LUCRO_SNAPSHOT: numero_(item.LUCRO_FINAL),
@@ -1843,6 +1890,10 @@ function registrarPedidoEmVendas_(idPedido, orc, numeroPedido, agora) {
       DV_VALOR: numero_(item.DV_VALOR_SNAPSHOT),
       DF_PCT: numero_(item.DF_PCT_SNAPSHOT),
       DF_VALOR: numero_(item.DF_VALOR_SNAPSHOT),
+      COMISSAO_PCT: numero_(item.COMISSAO_PCT_SNAPSHOT),
+      COMISSAO_VALOR: numero_(item.COMISSAO_VALOR_SNAPSHOT),
+      EXTRA_PCT: numero_(item.EXTRA_PCT_SNAPSHOT),
+      EXTRA_VALOR: numero_(item.EXTRA_VALOR_SNAPSHOT),
       LUCRO: lucro,
       LUCRO_PCT: faturamento ? lucro / faturamento : 0,
       MODALIDADE: orc.TIPO_VENDA || '',
