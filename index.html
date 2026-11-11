@@ -5823,6 +5823,7 @@ function collectQuotePayload(status){
   return {
     ID_ORCAMENTO:quoteState.id,
     NUMERO_ORCAMENTO:quoteState.number,
+    DATA_ORCAMENTO:quoteState.taxDate||taxToday(),
     CLIENTE_ID:document.getElementById("qClientId").value.trim(),
     CLIENTE_NOME_SNAPSHOT:document.getElementById("qClient").value.trim(),
     CIDADE_UF:document.getElementById("qCity").value.trim(),
@@ -6187,7 +6188,7 @@ function applyQuoteToForm(q){
   qDestination.value=q.DESTINO||"";
   qDestinationDisplay.value=q.DESTINO||"";
   qTaxes.value=formatPctInput(Number(q.IMPOSTOS_PCT||0));
-  populateQuoteTaxMaskOptions(APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===String(q.CLIENTE_ID)),qSaleType.value,q.DESTINO||"");
+  populateQuoteTaxMaskOptions(APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===String(q.CLIENTE_ID)),qSaleType.value,q.DESTINO||"",q.IMPOSTO_MASCARA_ID||"");
   if([...qTaxMask.options].some(o=>o.value===String(q.IMPOSTO_MASCARA_ID||"")))qTaxMask.value=String(q.IMPOSTO_MASCARA_ID||"");
   showQuoteTaxSummary(null,quoteState.taxNote);
   qFixedExpense.value=formatPctInput(Number(q.DESPESA_FIXA_PCT??FIXED_EXPENSE));
