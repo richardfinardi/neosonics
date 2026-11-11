@@ -1561,6 +1561,7 @@ body.theme-light .origin-chip.quick{
   border-color:#f0d4bd!important;
 }
 </style>
+<link rel="stylesheet" href="tax-masks.css?v=20261111-1">
 </head>
 <body>
 <div class="menu-overlay" id="menuOverlay" onclick="closeMobileMenu()"></div>
@@ -2171,7 +2172,7 @@ body.theme-light .origin-chip.quick{
                 </div>
                 <div class="field">
                   <label>Data *</label>
-                  <input type="date" id="qoDate">
+                  <input type="date" id="qoDate" onchange="recalculateQuickOrder()">
                 </div>
                 <div class="field">
                   <label>Tipo de venda *</label>
@@ -2354,6 +2355,7 @@ body.theme-light .origin-chip.quick{
               </div>
               <div class="field"><label>Destino fiscal</label><input id="qDestinationDisplay" readonly placeholder="Definido pelo estado do cliente"></div>
               <div class="field"><label>Impostos</label><input id="qTaxes" readonly></div>
+              <div class="field full"><label>Máscara de impostos</label><select id="qTaxMask" onchange="syncTaxRule()"><option value="">Automática (por vigência)</option></select><small id="qTaxDetails">Impostos por cliente, tipo de venda e data.</small></div>
               <div class="field"><label>Despesa fixa</label><input id="qFixedExpense" value="12,7416%" readonly></div>
               <div class="field"><label>Comissão (%)</label><input id="qCommission" value="0%" inputmode="decimal" placeholder="Ex.: 5%" oninput="refreshQuoteMarkup()"></div>
               <div class="field"><label>Extra (%)</label><input id="qExtra" value="0%" inputmode="decimal" placeholder="Ex.: 2%" oninput="refreshQuoteMarkup()"></div>
@@ -2557,7 +2559,7 @@ let quoteHistoryCache=[];
 let orderCache=[];
 let currentOrderId="";
 let currentOrderOrigin="";
-let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[],products:[],proposalTerms:[]};
+let APP_DATA={clients:[],segments:[],segmentRelations:[],clientMap:[],products:[],proposalTerms:[],taxMasks:[]};
 let currentPage="overview";
 let BOOTSTRAP_DATA=null;
 let bootstrapPromise=null;
@@ -2813,6 +2815,7 @@ function refreshCurrentPage(btn){
   else if(currentPage==="segments")initSegmentsPage(true);
   else if(currentPage==="quotes")initQuotesPage(true);
   else if(currentPage==="proposalTerms")initProposalTermsPage(true);
+  else if(currentPage==="taxMasks")initTaxMasksPage(true);
   else if(currentPage==="orders")initOrdersPage(true);
 }
 
@@ -3778,11 +3781,10 @@ function syncQuickOrderClient(){
 
 function quickOrderTaxRate(){
   const client=quickOrderClient();
-  if(!client||!client.UF)return null;
-  const destination=destinationByUf(client.UF);
   const type=String(document.getElementById("qoSaleType")?.value||"VENDA");
-  const key="NORMAL|"+destination+"|"+type;
-  return Object.prototype.hasOwnProperty.call(TAX_RULES,key)?Number(TAX_RULES[key]):null;
+  const date=document.getElementById("qoDate")?.value||taxToday();
+  const resolved=resolveTaxForClient(client,type,date);
+  return resolved?resolved.pct:null;
 }
 
 function recalculateQuickOrder(){
@@ -3824,7 +3826,8 @@ function recalculateQuickOrder(){
     info.textContent="Não existe regra de imposto para "+destinationByUf(client.UF)+" / "+document.getElementById("qoSaleType").value+".";
     info.className="quick-order-rule warn";
   }else{
-    info.textContent="Destino: "+destinationByUf(client.UF)+" • Impostos: "+formatPct(rate)+" • Despesa fixa: "+formatPct(df);
+    const applied=resolveTaxForClient(client,document.getElementById("qoSaleType").value,document.getElementById("qoDate").value||taxToday());
+    info.textContent="Destino: "+destinationByUf(client.UF)+" • "+(applied?.mask?"Máscara: "+applied.mask.NOME:"Regra legada")+" • Impostos: "+formatPct(rate)+" • Despesa fixa: "+formatPct(df);
     info.className="quick-order-rule ready";
   }
 
@@ -5089,6 +5092,8 @@ function applyBootstrapData(j,fromNetwork=false){
   APP_DATA.segmentRelations=Array.isArray(j.segmento_relacoes)?j.segmento_relacoes:[];
   APP_DATA.products=Array.isArray(j.produtos)?j.produtos:[];
   APP_DATA.proposalTerms=Array.isArray(j.termos_proposta)?j.termos_proposta:[];
+  APP_DATA.taxMasks=Array.isArray(j.mascaras_impostos)?j.mascaras_impostos:[];
+  if(document.getElementById("taxMasksBody"))renderTaxMasksList();
   populateClientSelectors();
   populateApprovedProducts();
   refreshClauseModelOptions();
@@ -5126,6 +5131,7 @@ function persistBootstrapCache(){
   BOOTSTRAP_DATA.segmento_relacoes=APP_DATA.segmentRelations;
   BOOTSTRAP_DATA.produtos=APP_DATA.products;
   BOOTSTRAP_DATA.termos_proposta=APP_DATA.proposalTerms;
+  BOOTSTRAP_DATA.mascaras_impostos=APP_DATA.taxMasks;
   writeAppCache("bootstrap",BOOTSTRAP_DATA);
 }
 
@@ -5477,22 +5483,29 @@ function syncTaxRule(){
   const client=APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===clientId);
   const type=String(document.getElementById("qSaleType")?.value||"VENDA");
   const destination=client?destinationByUf(client.UF):"";
-
   qFramework.value="NORMAL";
   qDestination.value=destination;
   qDestinationDisplay.value=destination||"";
-  
+  populateQuoteTaxMaskOptions(client,type,destination);
   if(!destination){
     qTaxes.value="";
+    showQuoteTaxSummary(null);
     recalculateItem();
     return;
   }
-
-  const taxType=taxTypeFromSaleType(type);
-  const key="NORMAL|"+destination+"|"+taxType;
-  const rate=TAX_RULES[key];
-
-  qTaxes.value=rate!==undefined?formatPctInput(rate):"";
+  const selected=String(document.getElementById("qTaxMask")?.value||"");
+  const context=quoteTaxContextKey(clientId,type,destination);
+  const preserved=quoteState.id&&quoteState.taxContextKey===context&&
+    String(quoteState.taxMaskId||"")===selected&&
+    quoteState.taxSnapshot!==undefined&&quoteState.taxSnapshot!==null;
+  if(preserved){
+    qTaxes.value=formatPctInput(quoteState.taxSnapshot);
+    showQuoteTaxSummary(null,quoteState.taxNote||"Impostos preservados no orçamento.");
+  }else{
+    const resolved=resolveTaxForClient(client,type,quoteState.taxDate||taxToday(),selected);
+    qTaxes.value=resolved?formatPctInput(resolved.pct):"";
+    showQuoteTaxSummary(resolved);
+  }
   refreshQuoteMarkup();
 }
 
@@ -5824,6 +5837,7 @@ function collectQuotePayload(status){
     TIPO_VENDA:document.getElementById("qSaleType").value,
     DESTINO:document.getElementById("qDestination").value,
     IMPOSTOS_PCT:parsePct(document.getElementById("qTaxes").value),
+    IMPOSTO_MASCARA_ID:document.getElementById("qTaxMask").value,
     PARAMETRO_VERSAO_ID:PARAM_VERSION,
     DESPESA_FIXA_PCT:parsePct(document.getElementById("qFixedExpense").value),
     COMISSAO_PCT:parsePct(document.getElementById("qCommission").value),
@@ -6149,7 +6163,12 @@ function applyQuoteToForm(q){
     id:q.ID_ORCAMENTO,
     number:q.NUMERO_ORCAMENTO,
     status:q.STATUS||"RASCUNHO",
-    items:Array.isArray(q.itens)?q.itens:[]
+    items:Array.isArray(q.itens)?q.itens:[],
+    taxDate:taxDate(q.DATA_ORCAMENTO)||taxToday(),
+    taxContextKey:quoteTaxContextKey(q.CLIENTE_ID,q.TIPO_VENDA||"VENDA",q.DESTINO),
+    taxMaskId:String(q.IMPOSTO_MASCARA_ID||""),
+    taxSnapshot:Number(q.IMPOSTOS_PCT||0),
+    taxNote:q.IMPOSTOS_DETALHE_JSON?"Máscara fiscal preservada no orçamento • "+(function(){try{return JSON.parse(q.IMPOSTOS_DETALHE_JSON).nome||""}catch(e){return ""}})():"Impostos preservados conforme orçamento salvo"
   };
 
   qClient.value=q.CLIENTE_NOME_SNAPSHOT||"";
@@ -6168,6 +6187,9 @@ function applyQuoteToForm(q){
   qDestination.value=q.DESTINO||"";
   qDestinationDisplay.value=q.DESTINO||"";
   qTaxes.value=formatPctInput(Number(q.IMPOSTOS_PCT||0));
+  populateQuoteTaxMaskOptions(APP_DATA.clients.find(x=>String(x.ID_CLIENTE)===String(q.CLIENTE_ID)),qSaleType.value,q.DESTINO||"");
+  if([...qTaxMask.options].some(o=>o.value===String(q.IMPOSTO_MASCARA_ID||"")))qTaxMask.value=String(q.IMPOSTO_MASCARA_ID||"");
+  showQuoteTaxSummary(null,quoteState.taxNote);
   qFixedExpense.value=formatPctInput(Number(q.DESPESA_FIXA_PCT??FIXED_EXPENSE));
   qCommission.value=formatPctInput(Number(q.COMISSAO_PCT||0));
   qExtra.value=formatPctInput(Number(q.EXTRA_PCT||0));
@@ -6209,10 +6231,10 @@ function formatDateBR(v){
 }
 
 function newQuote(){
-  quoteState={id:null,number:null,status:"RASCUNHO",items:[]};editingItemIndex=null;
+  quoteState={id:null,number:null,status:"RASCUNHO",items:[],taxDate:taxToday()};editingItemIndex=null;
   ["qClient","qClientId","qCity","qContact","qSeller","qPayment","qDelivery","qObs"].forEach(id=>document.getElementById(id).value="");
   refreshClauseModelOptions("PADRAO_COMPLETO");qClauseModel.value="PADRAO_COMPLETO";qClauses.value=getClauseTemplateText("PADRAO_COMPLETO");
-  qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxes.value="";qDesiredMargin.value="30%";qCommission.value="0%";qExtra.value="0%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
+  qFramework.value="NORMAL";qSaleType.value="VENDA";qDestination.value="";qDestinationDisplay.value="";qTaxMask.value="";qTaxes.value="";qDesiredMargin.value="30%";qCommission.value="0%";qExtra.value="0%";qFixedExpense.value=formatPctInput(FIXED_EXPENSE);
   quoteNumberChip.textContent="Novo orçamento";quoteStatusNote.textContent="Rascunho • ainda não enviado";renderQuoteItems();clearItemForm();syncTaxRule();applyQuoteFreezeState();
 }
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
@@ -6231,5 +6253,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 });
 </script>
 <script src="proposal.js?v=20261003-1"></script>
+<script src="tax-masks.js?v=20261111-1"></script>
+<script src="tax-masks-view.js?v=20261111-1"></script>
 </body>
 </html>
