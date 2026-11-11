@@ -47,6 +47,7 @@ function resolveTaxForClient(client,type,date,requestedMaskId) {
     :candidates[0];
   if(requestedMaskId&&!mask)return null;
   if(mask)return {pct:taxMaskPercent(mask),mask,source:"MASCARA"};
+  if((taxDate(date)||taxToday())>="2027-01-01")return null;
   const key="NORMAL|"+dest+"|"+String(type||"VENDA").toUpperCase();
   if(!Object.prototype.hasOwnProperty.call(TAX_RULES,key))return null;
   return {pct:Number(TAX_RULES[key]),mask:null,source:"LEGADO"};
@@ -227,7 +228,7 @@ function showQuoteTaxSummary(result,original) {
     note.textContent=original;
     return;
   }
-  if(!result){note.textContent="Sem regra fiscal aplicável. Revise cliente, UF e tipo de venda.";return;}
+  if(!result){note.textContent="Sem máscara fiscal vigente. A partir de 2027, cadastre as alíquotas aplicáveis antes de precificar.";return;}
   if(!result.mask){note.textContent="Regra anterior (total consolidado). Cadastre uma máscara para detalhar os tributos.";return;}
   note.textContent="Máscara: "+result.mask.NOME+" • "+result.mask.itens.map(x=>
     x.TRIBUTO+" "+formatPct(Number(x.ALIQUOTA_PCT||0)*(1-Number(x.REDUCAO_PCT||0)))+
