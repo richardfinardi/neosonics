@@ -1,0 +1,19 @@
+/* Máscaras tributárias: responsivo, usando as cores e componentes do Neosonics. */
+.tax-mask-list .table-wrap {max-height:680px;overflow:auto}
+.tax-mask-editor .form-grid {gap:12px}
+.tax-mask-editor .field input,.tax-mask-editor .field select {width:100%}
+.tax-mask-row {display:grid;grid-template-columns:minmax(130px,2fr) minmax(90px,1fr) minmax(90px,1fr) minmax(115px,1fr) 80px 36px;gap:10px;align-items:end;border:1px solid var(--line);padding:12px;border-radius:12px;background:var(--panel2);margin-bottom:10px}
+.tax-line-checkbox {display:flex;align-items:center;gap:8px;min-height:42px;font-size:12px;white-space:nowrap;color:var(--text)}
+.tax-line-checkbox input {width:18px;height:18px;accent-color:var(--accent)}
+.tax-line-effective {display:flex;flex-direction:column;gap:5px;min-height:42px;justify-content:center;text-align:right}
+.tax-line-effective small {font-size:10px;color:var(--muted)}
+.tax-line-effective b {font-size:13px}
+.tax-line-remove {height:42px!important;padding:0!important;font-size:20px!important}
+.tax-mask-summary {display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--panel2);border-radius:12px;border:1px solid var(--line);padding:14px 18px;margin-top:12px}
+.tax-mask-summary strong{font-size:24px;color:var(--accent2)}
+.tax-mask-summary small{color:var(--muted)}
+.tax-mask-help {border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:12px 15px;color:var(--muted);line-height:1.5;font-size:12px;margin:12px 0}
+.tax-mask-help b {color:var(--text)}
+#qTaxDetails {font-size:11px;color:var(--muted);line-height:1.45;padding-top:3px;display:block}
+@media(max-width:1100px){.tax-mask-row{grid-template-columns:repeat(3,minmax(0,1fr))}.tax-line-checkbox{align-self:center}.tax-line-effective{text-align:left}.tax-line-remove{width:45px}}
+@media(max-width:600px){.tax-mask-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tax-mask-row .field:first-child{grid-column:1/-1}.tax-line-effective{text-align:right}.tax-mask-summary strong{font-size:20px}}
