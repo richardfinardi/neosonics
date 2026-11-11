@@ -17,6 +17,8 @@ const ABAS = Object.freeze({
   PEDIDO_ITENS: 'PEDIDO_ITENS',
   PROCESSOS_CUSTO: 'PROCESSOS_CUSTO',
   TABELA_IMPOSTOS: 'TABELA_IMPOSTOS',
+  IMPOSTOS_MASCARAS: 'IMPOSTOS_MASCARAS',
+  IMPOSTOS_MASCARA_ITENS: 'IMPOSTOS_MASCARA_ITENS',
   SEGMENTO_RELACOES: 'SEGMENTO_RELACOES',
   PARAMETRO_VERSOES: 'PARAMETRO_VERSOES',
   CUSTO_HORA_VERSOES: 'CUSTO_HORA_VERSOES',
@@ -93,6 +95,11 @@ function doGet(e) {
       case 'segmentos':
         return json_(cacheLeitura_('segmentos', 300, function() {
           return { ok: true, dados: listarSegmentos_() };
+        }));
+
+      case 'impostos_mascaras':
+        return json_(cacheLeitura_('impostos_mascaras', 180, function() {
+          return { ok:true, dados:listarMascarasImpostos_() };
         }));
 
       case 'termos_proposta':
@@ -196,6 +203,10 @@ function doPost(e) {
         resultado = perderOrcamento_(body.id_orcamento);
         break;
 
+      case 'salvar_mascara_imposto':
+        resultado = salvarMascaraImpostos_(body.mascara || {});
+        break;
+
       case 'salvar_termo_proposta':
         resultado = salvarTermoProposta_(body.termo || {});
         break;
@@ -240,6 +251,7 @@ function getBootstrap_() {
     produtos: listarObjetos_(ABAS.PRODUTOS),
     termos_proposta: listarTermosProposta_(),
     impostos: listarObjetos_(ABAS.TABELA_IMPOSTOS),
+    mascaras_impostos: listarMascarasImpostos_(),
     parametro_versao_ativa: getVersaoParametrosAtiva_(),
     custos_hora_ativos: getCustosHoraVersaoAtiva_()
   };
@@ -834,7 +846,7 @@ function salvarCliente_(cliente) {
 // Evolução idempotente das abas existentes: preserva todas as colunas e registros anteriores.
 function garantirColunasMarkup_() {
   [
-    [ABAS.ORCAMENTOS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR']],
+    [ABAS.ORCAMENTOS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR', 'IMPOSTO_MASCARA_ID', 'IMPOSTOS_DETALHE_JSON']],
     [ABAS.ORCAMENTO_ITENS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR']],
     [ABAS.PEDIDOS, ['COMISSAO_PCT', 'COMISSAO_VALOR', 'EXTRA_PCT', 'EXTRA_VALOR']],
     [ABAS.PEDIDO_ITENS, ['COMISSAO_PCT_SNAPSHOT', 'COMISSAO_VALOR_SNAPSHOT', 'EXTRA_PCT_SNAPSHOT', 'EXTRA_VALOR_SNAPSHOT']],
@@ -894,14 +906,28 @@ function salvarOrcamento_(orcamento) {
   const tipoVenda = normalizarTipoVendaComercial_(orcamento.TIPO_VENDA || 'VENDA');
   const enquadramento = 'NORMAL';
   const destino = destinoPorUf_(cliente.UF);
-  const impostosPct = getImpostoPct_(enquadramento, destino, tipoVenda);
-
   garantirColunasMarkup_();
   const shOrc = aba_(ABAS.ORCAMENTOS);
   const hOrc = cabecalhos_(shOrc);
   const rowExistente = localizarLinha_(shOrc, hOrc.ID_ORCAMENTO, idOrcamento);
   const existente = rowExistente ? objetoDaLinha_(shOrc, rowExistente) : null;
 
+  const preservarTributos = !!existente &&
+    String(existente.CLIENTE_ID || '') === String(orcamento.CLIENTE_ID || '') &&
+    String(existente.TIPO_VENDA || '') === tipoVenda &&
+    String(existente.DESTINO || '') === destino &&
+    String(existente.IMPOSTO_MASCARA_ID || '') === String(orcamento.IMPOSTO_MASCARA_ID || '') &&
+    orcamento.RECALCULAR_IMPOSTOS !== true;
+  const impostosResolvidos = preservarTributos ? {
+    percentual: numero_(existente.IMPOSTOS_PCT),
+    mascara_id: String(existente.IMPOSTO_MASCARA_ID || ''),
+    detalhes: String(existente.IMPOSTOS_DETALHE_JSON || '')
+  } : resolverImpostosPorContexto_(
+    enquadramento, destino, tipoVenda,
+    orcamento.DATA_ORCAMENTO || agora.substring(0, 10),
+    cliente.UF, cliente.CIDADE, orcamento.IMPOSTO_MASCARA_ID || ''
+  );
+  const impostosPct = impostosResolvidos.percentual;
   if (existente) {
     const statusAtual = String(existente.STATUS || '').toUpperCase();
     if (statusAtual === 'APROVADO' || statusAtual === 'CONVERTIDO' || statusAtual === 'PERDIDO') {
@@ -929,6 +955,8 @@ function salvarOrcamento_(orcamento) {
     TIPO_VENDA: tipoVenda,
     DESTINO: destino,
     IMPOSTOS_PCT: impostosPct,
+    IMPOSTO_MASCARA_ID: impostosResolvidos.mascara_id,
+    IMPOSTOS_DETALHE_JSON: impostosResolvidos.detalhes,
     STATUS: statusSolicitado,
     VALOR_TOTAL: valorFinalOrcamento || numero_(orcamento.VALOR_TOTAL),
     PARAMETRO_VERSAO_ID: versaoParametros.ID_VERSAO,
@@ -1312,7 +1340,8 @@ function criarPedidoRapido_(pedido) {
 
     const destino = destinoPorUf_(uf);
     const enquadramento = 'NORMAL';
-    const impostosPct = getImpostoPct_(enquadramento, destino, tipoVenda);
+    const dataTributaria = normalizarDataFiltro_(p.DATA_PEDIDO) || isoAgora_().substring(0, 10);
+    const impostosPct = resolverImpostosPorContexto_(enquadramento, destino, tipoVenda, dataTributaria, uf, cliente.CIDADE).percentual;
     const versao = getVersaoParametrosAtiva_();
     if (!versao) throw new Error('Não existe versão ativa dos parâmetros de custos.');
 
@@ -1958,23 +1987,7 @@ function destinoPorUf_(uf) {
 }
 
 function getImpostoPct_(enquadramento, destino, tipoTributario) {
-  const regras = dadosAbaCacheados_(ABAS.TABELA_IMPOSTOS, 300);
-  const e = normalizarTexto_(enquadramento);
-  const d = normalizarTexto_(destino);
-  const t = normalizarTexto_(tipoTributario);
-
-  const regra = regras.find(function(r) {
-    return r.ATIVO !== false &&
-           normalizarTexto_(r.ENQUADRAMENTO) === e &&
-           normalizarTexto_(r.DESTINO) === d &&
-           normalizarTexto_(r.TIPO_VENDA) === t;
-  });
-
-  if (!regra) {
-    throw new Error('Regra de imposto não encontrada para ' + enquadramento + ' / ' + destino + ' / ' + tipoTributario);
-  }
-
-  return numero_(regra.IMPOSTOS_PCT);
+  return resolverImpostosPorContexto_(enquadramento, destino, tipoTributario).percentual;
 }
 
 function validarSegmentoTipo_(idSegmento, tipoEsperado) {
