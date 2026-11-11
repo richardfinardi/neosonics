@@ -152,6 +152,10 @@ function collectTaxMaskRows() {
     const reduceInput=row.querySelector(".tax-line-discount").value.trim();
     if(!name)throw Error("Informe o tributo da linha "+(i+1)+".");
     if(!rateInput)throw Error("Informe a alíquota da linha "+(i+1)+", mesmo quando for zero.");
+    const validPercent=v=>/^\d+(?:[.,]\d+)?%?$/.test(v.replace(/\s/g,""));
+    if(!validPercent(rateInput)||(reduceInput&&!validPercent(reduceInput))){
+      throw Error("Informe percentuais numéricos na linha "+(i+1)+". Ex.: 0,9");
+    }
     const rate=parsePct(rateInput),reduction=parsePct(reduceInput);
     if(rate<0||rate>1||reduction<0||reduction>1)throw Error("Percentuais inválidos na linha "+(i+1)+".");
     return {
