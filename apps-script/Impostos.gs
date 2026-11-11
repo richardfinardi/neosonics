@@ -203,6 +203,9 @@ function resolverImpostosPorContexto_(enquadramento, destino, tipo, data, uf, mu
       detalhes:JSON.stringify({nome:m.NOME,inicio:normalizarDataFiltro_(m.VIGENCIA_INICIO),itens:m.itens})
     };
   }
+  if (dia >= '2027-01-01') {
+    throw new Error('Não existe máscara de impostos ativa para esta operação a partir de 2027. Cadastre a máscara fiscal e suas alíquotas antes de emitir orçamento ou pedido.');
+  }
   return {
     percentual:getImpostoPctLegado_(enquadramento,destino,tipo),
     mascara_id:'',
