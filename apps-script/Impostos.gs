@@ -84,6 +84,9 @@ function salvarMascaraImpostos_(entrada) {
     const itens = entradas.map(function(x,i) {
       const tributo = String(x.TRIBUTO || '').trim().toUpperCase();
       if (!tributo) throw new Error('Informe o tributo na linha ' + (i+1) + '.');
+      if (typeof x.ALIQUOTA_PCT !== 'number' || typeof x.REDUCAO_PCT !== 'number') {
+        throw new Error('Alíquota e redução devem ser percentuais numéricos na linha ' + (i+1) + '.');
+      }
       const aliquota = numero_(x.ALIQUOTA_PCT);
       const reducao = numero_(x.REDUCAO_PCT);
       if (!isFinite(aliquota) || aliquota < 0 || aliquota > 1) {
