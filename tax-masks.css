@@ -15,5 +15,5 @@
 .tax-mask-help {border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:12px 15px;color:var(--muted);line-height:1.5;font-size:12px;margin:12px 0}
 .tax-mask-help b {color:var(--text)}
 #qTaxDetails {font-size:11px;color:var(--muted);line-height:1.45;padding-top:3px;display:block}
-@media(max-width:1100px){.tax-mask-row{grid-template-columns:repeat(3,minmax(0,1fr))}.tax-line-checkbox{align-self:center}.tax-line-effective{text-align:left}.tax-line-remove{width:45px}}
+@media(max-width:1600px){.tax-mask-row{grid-template-columns:repeat(3,minmax(0,1fr))}.tax-line-checkbox{align-self:center}.tax-line-effective{text-align:left}.tax-line-remove{width:45px}}
 @media(max-width:600px){.tax-mask-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tax-mask-row .field:first-child{grid-column:1/-1}.tax-line-effective{text-align:right}.tax-mask-summary strong{font-size:20px}}
