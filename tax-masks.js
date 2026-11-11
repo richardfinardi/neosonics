@@ -205,10 +205,10 @@ async function saveTaxMask() {
 function quoteTaxContextKey(clientId,type,destination) {
   return [String(clientId||""),String(type||""),String(destination||"")].join("|");
 }
-function populateQuoteTaxMaskOptions(client,type,destination) {
+function populateQuoteTaxMaskOptions(client,type,destination,selectedOverride) {
   const select=document.getElementById("qTaxMask");
   if(!select)return;
-  const previous=select.value||"";
+  const previous=selectedOverride===undefined?(select.value||""):String(selectedOverride||"");
   const ctx={framework:"NORMAL",destination,type,uf:client?.UF,city:client?.CIDADE,
     date:quoteState?.taxDate||taxToday()};
   const matches=client?matchingTaxMasks(ctx):[];
